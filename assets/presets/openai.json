@@ -1,0 +1,9 @@
+{
+  "默认": {
+    "url": "https://api.openai.com/v1",
+    "key": "",
+    "model": "",
+    "temp": "0.7",
+    "max": "1024"
+  }
+}

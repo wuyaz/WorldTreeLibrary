@@ -1,7 +1,7 @@
 {
   "display_name": "WorldTreeLibrary",
   "loading_order": 10,
-  "js": "index.js",
+  "js": "js/main.js",
   "author": "WorldTreeLibrary",
   "version": "0.1.0",
   "description": "Memory table plugin skeleton (UI + API wrappers)."

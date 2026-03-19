@@ -1,30 +1,7 @@
-import {
-  MemoryTableStateReadParams,
-  MemoryTableStateReadResult,
-  MemoryTableStateWriteParams,
-  MemoryTableStateWriteResult,
-  MemoryWriteParams,
-  MemoryWriteResult,
-  PersistMemoryWriteParams,
-  PersistMemoryWriteResult,
-  WorldBookEntry
-} from './types';
-
 // 依赖 st-api-wrapper 的全局对象
-declare const ST_API: any;
+const ST_API = window.ST_API;
 
-type WorldBookGetOutput = {
-  worldBook: { name: string; entries: WorldBookEntry[] };
-  scope?: string;
-};
-
-type WorldBookCreateEntryOutput = { entry: WorldBookEntry; ok: boolean };
-
-type WorldBookUpdateEntryOutput = { entry: WorldBookEntry; ok: boolean };
-
-export async function upsertMemoryTableEntry(
-  params: MemoryWriteParams
-): Promise<MemoryWriteResult> {
+export async function upsertMemoryTableEntry(params) {
   const {
     bookName,
     entryName,
@@ -37,7 +14,7 @@ export async function upsertMemoryTableEntry(
     enabled = true
   } = params;
 
-  const book: WorldBookGetOutput = await ST_API.worldBook.get({
+  const book = await ST_API.worldBook.get({
     name: bookName,
     scope
   });
@@ -47,7 +24,7 @@ export async function upsertMemoryTableEntry(
   );
 
   if (!existing) {
-    const created: WorldBookCreateEntryOutput = await ST_API.worldBook.createEntry(
+    const created = await ST_API.worldBook.createEntry(
       {
         name: bookName,
         scope,
@@ -74,7 +51,7 @@ export async function upsertMemoryTableEntry(
     };
   }
 
-  const updated: WorldBookUpdateEntryOutput = await ST_API.worldBook.updateEntry({
+  const updated = await ST_API.worldBook.updateEntry({
     name: bookName,
     scope,
     index: existing.index,
@@ -95,9 +72,7 @@ export async function upsertMemoryTableEntry(
   };
 }
 
-export async function saveMemoryTableState(
-  params: MemoryTableStateWriteParams
-): Promise<MemoryTableStateWriteResult> {
+export async function saveMemoryTableState(params) {
   const scope = params.scope ?? 'local';
   const variableName = params.variableName || 'WorldTreeLibrary.memoryTable';
   const state = {
@@ -108,24 +83,20 @@ export async function saveMemoryTableState(
   return { ok: true, state, scope, variableName };
 }
 
-export async function loadMemoryTableState(
-  params: MemoryTableStateReadParams = {}
-): Promise<MemoryTableStateReadResult> {
+export async function loadMemoryTableState(params = {}) {
   const scope = params.scope ?? 'local';
   const variableName = params.variableName || 'WorldTreeLibrary.memoryTable';
   const result = await ST_API.variables.get({ name: variableName, scope });
   return { state: result?.value ?? null, scope, variableName };
 }
 
-export async function persistMemory(
-  params: PersistMemoryWriteParams
-): Promise<PersistMemoryWriteResult> {
+export async function persistMemory(params) {
   const stateRes = await saveMemoryTableState({
     state: params.state,
     ...(params.stateStore || {})
   });
 
-  let wbRes: MemoryWriteResult | undefined;
+  let wbRes;
   if (params.worldBook) {
     wbRes = await upsertMemoryTableEntry(params.worldBook);
   }

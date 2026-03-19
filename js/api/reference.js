@@ -1,76 +1,51 @@
-import {
-  ReferenceBundle,
-  ReferenceItem,
-  ReferenceItemsOptions,
-  ReferenceItemsResult,
-  ReferenceOptions,
-  WorldBookEntry
-} from './types';
-
 // 依赖 st-api-wrapper 的全局对象
-declare const ST_API: any;
+const ST_API = window.ST_API;
 
-type CharacterGetOutput = { character: any };
-
-type CharacterListOutput = { characters: Array<{ name?: string }> };
-
-type ChatHistoryListOutput = {
-  messages: any[];
-  chatId?: string | number;
-};
-
-type WorldBookGetOutput = {
-  worldBook: { name: string; entries: WorldBookEntry[] };
-  scope?: string;
-};
-
-async function resolveCharacterNameFromContext(): Promise<string | undefined> {
+async function resolveCharacterNameFromContext() {
   // 优先从角色列表获取第一个角色名作为“当前角色”兜底。
   // 更精确的方式可在后续接入 UI 状态或自定义配置（例如 ST 的当前选中角色）。
-  const list: CharacterListOutput = await ST_API.character.list();
+  const list = await ST_API.character.list();
   return list.characters?.[0]?.name;
 }
 
-function stableId(prefix: string, value: string): string {
+function stableId(prefix, value) {
   // 简单稳定 id：避免将来改动渲染文本导致排序丢失
   return `${prefix}:${value}`;
 }
 
-function renderCharacterText(character: any): string {
+function renderCharacterText(character) {
   const name = character?.name || '';
   const desc = character?.description || '';
   // 仅做轻量、可读的默认拼装；内部总结逻辑后续再做。
   return `# 角色卡\n\n- 名称：${name}\n- 描述：${desc}`.trim();
 }
 
-function renderChatHistoryText(messages: any[]): string {
+function renderChatHistoryText(messages) {
   // messages 已由 st-api-wrapper 进行过 format 归一化（gemini/openai）。
   // 这里不做强假设，只尽量输出可读文本。
   if (!Array.isArray(messages) || !messages.length) return '# 聊天记录\n\n(空)';
 
-  const lines: string[] = ['# 聊天记录'];
+  const lines = ['# 聊天记录'];
   for (const msg of messages) {
     const role = msg?.role ?? 'unknown';
     const name = msg?.name ? `(${msg.name})` : '';
     const content = typeof msg?.content === 'string'
       ? msg.content
       : Array.isArray(msg?.parts)
-        ? msg.parts.map((p: any) => p?.text).filter(Boolean).join('')
+        ? msg.parts.map((p) => p?.text).filter(Boolean).join('')
         : JSON.stringify(msg);
     lines.push(`- ${role}${name}: ${content}`);
   }
   return lines.join('\n');
 }
 
-function renderWorldBookEntryText(entry: WorldBookEntry): string {
+function renderWorldBookEntryText(entry) {
   const title = entry?.name ?? '(未命名条目)';
   const content = entry?.content ?? '';
   return `# 世界书条目：${title}\n\n${content}`.trim();
 }
 
-export async function getReferenceItems(
-  options: ReferenceItemsOptions = {}
-): Promise<ReferenceItemsResult> {
+export async function getReferenceItems(options = {}) {
   const {
     characterName: characterNameOverride,
     worldBookEnabledOnly = true,
@@ -79,7 +54,7 @@ export async function getReferenceItems(
 
   const bundle = await getReferenceBundle(options);
 
-  const items: ReferenceItem[] = [];
+  const items = [];
 
   // 角色卡
   items.push({
@@ -121,9 +96,7 @@ export async function getReferenceItems(
   return { bundle, items };
 }
 
-export async function getReferenceBundle(
-  options: ReferenceOptions = {}
-): Promise<ReferenceBundle> {
+export async function getReferenceBundle(options = {}) {
   const {
     chatHistoryLimit,
     chatHistoryFormat = 'gemini',
@@ -136,18 +109,18 @@ export async function getReferenceBundle(
 
   const characterName = await resolveCharacterNameFromContext();
 
-  const characterRes: CharacterGetOutput = characterName
+  const characterRes = characterName
     ? await ST_API.character.get({ name: characterName })
     : await ST_API.character.get({ name: '' });
 
-  const chatRes: ChatHistoryListOutput = await ST_API.chatHistory.list({
+  const chatRes = await ST_API.chatHistory.list({
     limit: chatHistoryLimit,
     format: chatHistoryFormat,
     mediaFormat: chatHistoryMediaFormat,
     includeSwipes
   });
 
-  const worldBookRes: WorldBookGetOutput = await ST_API.worldBook.get({
+  const worldBookRes = await ST_API.worldBook.get({
     name: worldBookName,
     scope: worldBookScope
   });

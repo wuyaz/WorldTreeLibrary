@@ -1,0 +1,18 @@
+{
+  "默认": [
+    { "id": "persona", "label": "用户信息", "type": "persona", "hidden": false, "prefix": "<user>\n", "suffix": "\n</user>" },
+    { "id": "wb_beforeChar", "label": "世界书-角色定义之前", "type": "worldBook", "position": "beforeChar", "hidden": false },
+    { "id": "character_desc", "label": "角色卡-描述", "type": "character", "field": "description", "hidden": false },
+    { "id": "character_personality", "label": "角色卡-性格", "type": "character", "field": "personality", "hidden": false },
+    { "id": "character_scenario", "label": "角色卡-场景", "type": "character", "field": "scenario", "hidden": false },
+    { "id": "wb_beforeEm", "label": "世界书-示例消息之前", "type": "worldBook", "position": "beforeEm", "hidden": false },
+    { "id": "character_examples", "label": "角色卡-示例对话", "type": "character", "field": "examples", "hidden": false },
+    { "id": "wb_afterEm", "label": "世界书-示例消息之后", "type": "worldBook", "position": "afterEm", "hidden": false },
+    { "id": "wb_afterChar", "label": "世界书-角色定义之后", "type": "worldBook", "position": "afterChar", "hidden": false },
+    { "id": "wb_beforeAn", "label": "世界书-作者注释之前", "type": "worldBook", "position": "beforeAn", "hidden": false },
+    { "id": "wb_afterAn", "label": "世界书-作者注释之后", "type": "worldBook", "position": "afterAn", "hidden": false },
+    { "id": "wb_outlet", "label": "世界书-Outlet", "type": "worldBook", "position": "outlet", "hidden": false },
+    { "id": "wb_fixed", "label": "世界书-固定深度", "type": "worldBook", "position": "fixed", "hidden": false },
+    { "id": "character_depth", "label": "角色卡-深度提示", "type": "character", "field": "charDepthPrompt", "hidden": false }
+  ]
+}

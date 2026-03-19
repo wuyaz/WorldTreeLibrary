@@ -6,6 +6,14 @@
 
 ---
 
+## 使用方式（无需打包）
+
+- 入口脚本：[`manifest.json`](manifest.json) 指向 [`js/main.js`](js/main.js)（ESM）。
+- UI 模板：[`assets/wtl-ui.html`](assets/wtl-ui.html) 在运行时由 [`js/assets.js`](js/assets.js:38) 通过 `fetch` 加载。
+- 样式：[`wtl.css`](wtl.css) 在运行时注入（见 [`js/assets.js`](js/assets.js:7)）。
+
+---
+
 ## 功能概览
 
 - **注册入口按钮**：用户点击触发记忆采集流程。
@@ -13,6 +21,7 @@
 - **记忆表格保存（本地状态）**：按聊天窗口保存 Markdown/JSON/隐藏行等状态（使用 `variables` 的 `local` 作用域，不污染世界书与角色卡）。
 - **世界书回写（用于注入）**：可将最终 Markdown 写入世界书条目，供后续提示词注入使用。
 - **手动世界书读取**：图形界面选择书/条目并可覆盖触发参数。
+- **模板预设绑定**：模板预设可保存并绑定到“聊天 / 角色 / 全局”，并显示当前生效预设（优先级：聊天 > 角色 > 全局）。
 - **表格范式模式**：全局范式或按角色卡绑定。
 - **提示词块管理**：拖拽排序、隐藏、预览、编辑与自定义块。
 
@@ -25,18 +34,44 @@
 ```
 WorldTreeLibrary/
 ├─ manifest.json
-├─ index.js
 ├─ README.md
-└─ src/
-   ├─ index.ts
+├─ wtl.css
+├─ assets/
+│  ├─ wtl-ui.html           # UI 模板（运行时加载）
+│  ├─ defaults.json
+│  └─ presets/
+│     ├─ openai.json
+│     ├─ preprompt.json
+│     ├─ instruction.json
+│     ├─ schema.json
+│     ├─ order.json
+│     ├─ refOrder.json
+│     ├─ blocks.json
+│     └─ refBlocks.json
+└─ js/
    ├─ api/
-   │  ├─ types.ts
-   │  ├─ reference.ts
-   │  └─ memory.ts
-   └─ ui/
-      ├─ registerButton.ts
-      └─ registerTopTab.ts
+   │  ├─ reference.js
+   │  └─ memory.js
+   ├─ ui/
+   │  ├─ registerButton.js
+   │  └─ registerTopTab.js
+   ├─ main.js               # 运行入口（ESM）
+   ├─ assets.js             # 资源加载工具
+   └─ config.js             # 配置加载/合并
 ```
+
+---
+
+## 配置文件说明
+
+- 样式：[`wtl.css`](wtl.css)（由 [`js/assets.js`](js/assets.js:7) 在启动时注入）
+- 默认模板/提示词/块顺序：[`assets/defaults.json`](assets/defaults.json)（首次加载默认值）
+- 预设（拆分文件，默认加载）：
+  - OpenAI 预设：[`assets/presets/openai.json`](assets/presets/openai.json)
+  - 破限提示预设：[`assets/presets/preprompt.json`](assets/presets/preprompt.json)
+  - 填表指令预设：[`assets/presets/instruction.json`](assets/presets/instruction.json)
+  - 模板预设：[`assets/presets/schema.json`](assets/presets/schema.json)
+  - 排序/块预设：[`assets/presets/order.json`](assets/presets/order.json)、[`assets/presets/refOrder.json`](assets/presets/refOrder.json)、[`assets/presets/blocks.json`](assets/presets/blocks.json)、[`assets/presets/refBlocks.json`](assets/presets/refBlocks.json)
 
 ---
 
@@ -64,7 +99,7 @@ WorldTreeLibrary/
 
 ## 参考信息接口
 
-### [`getReferenceBundle()`](src/api/reference.ts:31)
+### [`getReferenceBundle()`](js/api/reference.js:60)
 
 获取当前对话所需的“参考信息”，包括：
 - 角色卡（完整数据）
@@ -84,7 +119,7 @@ WorldTreeLibrary/
 **输出**
 - `ReferenceBundle`
 
-### [`getReferenceItems()`](src/api/reference.ts:88)
+### [`getReferenceItems()`](js/api/reference.js:31)
 
 获取“参考信息”并拆分为**可排序的独立条目**（供后续 UI 让用户分别调序/启用）。
 
@@ -99,7 +134,7 @@ WorldTreeLibrary/
 
 ## 记忆表格回写接口
 
-### [`upsertMemoryTableEntry()`](src/api/memory.ts:25)
+### [`upsertMemoryTableEntry()`](js/api/memory.js:6)
 
 在世界书中创建/更新“记忆表格”条目，供提示词注入使用。
 
@@ -109,7 +144,7 @@ WorldTreeLibrary/
 **输出**
 - `MemoryWriteResult`：`mode` 为 `created` / `updated`。
 
-### [`persistMemory()`](src/api/memory.ts:121)
+### [`persistMemory()`](js/api/memory.js:53)
 
 一次性回写：
 - **本地状态**（`variables.local`，绑定当前 chat）
@@ -126,11 +161,26 @@ WorldTreeLibrary/
 
 ---
 
+## 模板预设绑定与优先级
+
+- 模板预设存储在 `wtl.schema.presets`。
+- 绑定映射存储在 `wtl.schema.scopedPresets`：
+  - `global`: 全局绑定预设名
+  - `character`: `{ [characterId]: presetName }`
+  - `chat`: `{ [chatId]: presetName }`
+- 生效优先级：`chat` > `character` > `global`。
+- UI 会显示“当前生效模板”，并展示聊天/角色名作为绑定提示。
+
+---
+
 ## 提示词预设管理（破限提示/填表指令）
 
 - 破限提示与填表指令默认只读预览，点击“编辑”进入可编辑并保存。
 - 支持独立的预设管理：选择、另存为、重命名、删除、导入/导出 JSON。
 - 预设分别存储在 `wtl.preprompt.presets` 与 `wtl.instruction.presets`。
+- 初始预设来源（拆分文件，首次加载写入本地存储，之后以用户本地存储为准）：
+  - [`assets/presets/preprompt.json`](assets/presets/preprompt.json)
+  - [`assets/presets/instruction.json`](assets/presets/instruction.json)
 
 ---
 
@@ -139,11 +189,11 @@ WorldTreeLibrary/
 > 用于保存“本地记忆表格 JSON/Markdown/隐藏行”等状态，不污染世界书与角色卡。
 > 默认使用 `variables` 的 `local` 作用域绑定当前聊天。
 
-### [`saveMemoryTableState()`](src/api/memory.ts:98)
+### [`saveMemoryTableState()`](js/api/memory.js:33)
 
 将本地处理后的“记忆表格状态”写入当前聊天变量。
 
-### [`loadMemoryTableState()`](src/api/memory.ts:111)
+### [`loadMemoryTableState()`](js/api/memory.js:43)
 
 读取本地记忆表格状态。
 
@@ -166,152 +216,60 @@ WorldTreeLibrary/
       "name": "物品",
       "columns": ["名称", "描述", "来源"],
       "rows": []
-    },
-    {
-      "name": "地点",
-      "columns": ["名称", "描述", "关联"],
-      "rows": []
     }
   ],
   "hiddenRows": {
-    "1": { "3": true }
+    "1": {
+      "2": true
+    }
   }
 }
 ```
 
-### 表格格式（对外展示，必须包裹在 `<WTL_Table>` 内）
+### Markdown 输出示例
 
 ```md
-<WTL_Table>
 # 记忆表格
 
 ## 物品
 | 名称 | 描述 | 来源 |
 | --- | --- | --- |
-
-## 地点
-| 名称 | 描述 | 关联 |
-| --- | --- | --- |
-</WTL_Table>
+| | | |
 ```
 
-### 指令格式（必须包裹在 `<WTL_TableEdit>` 内）
+### 指令格式（AI 输出）
 
-> 目标：让 AI **只输出可机器解析的编辑指令**，避免解释文本导致误解析。
+支持以下表格编辑指令（示例）：
 
-索引规则（强约束）：
-
-- `section`：第几个表（从 1 开始）
-- `row`：表头下第几行数据（从 1 开始）
-- `col`：第几列（从 1 开始）
-
-允许的指令（只允许这些）：
-
-- `update`：更新一个或多个单元格（同一行可一次更新多列）
-- `delete`：删除整行
-- `insert`：插入整行（推荐使用列索引 `col(value)`，也允许按列顺序 values，不足用 `-` 占位）
-- `hide`：隐藏/显示整行（`hidden=true` 的行不会发送给 AI，但本地仍保留且主页可见）
-- `move`：交换两行顺序
-
-格式（强约束）：
-
-- `update[section, row, col(value), col(value), ...]`
-- `delete[section, row]`
-- `insert[section, row, col(value), col(value), ...]`（推荐，避免错列）
-- `insert[section, row, value1, value2, ...]`（按列顺序）
-- `hide[section, row, true|false]`
-- `move[section, fromRow, toRow]`
-
-值的写法：
-
-- 推荐 `value` 用括号包裹：`2(苹果)`
-- `value` 若包含逗号 `,`、右括号 `)`、右中括号 `]` 等特殊字符，请使用英文双引号包裹，例如：`2("a,b")`
-
-```text
-<WTL_TableEdit>
-update[1, 1, 2(苹果)]
-update[1, 1, 2(苹果), 3(香蕉)]
-delete[1, 1]
-insert[1, 2, 1(苹果), 2(红色), 3(市场)]
-hide[1, 4, true]
-move[1, 2, 5]
-</WTL_TableEdit>
+```
+update(1,2,2:苹果,3:箱子)
+delete(1,3)
+insert(1,4,1:香蕉,2:黄色,3:市场)
+move(1,4,2)
+hide(1,2,true)
 ```
 
-## 使用示例
-
-```ts
-import {
-  registerTopTabWithPanel,
-  registerMemoryButton,
-  getReferenceBundle,
-  saveMemoryTableState,
-  upsertMemoryTableEntry
-} from './src/index';
-
-// 顶部页签 + 基础配置面板
-registerTopTabWithPanel();
-
-// 备用：消息扩展菜单按钮（可选）
-registerMemoryButton(async () => {
-  const reference = await getReferenceBundle({
-    chatHistoryLimit: 50,
-    worldBookScope: 'chat',
-    worldBookName: 'Current Chat'
-  });
-
-  // TODO: 内部处理逻辑（AI总结/解析/生成表格）
-  const markdown = '<WTL_Table>\n# 记忆表格\n\n## 物品\n| 名称 | 描述 | 来源 |\n| --- | --- | --- |\n</WTL_Table>';
-
-  // 1) 保存到“当前聊天绑定的本地变量”（推荐：不污染世界书）
-  await saveMemoryTableState({
-    state: { markdown, json: null, hiddenRows: {}, updatedAt: new Date().toISOString() },
-    scope: 'local',
-    variableName: 'WorldTreeLibrary.memoryTable'
-  });
-
-  // 2) 可选：回写到世界书条目（仅用于注入，不作为本地状态源）
-  await upsertMemoryTableEntry({
-    scope: 'chat',
-    bookName: 'Current Chat',
-    entryName: 'WorldTreeMemory',
-    content: markdown,
-    position: 'outlet',
-    role: 'system',
-    depth: 4,
-    order: 0,
-    enabled: true
-  });
-
-  console.log('参考信息', reference);
-});
-```
+含义：
+- `update(section,row, col:value...)`
+- `delete(section,row)`
+- `insert(section,row, col:value...)`
+- `move(section,from,to)`
+- `hide(section,row,true|false)`
 
 ---
 
-## 参考 API（来源 st-api-wrapper）
+## 注入位置说明
 
-- `ui.registerTopSettingsDrawer`
-- `ui.registerExtraMessageButton` / `ui.unregisterExtraMessageButton`
-- `character.get`
-- `chatHistory.list`
-- `chatHistory.update`
-- `worldBook.list`
-- `worldBook.get`
-- `worldBook.createEntry`
-- `worldBook.updateEntry`
-- `variables.get`
-- `variables.set`
+支持按世界书注入方式定位位置（与 ST 保持一致）：
+- `beforeChar` / `afterChar`
+- `beforeEm` / `afterEm`
+- `beforeAn` / `afterAn`
+- `fixed` / `outlet`
 
-详见：
-- `../st-api-wrapper/docs/ui/registerTopSettingsDrawer.md`
-- `../st-api-wrapper/docs/ui/registerExtraMessageButton.md`
-- `../st-api-wrapper/docs/character/get.md`
-- `../st-api-wrapper/docs/chatHistory/list.md`
-- `../st-api-wrapper/docs/chatHistory/update.md`
-- `../st-api-wrapper/docs/worldbook/list.md`
-- `../st-api-wrapper/docs/worldbook/get.md`
-- `../st-api-wrapper/docs/worldbook/createEntry.md`
-- `../st-api-wrapper/docs/worldbook/updateEntry.md`
-- `../st-api-wrapper/docs/variables/get.md`
-- `../st-api-wrapper/docs/variables/set.md`
+---
+
+## 运行入口与 UI 加载
+
+- 入口：[`js/main.js`](js/main.js)
+- UI 模板：[`assets/wtl-ui.html`](assets/wtl-ui.html)（运行时加载）
+- CSS：[`wtl.css`](wtl.css)（运行时注入）

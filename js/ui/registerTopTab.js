@@ -1,25 +1,8 @@
 // 顶部页签 + 基础配置面板
 // 依赖 st-api-wrapper 的全局对象
-declare const ST_API: any;
+const ST_API = window.ST_API;
 
-type SettingsPanelHandle = {
-  id: string;
-  containerId: string;
-  drawer: HTMLElement;
-  content: HTMLElement;
-};
-
-type DrawerHandle = {
-  id: string;
-  drawerId: string;
-  drawer: HTMLElement;
-  content: HTMLElement;
-  toggle: () => void;
-  open: () => void;
-  close: () => void;
-};
-
-export async function registerBaseSettingsPanel(): Promise<SettingsPanelHandle> {
+export async function registerBaseSettingsPanel() {
   return ST_API.ui.registerSettingsPanel({
     id: 'WorldTreeLibrary.settings',
     title: 'WorldTreeLibrary 基础配置',
@@ -40,9 +23,7 @@ export async function registerBaseSettingsPanel(): Promise<SettingsPanelHandle> 
   });
 }
 
-export async function registerTopTab(
-  onOpenPanel: () => void
-): Promise<DrawerHandle> {
+export async function registerTopTab(onOpenPanel) {
   return ST_API.ui.registerTopSettingsDrawer({
     id: 'WorldTreeLibrary.topTab',
     icon: 'fa-solid fa-table fa-fw',

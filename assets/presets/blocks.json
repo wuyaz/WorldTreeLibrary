@@ -1,0 +1,52 @@
+{
+  "默认": [
+    {
+      "id": "preprompt",
+      "label": "前置提示词",
+      "type": "preprompt",
+      "hidden": false,
+      "prefix": "<system_instruction>\n",
+      "suffix": "\n</system_instruction>"
+    },
+    {
+      "id": "instruction",
+      "label": "填表指令",
+      "type": "instruction",
+      "hidden": false,
+      "prefix": "<TableTask>\n",
+      "suffix": "\n</TableTask>"
+    },
+    {
+      "id": "reference",
+      "label": "参考信息",
+      "type": "reference",
+      "hidden": false,
+      "prefix": "<story_information>\n下面是用于参考的填表信息，仅供参考，实际填表以<history_story>为准\n",
+      "suffix": "\n</story_information>"
+    },
+    {
+      "id": "chat",
+      "label": "聊天记录",
+      "type": "chat",
+      "hidden": false,
+      "prefix": "<history_story>\n这是用于填表的聊天记录\n",
+      "suffix": "\n</history_story>"
+    },
+    {
+      "id": "schema",
+      "label": "表格模板",
+      "type": "schema",
+      "hidden": false,
+      "prefix": "<WTL_TableTemplate>\n",
+      "suffix": "\n</WTL_TableTemplate>"
+    },
+    {
+      "id": "table",
+      "label": "当前表格",
+      "type": "table",
+      "hidden": false,
+      "prefix": "<WTL_TableLatest>\n这是本地的表格，你需要根据<history_story>更新它\n",
+      "suffix": "\n</WTL_TableLatest>"
+    }
+  ]
+}
