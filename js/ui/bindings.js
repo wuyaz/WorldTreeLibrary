@@ -1192,6 +1192,12 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     console.log('[WorldTreeLibrary]', msg);
   };
 
+  const notifyStatus = (type, msg) => {
+    const toast = window?.toastr;
+    if (!toast || typeof toast[type] !== 'function') return;
+    toast[type](msg, 'WorldTreeLibrary');
+  };
+
   const normalizeBlocks = (blocks) => {
     const base = (getBlocksPreset() || []).map(b => ({ ...b }));
     const incoming = Array.isArray(blocks) ? blocks : [];
@@ -3513,6 +3519,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     if (running) return;
     running = true;
     setStatus('填表中');
+    notifyStatus('info', '开始填表');
     try {
       const ref = await buildReferenceBundle({
         overrideChat,
@@ -3575,8 +3582,10 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       renderPreview(wrapped);
       await saveState();
       setStatus('完成');
+      notifyStatus('success', '填表完成');
     } catch (e) {
       setStatus('失败');
+      notifyStatus('error', '填表失败');
       console.warn('[WorldTreeLibrary]', e);
     } finally {
       running = false;

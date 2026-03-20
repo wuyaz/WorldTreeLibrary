@@ -715,7 +715,7 @@
   #wtl-root .wtl-actions-row {
     justify-content: space-between;
   }
-  .menu_button {
+  #wtl-root .menu_button {
     flex: 1;
     min-width: 100px;
   }
