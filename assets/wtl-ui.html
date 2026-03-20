@@ -1,447 +1,130 @@
-              <style id="wtl-inline-style"></style>
-              <div id="wtl-root" class="flex-container flexFlowColumn wtl-card">
-                <div id="wtl-page-main">
-                  <div class="wtl-header">
-                    <div>
-                      <h3 style="margin: 0;">WorldTreeLibrary 记忆表格</h3>
-                    </div>
-                    <div class="wtl-row">
-                      <span id="wtl-status" class="wtl-status">状态：空闲</span>
-                    </div>
-                  </div>
+<div id="wtl-root" class="wtl-card">
+  <div id="wtl-page-main">
+    <div class="wtl-header">
+      <h3 style="margin: 0; font-size: 16px; color: var(--wtl-accent);">
+        <i class="fa-solid fa-tree"></i> WorldTreeLibrary
+      </h3>
+      <span id="wtl-status" style="font-size: 12px; opacity: 0.7; display: flex; align-items: center; gap: 4px;">
+        <div style="width:8px; height:8px; border-radius:50%; background:var(--wtl-accent);"></div> 空闲
+      </span>
+    </div>
 
-                  <div class="wtl-actions">
-                    <div class="wtl-actions-row">
-                      <button id="wtl-run" class="menu_button wtl-action-btn"><span>立即填表</span><i class="fa-solid fa-bolt"></i></button>
+    <div class="wtl-actions">
+      <div class="wtl-actions-row">
+        <button id="wtl-run" class="menu_button" style="background: color-mix(in srgb, var(--wtl-accent) 20%, transparent); border-color: var(--wtl-accent);">
+          <span>立即填表</span><i class="fa-solid fa-bolt"></i>
+        </button>
 
-                      <div class="wtl-auto-group" title="自动填表：当聊天新增消息时按频率触发。发送层数用于限制提交给 AI 的最近消息数量。">
-                        <button id="wtl-auto-toggle" class="menu_button wtl-action-btn"><span>自动填表：关</span><i class="fa-solid fa-play"></i></button>
-                        <input id="wtl-auto-floors" class="text_pole" type="number" placeholder="发送层数" />
-                        <input id="wtl-auto-every" class="text_pole" type="number" placeholder="填表频率" />
-                      </div>
-                    </div>
+        <div class="wtl-combo-group" title="自动填表：当聊天新增消息时按频率触发。">
+          <button id="wtl-auto-toggle" class="menu_button"><span>自动填表：关</span><i class="fa-solid fa-play"></i></button>
+          <div class="wtl-combo-item"><label>层数</label><input id="wtl-auto-floors" type="number" placeholder="4" /></div>
+          <div class="wtl-combo-item"><label>频率</label><input id="wtl-auto-every" type="number" placeholder="1" /></div>
+        </div>
+      </div>
 
-                    <div class="wtl-actions-row">
-                      <div class="wtl-split" title="回溯：回退/撤销回退">
-                        <button id="wtl-history-back" class="menu_button"><span>表格回退</span><i class="fa-solid fa-arrow-left"></i></button>
-                        <button id="wtl-history-undo" class="menu_button"><span>撤销回退</span><i class="fa-solid fa-arrow-right"></i></button>
-                      </div>
+      <div class="wtl-actions-row">
+        <div class="wtl-combo-group">
+          <button id="wtl-batch" class="menu_button"><span>批量填表</span><i class="fa-solid fa-layer-group"></i></button>
+          <div class="wtl-combo-item"><label>起</label><input id="wtl-batch-start" type="number" placeholder="0" /></div>
+          <div class="wtl-combo-item"><label>止</label><input id="wtl-batch-end" type="number" placeholder="0" /></div>
+          <div class="wtl-combo-item"><label>批</label><input id="wtl-batch-step" type="number" placeholder="10" /></div>
+        </div>
 
-                      <div class="wtl-batch-group">
-                        <button id="wtl-batch" class="menu_button wtl-action-btn"><span>批量填表</span><i class="fa-solid fa-layer-group"></i></button>
-                        <input id="wtl-batch-start" class="text_pole" type="number" placeholder="起始楼层" />
-                        <input id="wtl-batch-end" class="text_pole" type="number" placeholder="结束楼层" />
-                        <input id="wtl-batch-step" class="text_pole" type="number" placeholder="填表批次" />
-                      </div>
-                    </div>
+        <div class="wtl-combo-group">
+          <button id="wtl-history-back" class="menu_button" title="表格回退"><i class="fa-solid fa-arrow-left"></i> 回退</button>
+          <button id="wtl-history-undo" class="menu_button" title="撤销回退">撤销 <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
 
-                    <div class="wtl-actions-row">
-                      <button id="wtl-edit-table" class="menu_button wtl-action-btn"><span>编辑表格</span><i class="fa-solid fa-pen"></i></button>
-                      <button id="wtl-edit-template" class="menu_button wtl-action-btn"><span>编辑模板</span><i class="fa-solid fa-wand-magic-sparkles"></i></button>
-                      <button id="wtl-open-config" class="menu_button wtl-action-btn"><span>填表配置</span><i class="fa-solid fa-sliders"></i></button>
-                    </div>
+      <div class="wtl-actions-row">
+        <button id="wtl-edit-table" class="menu_button"><span>编辑表格</span><i class="fa-solid fa-pen"></i></button>
+        <button id="wtl-edit-template" class="menu_button"><span>编辑模板</span><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+        <button id="wtl-open-config" class="menu_button"><span>填表配置</span><i class="fa-solid fa-sliders"></i></button>
+        <button id="wtl-clear-table" class="menu_button" style="color:#ff6b6b; border-color:rgba(255,107,107,0.3);"><span>清空表格</span><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </div>
 
-                    <div class="wtl-actions-row">
-                      <button id="wtl-reset-global" class="menu_button wtl-action-btn"><span>全局恢复默认</span><i class="fa-solid fa-rotate-left"></i></button>
-                      <button id="wtl-clear-table" class="menu_button wtl-action-btn"><span>清空表格</span><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                  </div>
+    <div class="wtl-section wtl-main" style="margin-top: 0; border: none; padding: 0;">
+      <div id="wtl-table-tabs" class="wtl-tab-list"></div>
+      <div class="wtl-table-panel">
+        <div id="wtl-table-resize" class="wtl-table-resize">
+          <table class="wtl-table wtl-table-view" id="wtl-table-view">
+            <thead id="wtl-preview-head"></thead>
+            <tbody id="wtl-preview-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-                  <div class="wtl-section wtl-main">
-                    <div id="wtl-table-tabs" class="wtl-tab-list"></div>
-                    <div class="wtl-table-panel">
-                      <div id="wtl-table-resize" class="wtl-table-resize">
-                        <table class="wtl-table wtl-table-view" id="wtl-table-view">
-                          <thead id="wtl-preview-head"></thead>
-                          <tbody id="wtl-preview-body"></tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div id="wtl-template-editor" class="wtl-section" style="display:none;">
-                    <div class="wtl-section-title">表格模板编辑器</div>
-                    <div class="wtl-editor-root">
-                      <div class="wtl-editor-grid">
-                        <div class="wtl-editor-panel">
-                          <div class="wtl-row" style="justify-content: space-between;">
-                            <div class="wtl-editor-title">章节列表</div>
-                            <div class="wtl-editor-inline">
-                              <button id="wtl-section-add" class="menu_button"><i class="fa-solid fa-plus"></i> 新增章节</button>
-                              <button id="wtl-section-apply" class="menu_button"><i class="fa-solid fa-floppy-disk"></i> 保存模板</button>
-                            </div>
-                          </div>
-                          <div id="wtl-section-list" class="wtl-editor-list"></div>
-                        </div>
-                        <div class="wtl-editor-panel">
-                          <div class="wtl-row" style="justify-content: space-between;">
-                            <div class="wtl-editor-title">列列表</div>
-                            <div class="wtl-editor-inline">
-                              <button id="wtl-column-add" class="menu_button"><i class="fa-solid fa-plus"></i> 新增列</button>
-                            </div>
-                          </div>
-                          <div id="wtl-column-list" class="wtl-editor-list"></div>
-                        </div>
-                      </div>
-                      <div id="wtl-editor-overlay" class="wtl-editor-overlay">
-                        <div class="wtl-editor-dialog">
-                          <div class="wtl-row" style="justify-content: space-between;">
-                            <strong id="wtl-editor-dialog-title">编辑</strong>
-                            <button id="wtl-editor-dialog-close" class="menu_button"><i class="fa-solid fa-xmark"></i></button>
-                          </div>
-                          <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-                            <label>名称</label>
-                            <input id="wtl-editor-dialog-name" class="text_pole" type="text" />
-                            <label>定义</label>
-                            <textarea id="wtl-editor-dialog-definition" class="text_pole" rows="3"></textarea>
-                            <label>增加条件</label>
-                            <div id="wtl-editor-dialog-insert-row" style="display:flex; flex-direction:column; gap:6px;">
-                              <label id="wtl-editor-dialog-insert-toggle" style="display:flex; align-items:center; gap:6px;"><input id="wtl-editor-dialog-insert-enabled" type="checkbox" /> 启用</label>
-                              <textarea id="wtl-editor-dialog-insert" class="text_pole" rows="2"></textarea>
-                            </div>
-                            <label>修改条件</label>
-                            <div id="wtl-editor-dialog-update-row" style="display:flex; flex-direction:column; gap:6px;">
-                              <label id="wtl-editor-dialog-update-toggle" style="display:flex; align-items:center; gap:6px;"><input id="wtl-editor-dialog-update-enabled" type="checkbox" /> 启用</label>
-                              <textarea id="wtl-editor-dialog-update" class="text_pole" rows="2"></textarea>
-                            </div>
-                            <label>删除条件</label>
-                            <div id="wtl-editor-dialog-delete-row" style="display:flex; flex-direction:column; gap:6px;">
-                              <label id="wtl-editor-dialog-delete-toggle" style="display:flex; align-items:center; gap:6px;"><input id="wtl-editor-dialog-delete-enabled" type="checkbox" /> 启用</label>
-                              <textarea id="wtl-editor-dialog-delete" class="text_pole" rows="2"></textarea>
-                            </div>
-                            <div id="wtl-editor-dialog-fill-row" style="display:flex; flex-direction:column; gap:6px;">
-                              <label>是否填表</label>
-                              <label style="display:flex; align-items:center; gap:6px;"><input id="wtl-editor-dialog-fill" type="checkbox" /> 允许 AI 填表</label>
-                            </div>
-                            <div id="wtl-editor-dialog-send-row" style="display:flex; flex-direction:column; gap:6px;">
-                              <label>是否发送表格</label>
-                              <label style="display:flex; align-items:center; gap:6px;"><input id="wtl-editor-dialog-send" type="checkbox" /> 发送时注入此表格</label>
-                            </div>
-                          </div>
-                          <div class="wtl-row" style="justify-content: flex-end; margin-top: 8px;">
-                            <button id="wtl-editor-dialog-save" class="menu_button">保存</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div id="wtl-page-config" style="display:none;">
-                  <div class="wtl-header">
-                    <div>
-                      <h3 style="margin: 0;">WorldTreeLibrary 配置</h3>
-                    </div>
-                    <div class="wtl-row">
-                      <button id="wtl-back-main" class="menu_button"><i class="fa-solid fa-arrow-left"></i> 返回</button>
-                    </div>
-                  </div>
-
-                  <div class="wtl-section">
-                    <div class="wtl-section-title">填表模式</div>
-                    <div class="wtl-row">
-                      <select id="wtl-send-mode" class="text_pole">
-                        <option value="st">使用酒馆生成</option>
-                        <option value="external">调用第三方 API</option>
-                      </select>
-                    </div>
-                    <div id="wtl-mode-st" class="wtl-section" style="margin-top:8px;">
-                      <div class="wtl-block-columns" style="margin-top:8px;">
-                        <div>
-                          <div class="wtl-badge">指令注入设置</div>
-                          <div id="wtl-inst-block" style="margin-top:8px;">
-                            <label>指令注入开关</label>
-                            <label class="wtl-switch">
-                              <input id="wtl-inst-inject-toggle" type="checkbox" />
-                              <span class="wtl-switch-track"><span class="wtl-switch-knob"></span></span>
-                            </label>
-                            <label>指令注入位置</label>
-                            <select id="wtl-inst-pos" class="text_pole">
-                              <option value="beforeChar">角色定义之前</option>
-                              <option value="afterChar">角色定义之后</option>
-                              <option value="beforeEm">示例消息之前</option>
-                              <option value="afterEm">示例消息之后</option>
-                              <option value="beforeAn">作者注释之前</option>
-                              <option value="afterAn">作者注释之后</option>
-                              <option value="fixed">固定深度</option>
-                              <option value="outlet">宏模式</option>
-                            </select>
-                            <label>指令注入角色 (fixed)</label>
-                            <select id="wtl-inst-role" class="text_pole">
-                              <option value="system">系统</option>
-                              <option value="user">用户</option>
-                              <option value="model">模型</option>
-                            </select>
-                            <label>指令注入深度</label>
-                            <input id="wtl-inst-depth" class="text_pole" type="number" placeholder="4" />
-                            <label>指令注入顺序</label>
-                            <input id="wtl-inst-order" class="text_pole" type="number" placeholder="1" />
-                          </div>
-                        </div>
-                        <div>
-                          <div class="wtl-badge">模板注入设置</div>
-                          <div id="wtl-schema-block" style="margin-top:8px;">
-                            <label>模板注入开关</label>
-                            <label class="wtl-switch">
-                              <input id="wtl-schema-inject-toggle" type="checkbox" />
-                              <span class="wtl-switch-track"><span class="wtl-switch-knob"></span></span>
-                            </label>
-                            <label>模板注入位置</label>
-                            <select id="wtl-schema-pos" class="text_pole">
-                              <option value="beforeChar">角色定义之前</option>
-                              <option value="afterChar">角色定义之后</option>
-                              <option value="beforeEm">示例消息之前</option>
-                              <option value="afterEm">示例消息之后</option>
-                              <option value="beforeAn">作者注释之前</option>
-                              <option value="afterAn">作者注释之后</option>
-                              <option value="fixed">固定深度</option>
-                              <option value="outlet">宏定义</option>
-                            </select>
-                            <label>模板注入角色 (fixed)</label>
-                            <select id="wtl-schema-role" class="text_pole">
-                              <option value="system">系统</option>
-                              <option value="user">用户</option>
-                              <option value="model">模型</option>
-                            </select>
-                            <label>模板注入深度</label>
-                            <input id="wtl-schema-depth" class="text_pole" type="number" placeholder="4" />
-                            <label>模板注入顺序</label>
-                            <input id="wtl-schema-order" class="text_pole" type="number" placeholder="2" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div id="wtl-mode-external" class="wtl-section" style="margin-top:8px; display:none;">
-                      <div class="wtl-badge">提示词组装与世界书读取</div>
-
-                      <div class="wtl-external-grid" style="margin-top:6px;">
-                        <div class="wtl-external-left">
-                          <div class="wtl-nav">
-                            <button id="wtl-external-nav-order" type="button" class="menu_button" data-active="true"><i class="fa-solid fa-list-ol"></i> 提示词顺序</button>
-                            <button id="wtl-external-nav-ref" type="button" class="menu_button" data-active="false"><i class="fa-solid fa-list"></i> 参考信息顺序</button>
-                            <button id="wtl-external-nav-wb" type="button" class="menu_button" data-active="false"><i class="fa-solid fa-book"></i> 世界书读取</button>
-                          </div>
-
-                          <div id="wtl-external-panel-order" class="wtl-external-panel" style="margin-top:8px;">
-                            <div class="wtl-block-panel">
-                              <div class="wtl-row" style="justify-content: space-between;">
-                                <div class="wtl-badge">提示词组装顺序（拖拽排序）</div>
-                                <div class="wtl-row" style="gap:6px;">
-                                  <button id="wtl-block-add" class="menu_button"><i class="fa-solid fa-plus"></i> 添加自定义提示词</button>
-                                  <button id="wtl-block-reset" class="menu_button"><i class="fa-solid fa-rotate-left"></i> 恢复默认</button>
-                                </div>
-                              </div>
-                              <div id="wtl-block-list" class="wtl-block-list" style="margin-top: 6px;"></div>
-                            </div>
-                          </div>
-
-                          <div id="wtl-external-panel-ref" class="wtl-external-panel" style="margin-top:8px; display:none;">
-                            <div class="wtl-block-panel">
-                              <div class="wtl-row" style="justify-content: space-between;">
-                                <div class="wtl-badge">参考信息内部顺序（拖拽排序）</div>
-                                <div class="wtl-row" style="gap:6px;">
-                                  <button id="wtl-ref-block-add" class="menu_button"><i class="fa-solid fa-plus"></i> 添加自定义提示词</button>
-                                  <button id="wtl-ref-block-reset" class="menu_button"><i class="fa-solid fa-rotate-left"></i> 恢复默认</button>
-                                </div>
-                              </div>
-                              <div id="wtl-ref-block-list" class="wtl-block-list" style="margin-top: 6px;"></div>
-                            </div>
-                          </div>
-
-                          <div id="wtl-external-panel-wb" class="wtl-external-panel" style="margin-top:8px; display:none;">
-                            <div class="wtl-badge">参考世界书读取模式</div>
-                            <select id="wtl-wb-mode" class="text_pole" style="margin-top:6px;">
-                              <option value="auto">自动读取</option>
-                              <option value="manual">手动读取</option>
-                            </select>
-                            <div id="wtl-wb-manual-wrap" style="display: none; margin-top: 8px;">
-                              <div class="wtl-row">
-                                <button id="wtl-wb-manual-refresh" class="menu_button"><i class="fa-solid fa-rotate"></i> 刷新手动世界书列表</button>
-                              </div>
-                              <div id="wtl-wb-manual-ui" class="wtl-card" style="max-height: 360px; overflow: auto;"></div>
-                              <textarea id="wtl-wb-manual" class="text_pole" rows="6" style="display:none" placeholder="手动世界书配置(JSON)"></textarea>
-                              <div class="wtl-badge">提示：勾选书与条目后才会参与参考信息</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div class="wtl-external-right">
-                          <div class="wtl-block-panel">
-                            <div class="wtl-preview-header">
-                              <div class="wtl-badge">提示词预览</div>
-                              <div class="wtl-preview-actions">
-                                <div class="wtl-preview-switch">
-                                  <button id="wtl-log-prompt" type="button" class="menu_button" data-active="true"><i class="fa-solid fa-paper-plane"></i> 发送提示词</button>
-                                  <button id="wtl-log-ai" type="button" class="menu_button" data-active="false"><i class="fa-solid fa-robot"></i> AI 返回</button>
-                                </div>
-                                <button id="wtl-log-refresh" type="button" class="menu_button" title="刷新预览"><i class="fa-solid fa-rotate"></i></button>
-                              </div>
-                            </div>
-                            <textarea id="wtl-log-content" class="text_pole" rows="16" readonly placeholder="这里显示提示词预览/AI 返回（自动刷新）" style="margin-top:6px;"></textarea>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="wtl-section">
-                    <div class="wtl-section-title">表格注入设置</div>
-                    <div class="wtl-grid">
-                      <div>
-                        <label>表格注入开关</label>
-                        <label class="wtl-switch">
-                          <input id="wtl-table-inject-toggle" type="checkbox" />
-                          <span class="wtl-switch-track"><span class="wtl-switch-knob"></span></span>
-                        </label>
-                        <label style="margin-top: 6px;">表格注入位置</label>
-                        <select id="wtl-table-pos" class="text_pole">
-                          <option value="beforeChar">角色定义之前</option>
-                          <option value="afterChar">角色定义之后</option>
-                          <option value="beforeEm">示例消息之前</option>
-                          <option value="afterEm">示例消息之后</option>
-                          <option value="beforeAn">作者注释之前</option>
-                          <option value="afterAn">作者注释之后</option>
-                          <option value="fixed">固定深度</option>
-                          <option value="outlet">宏定义</option>
-                        </select>
-                        <label>表格注入角色 (fixed)</label>
-                        <select id="wtl-table-role" class="text_pole">
-                          <option value="system">系统</option>
-                          <option value="user">用户</option>
-                          <option value="model">模型</option>
-                        </select>
-                        <label>表格注入深度</label>
-                        <input id="wtl-table-depth" class="text_pole" type="number" placeholder="4" />
-                        <label>表格注入顺序</label>
-                        <input id="wtl-table-order" class="text_pole" type="number" placeholder="0" />
-                      </div>
-                      <div>
-                        <label>目前发送表格预览</label>
-                        <textarea id="wtl-table-preview" class="text_pole" rows="12" readonly placeholder="这里会显示实际发送给 AI 的表格（自动过滤隐藏行）"></textarea>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="wtl-section">
-                    <div class="wtl-section-title">第三方 API 设置</div>
-                    <div class="flex-container flexFlowColumn">
-                      <label>预设</label>
-                      <div class="wtl-row">
-                        <select id="wtl-openai-preset" class="text_pole" style="flex:1;"></select>
-                        <button id="wtl-openai-preset-load" class="menu_button">加载</button>
-                        <button id="wtl-openai-preset-del" class="menu_button">删除</button>
-                      </div>
-                      <label>预设名称（保存用）</label>
-                      <input id="wtl-openai-preset-name" class="text_pole" type="text" placeholder="例如：默认 / 本地 / 低温" />
-
-                      <label>OpenAI Base URL</label>
-                      <input id="wtl-openai-url" class="text_pole" type="text" placeholder="https://api.openai.com/v1" />
-                      <label>OpenAI API Key</label>
-                      <input id="wtl-openai-key" class="text_pole" type="password" placeholder="sk-..." />
-                      <label>模型</label>
-                      <div class="wtl-row">
-                        <select id="wtl-openai-model" class="text_pole" style="flex:1;"></select>
-                        <button id="wtl-openai-refresh" class="menu_button">获取模型</button>
-                      </div>
-                      <label>温度</label>
-                      <input id="wtl-openai-temp" class="text_pole" type="number" step="0.1" placeholder="0.7" />
-                      <label>最大上下文 (max_tokens)</label>
-                      <input id="wtl-openai-max" class="text_pole" type="number" placeholder="1024" />
-                      <div class="wtl-row" style="justify-content: flex-end;">
-                        <button id="wtl-external-save" class="menu_button">保存为预设</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="wtl-section">
-                    <div class="wtl-section-title">提示词编辑</div>
-                    <div class="wtl-section">
-                      <div class="wtl-row" style="justify-content: space-between;">
-                        <div class="wtl-badge">破限提示</div>
-                        <div class="wtl-row" style="gap: 6px;">
-                          <button id="wtl-edit-preprompt" class="menu_button">编辑</button>
-                          <button id="wtl-reset-preprompt" class="menu_button">恢复默认</button>
-                        </div>
-                      </div>
-                      <div class="wtl-row" style="gap: 6px; flex-wrap: wrap;">
-                        <select id="wtl-preprompt-preset" class="text_pole" style="flex: 1; min-width: 160px;"></select>
-                        <input id="wtl-preprompt-preset-name" class="text_pole" placeholder="预设名" style="flex: 1; min-width: 140px;" />
-                        <button id="wtl-preprompt-preset-load" class="menu_button">选择</button>
-                        <button id="wtl-preprompt-preset-save" class="menu_button">另存为预设</button>
-                        <button id="wtl-preprompt-preset-rename" class="menu_button">重命名</button>
-                        <button id="wtl-preprompt-preset-del" class="menu_button">删除</button>
-                        <button id="wtl-preprompt-preset-import" class="menu_button">导入</button>
-                        <button id="wtl-preprompt-preset-export" class="menu_button">导出</button>
-                        <input id="wtl-preprompt-preset-file" type="file" accept="application/json" style="display:none;" />
-                      </div>
-                      <textarea id="wtl-preprompt" class="text_pole" rows="3" placeholder="破限提示" readonly></textarea>
-                    </div>
-                    <div class="wtl-section">
-                      <div class="wtl-row" style="justify-content: space-between;">
-                        <div class="wtl-badge">填表指令</div>
-                        <div class="wtl-row" style="gap: 6px;">
-                          <button id="wtl-edit-instruction" class="menu_button">编辑</button>
-                          <button id="wtl-reset-instruction" class="menu_button">恢复默认</button>
-                        </div>
-                      </div>
-                      <div class="wtl-row" style="gap: 6px; flex-wrap: wrap;">
-                        <select id="wtl-instruction-preset" class="text_pole" style="flex: 1; min-width: 160px;"></select>
-                        <input id="wtl-instruction-preset-name" class="text_pole" placeholder="预设名" style="flex: 1; min-width: 140px;" />
-                        <button id="wtl-instruction-preset-load" class="menu_button">选择</button>
-                        <button id="wtl-instruction-preset-save" class="menu_button">另存为预设</button>
-                        <button id="wtl-instruction-preset-rename" class="menu_button">重命名</button>
-                        <button id="wtl-instruction-preset-del" class="menu_button">删除</button>
-                        <button id="wtl-instruction-preset-import" class="menu_button">导入</button>
-                        <button id="wtl-instruction-preset-export" class="menu_button">导出</button>
-                        <input id="wtl-instruction-preset-file" type="file" accept="application/json" style="display:none;" />
-                      </div>
-                      <textarea id="wtl-instruction" class="text_pole" rows="4" placeholder="填表指令" readonly></textarea>
-                    </div>
-                    <div class="wtl-section">
-                      <div class="wtl-row" style="justify-content: space-between;">
-                        <div class="wtl-badge">表格模板</div>
-                        <div class="wtl-row" style="gap: 6px;">
-                          <button id="wtl-refresh-schema" class="menu_button">刷新预览</button>
-                          <button id="wtl-reset-schema" class="menu_button">恢复默认</button>
-                        </div>
-                      </div>
-                      <div class="wtl-row" style="gap: 6px; flex-wrap: wrap; margin-top:6px;">
-                        <select id="wtl-schema-preset" class="text_pole" style="flex: 1; min-width: 160px;"></select>
-                        <input id="wtl-schema-preset-name" class="text_pole" placeholder="预设名" style="flex: 1; min-width: 140px;" />
-                        <button id="wtl-schema-preset-load" class="menu_button">选择</button>
-                        <button id="wtl-schema-preset-save" class="menu_button">另存为预设并绑定</button>
-                        <button id="wtl-schema-preset-rename" class="menu_button">重命名</button>
-                        <button id="wtl-schema-preset-del" class="menu_button">删除</button>
-                        <button id="wtl-schema-preset-import" class="menu_button">导入</button>
-                        <button id="wtl-schema-preset-export" class="menu_button">导出</button>
-                        <input id="wtl-schema-preset-file" type="file" accept="application/json" style="display:none;" />
-                      </div>
-                      <div class="wtl-row" style="gap: 12px; flex-wrap: wrap; margin-top:6px;">
-                        <div class="wtl-badge">绑定范围（三选一）</div>
-                        <label class="wtl-row" style="gap:6px;"><input id="wtl-schema-bind-global" type="radio" name="wtl-schema-bind-scope" value="global" /> 全局</label>
-                        <label class="wtl-row" style="gap:6px;"><input id="wtl-schema-bind-character" type="radio" name="wtl-schema-bind-scope" value="character" /> 角色卡</label>
-                        <label class="wtl-row" style="gap:6px;"><input id="wtl-schema-bind-chat" type="radio" name="wtl-schema-bind-scope" value="chat" /> 聊天</label>
-                        <span class="wtl-badge">角色：<span id="wtl-schema-bind-character-name"></span></span>
-                        <span class="wtl-badge">聊天：<span id="wtl-schema-bind-chat-name"></span></span>
-                      </div>
-                      <div class="wtl-badge" style="margin-top: 6px;">当前生效模板：<span id="wtl-schema-effective"></span></div>
-                      <textarea id="wtl-schema" class="text_pole" rows="6" placeholder="范式模板" readonly></textarea>
-                      <div class="wtl-badge" style="margin-top: 6px;">提示：模板仅预览，编辑功能在主页面</div>
-                    </div>
-                  </div>
-                </div>
-
-                <textarea id="wtl-table-md" class="text_pole" style="display:none;"></textarea>
-                <div id="wtl-modal" class="wtl-modal" style="display:none;">
-                  <div class="wtl-modal-card">
-                    <div class="wtl-row" style="justify-content: space-between;">
-                      <strong id="wtl-modal-title"></strong>
-                      <button id="wtl-modal-close" class="menu_button"><i class="fa-solid fa-xmark"></i></button>
-                    </div>
-                    <div id="wtl-modal-custom" style="display:none; margin-top:6px;"></div>
-                    <textarea id="wtl-modal-content" class="text_pole" rows="12" style="width: 100%;"></textarea>
-                    <div id="wtl-modal-actions" class="wtl-row" style="justify-content: flex-end; margin-top: 6px;"></div>
-                  </div>
-                </div>
+    <div id="wtl-template-editor" style="display:none; position:absolute; inset:0; background:var(--ui-color-main); z-index:10; flex-direction:column; padding:10px;">
+      <div class="wtl-header">
+        <div class="wtl-section-title" style="margin:0;">表格模板编辑器</div>
+        <button id="wtl-editor-close" class="menu_button" onclick="document.getElementById('wtl-template-editor').style.display='none'"><i class="fa-solid fa-arrow-left"></i> 返回</button>
+      </div>
+      <div class="wtl-editor-root" style="flex:1; overflow-y:auto;">
+        <div class="wtl-editor-grid">
+          <div class="wtl-editor-panel">
+            <div class="wtl-row" style="justify-content: space-between;">
+              <div class="wtl-editor-title">章节列表</div>
+              <div class="wtl-editor-inline">
+                <button id="wtl-section-add" class="menu_button"><i class="fa-solid fa-plus"></i></button>
+                <button id="wtl-section-apply" class="menu_button"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
               </div>
-            
+            </div>
+            <div id="wtl-section-list" class="wtl-editor-list"></div>
+          </div>
+          <div class="wtl-editor-panel">
+            <div class="wtl-row" style="justify-content: space-between;">
+              <div class="wtl-editor-title">列列表</div>
+              <div class="wtl-editor-inline">
+                <button id="wtl-column-add" class="menu_button"><i class="fa-solid fa-plus"></i></button>
+              </div>
+            </div>
+            <div id="wtl-column-list" class="wtl-editor-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="wtl-page-config" style="display:none; overflow-y:auto; padding-right:6px;">
+    <div class="wtl-header" style="position: sticky; top: 0; background: var(--ui-color-main); z-index: 5;">
+      <h3 style="margin: 0; font-size: 16px;">配置中心</h3>
+      <button id="wtl-back-main" class="menu_button"><i class="fa-solid fa-arrow-left"></i> 返回首页</button>
+    </div>
+
+    <div class="wtl-section">
+      <div class="wtl-section-title">填表模式</div>
+      <select id="wtl-send-mode" class="text_pole" style="width: 100%; margin-bottom: 8px;">
+        <option value="st">使用酒馆生成</option>
+        <option value="external">调用第三方 API</option>
+      </select>
+      <div id="wtl-mode-st" class="wtl-section" style="margin-top:8px;"></div>
+      <div id="wtl-mode-external" class="wtl-section" style="margin-top:8px; display:none;"></div>
+    </div>
+
+    <div class="wtl-section">
+      <div class="wtl-row" style="justify-content: space-between;">
+        <div class="wtl-section-title">提示词与模板编辑</div>
+        <button id="wtl-reset-global" class="menu_button" style="color:#ff6b6b; border-color:rgba(255,107,107,0.3);"><i class="fa-solid fa-rotate-left"></i> 恢复全部默认</button>
+      </div>
+    </div>
+  </div>
+
+  <textarea id="wtl-table-md" class="text_pole" style="display:none;"></textarea>
+  <div id="wtl-modal" class="wtl-modal" style="display:none;">
+    <div class="wtl-modal-card">
+      <div class="wtl-row" style="justify-content: space-between; border-bottom: 1px solid var(--wtl-border); padding-bottom: 8px; margin-bottom: 10px;">
+        <strong id="wtl-modal-title" style="color: var(--wtl-accent); font-size: 15px;"></strong>
+        <button id="wtl-modal-close" class="menu_button" style="border:none; background:transparent;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="wtl-modal-custom" style="display:none; margin-bottom:10px;"></div>
+      <textarea id="wtl-modal-content" class="text_pole" rows="10" style="width: 100%; resize: vertical;"></textarea>
+      <div id="wtl-modal-actions" class="wtl-row" style="justify-content: flex-end; margin-top: 12px; gap:8px;"></div>
+    </div>
+  </div>
+
+  <div id="wtl-editor-overlay" class="wtl-editor-overlay" style="display:none;">
+    <div class="wtl-editor-dialog"></div>
+  </div>
+</div>

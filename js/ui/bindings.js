@@ -1084,8 +1084,12 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   const resetAllDefaults = async () => {
     const presetData = window.__WTL_PRESETS__ || {};
     const defaultSchema = getDefaultSchemaText();
-    const defaultPreprompt = getDefaultPromptText('preprompt', PREPROMPT_PRESET_KEY, PREPROMPT_PRESET_ACTIVE_KEY);
-    const defaultInstruction = getDefaultPromptText('instruction', INSTRUCTION_PRESET_KEY, INSTRUCTION_PRESET_ACTIVE_KEY);
+    const defaultPreprompt = getPresetTextByName(PREPROMPT_PRESET_KEY, '默认', '')
+      || (Array.isArray(presetData?.preprompt?.['默认']) ? presetData.preprompt['默认'].join('\n') : String(presetData?.preprompt?.['默认'] || ''))
+      || '';
+    const defaultInstruction = getPresetTextByName(INSTRUCTION_PRESET_KEY, '默认', '')
+      || (Array.isArray(presetData?.instruction?.['默认']) ? presetData.instruction['默认'].join('\n') : String(presetData?.instruction?.['默认'] || ''))
+      || '';
 
     setPresetStore('wtl.openai.presets', presetData.openai);
     setPresetStore(PREPROMPT_PRESET_KEY, presetData.preprompt);
