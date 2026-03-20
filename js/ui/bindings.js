@@ -72,6 +72,8 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     autoEveryEl,
     editTableBtn,
     editTemplateBtn,
+    resetGlobalBtn,
+    clearTableBtn,
     historyBackBtn,
     historyUndoBtn,
     historyBtn,
@@ -225,6 +227,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   let tableEditMode = false;
   let templateEditMode = false;
   let schemaSource = '';
+  let pendingAiHistory = null;
 
   const getCharacterName = () => {
     const ctx = window.SillyTavern?.getContext?.();
@@ -432,10 +435,16 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   const getHistoryKey = () => `wtl.history.${getChatKey()}`;
   const getHistoryIndexKey = () => `wtl.history.index.${getChatKey()}`;
 
-  const appendHistory = (tableJson, tableMd) => {
+  const appendHistory = (tableJson, tableMd, meta = {}) => {
     const key = getHistoryKey();
     const list = JSON.parse(localStorage.getItem(key) || '[]');
-    list.push({ time: new Date().toISOString(), tableJson, table: tableMd });
+    const entry = { time: new Date().toISOString(), tableJson, table: tableMd };
+    if (meta && typeof meta === 'object') {
+      if (meta.aiCommandText) entry.aiCommandText = meta.aiCommandText;
+      if (meta.aiRawText) entry.aiRawText = meta.aiRawText;
+      if (meta.source) entry.source = meta.source;
+    }
+    list.push(entry);
     localStorage.setItem(key, JSON.stringify(list));
     localStorage.setItem(getHistoryIndexKey(), String(list.length - 1));
   };
@@ -748,13 +757,13 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     if (templateEditorEl) templateEditorEl.style.display = 'none';
   };
 
-  const saveTableForChat = async (tableMd) => {
+  const saveTableForChat = async (tableMd, meta = {}) => {
     const metadata = getChatMetadata();
     const ctx = window.SillyTavern?.getContext?.();
     const wrapped = wrapTable(tableMd);
     const tableJson = parseMarkdownTableToJson(wrapped);
     tableJson.hiddenRows = hiddenRows || {};
-    appendHistory(tableJson, wrapped);
+    appendHistory(tableJson, wrapped, meta);
     if (metadata && typeof metadata === 'object') {
       metadata.WorldTreeLibrary = { ...(metadata.WorldTreeLibrary || {}), tableJson, table: wrapped };
       if (window.ST_API?.chatHistory?.update) {
@@ -971,7 +980,8 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   };
 
   const saveState = async () => {
-    if (tableMdEl) await saveTableForChat(ensureTableWrapper(tableMdEl.value));
+    if (tableMdEl) await saveTableForChat(ensureTableWrapper(tableMdEl.value), pendingAiHistory || {});
+    pendingAiHistory = null;
     if (schemaModeEl) saveSchemaForMode(schemaModeEl.value, schemaSource || schemaEl?.value || '');
     if (schemaModeEl) localStorage.setItem('wtl.schemaMode', schemaModeEl.value);
     if (wbModeEl) localStorage.setItem('wtl.wbReadMode', wbModeEl.value);
@@ -1040,6 +1050,137 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       }));
       localStorage.setItem('wtl.refBlockOrder', JSON.stringify(blocks));
     }
+  };
+
+  const removeStorageByPrefix = (prefix) => {
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        localStorage.removeItem(key);
+      }
+    }
+  };
+
+  const ensurePresetStore = (key, payload) => {
+    if (!payload) return;
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      localStorage.setItem(key, JSON.stringify(payload || {}));
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw || '');
+      const isEmpty = !parsed || typeof parsed !== 'object' || Object.keys(parsed).length === 0;
+      if (isEmpty) localStorage.setItem(key, JSON.stringify(payload || {}));
+    } catch (e) {
+      localStorage.setItem(key, JSON.stringify(payload || {}));
+    }
+  };
+
+  const setPresetStore = (key, payload) => {
+    localStorage.setItem(key, JSON.stringify(payload || {}));
+  };
+
+  const resetAllDefaults = async () => {
+    const presetData = window.__WTL_PRESETS__ || {};
+    const defaultSchema = getDefaultSchemaText();
+    const defaultPreprompt = getDefaultPromptText('preprompt', PREPROMPT_PRESET_KEY, PREPROMPT_PRESET_ACTIVE_KEY);
+    const defaultInstruction = getDefaultPromptText('instruction', INSTRUCTION_PRESET_KEY, INSTRUCTION_PRESET_ACTIVE_KEY);
+
+    setPresetStore('wtl.openai.presets', presetData.openai);
+    setPresetStore(PREPROMPT_PRESET_KEY, presetData.preprompt);
+    setPresetStore(INSTRUCTION_PRESET_KEY, presetData.instruction);
+    setPresetStore(SCHEMA_PRESET_KEY, presetData.schema);
+    setPresetStore('wtl.order.presets', presetData.order);
+    setPresetStore('wtl.refOrder.presets', presetData.refOrder);
+    setPresetStore('wtl.blocks.presets', presetData.blocks);
+    setPresetStore('wtl.refBlocks.presets', presetData.refBlocks);
+
+    localStorage.setItem(PREPROMPT_PRESET_ACTIVE_KEY, '默认');
+    localStorage.setItem(INSTRUCTION_PRESET_ACTIVE_KEY, '默认');
+    localStorage.setItem(SCHEMA_PRESET_ACTIVE_KEY, '默认');
+    localStorage.setItem('wtl.order.presetActive', '默认');
+    localStorage.setItem('wtl.refOrder.presetActive', '默认');
+    localStorage.setItem('wtl.blocks.presetActive', '默认');
+    localStorage.setItem('wtl.refBlocks.presetActive', '默认');
+
+    setSchemaScopedPresets({});
+    removeStorageByPrefix('wtl.schema.character.');
+
+    if (schemaModeEl) schemaModeEl.value = defaults.schemaMode;
+    if (sendModeEl) sendModeEl.value = defaults.sendMode;
+    if (wbModeEl) wbModeEl.value = defaults.wbReadMode;
+    if (wbManualEl) wbManualEl.value = defaults.wbManual;
+    if (entryEl) entryEl.value = defaults.entry;
+
+    setAutoUi(false);
+    if (autoFloorsEl) autoFloorsEl.value = '12';
+    if (autoEveryEl) autoEveryEl.value = '1';
+
+    if (tableInjectToggleBtn) tableInjectToggleBtn.checked = defaults.tableInjectEnabled === 'true' || defaults.tableInjectEnabled === true;
+    if (tablePosEl) tablePosEl.value = defaults.tablePos;
+    if (tableRoleEl) tableRoleEl.value = defaults.tableRole;
+    if (tableDepthEl) tableDepthEl.value = defaults.tableDepth;
+    if (tableOrderEl) tableOrderEl.value = defaults.tableOrder;
+    setDepthOnlyWhenFixed(tablePosEl, tableDepthEl);
+
+    if (instInjectToggleEl) instInjectToggleEl.checked = defaults.instInjectEnabled === 'true' || defaults.instInjectEnabled === true;
+    if (instPosEl) instPosEl.value = defaults.instPos;
+    if (instRoleEl) instRoleEl.value = defaults.instRole;
+    if (instDepthEl) instDepthEl.value = defaults.instDepth;
+    if (instOrderEl) instOrderEl.value = defaults.instOrder;
+    setDepthOnlyWhenFixed(instPosEl, instDepthEl);
+
+    if (schemaInjectToggleEl) schemaInjectToggleEl.checked = defaults.schemaInjectEnabled === 'true' || defaults.schemaInjectEnabled === true;
+    if (schemaPosEl) schemaPosEl.value = defaults.schemaPos;
+    if (schemaRoleEl) schemaRoleEl.value = defaults.schemaRole;
+    if (schemaDepthEl) schemaDepthEl.value = defaults.schemaDepth;
+    if (schemaOrderEl) schemaOrderEl.value = defaults.schemaOrder;
+    setDepthOnlyWhenFixed(schemaPosEl, schemaDepthEl);
+
+    if (openaiUrlEl) openaiUrlEl.value = defaults.openaiUrl;
+    if (openaiKeyEl) openaiKeyEl.value = defaults.openaiKey;
+    if (openaiModelEl) openaiModelEl.value = defaults.openaiModel || '';
+    if (openaiTempEl) openaiTempEl.value = defaults.openaiTemp;
+    if (openaiMaxEl) openaiMaxEl.value = defaults.openaiMax;
+
+    if (prePromptEl) prePromptEl.value = defaultPreprompt || '';
+    if (instructionEl) instructionEl.value = defaultInstruction || '';
+    if (editPrepromptBtn) editPrepromptBtn.textContent = '编辑';
+    if (editInstructionBtn) editInstructionBtn.textContent = '编辑';
+
+    refreshPromptPresetSelect(prepromptPresetEl, getPromptPresets(PREPROMPT_PRESET_KEY));
+    refreshPromptPresetSelect(instructionPresetEl, getPromptPresets(INSTRUCTION_PRESET_KEY));
+    if (prepromptPresetEl) prepromptPresetEl.value = '默认';
+    if (instructionPresetEl) instructionPresetEl.value = '默认';
+    if (prepromptPresetNameEl) prepromptPresetNameEl.value = '默认';
+    if (instructionPresetNameEl) instructionPresetNameEl.value = '默认';
+
+    refreshSchemaPresetSelect(schemaPresetEl, getSchemaPresets());
+    if (schemaPresetEl) schemaPresetEl.value = '默认';
+    if (schemaPresetNameEl) schemaPresetNameEl.value = '默认';
+    updateSchemaBindRadios('global');
+    if (schemaEffectiveEl) schemaEffectiveEl.textContent = '全局 · 默认';
+
+    if (blockListEl) renderBlockList(getBlocksPreset() || []);
+    if (refBlockListEl) renderRefBlockList(getRefBlocksPreset() || []);
+    localStorage.removeItem('wtl.blockOrder');
+    localStorage.removeItem('wtl.refBlockOrder');
+
+    schemaSource = defaultSchema || '';
+    templateState = parseSchemaToTemplate(schemaSource);
+    templateActiveSectionId = templateState.sections[0]?.id || '';
+    if (schemaEl) schemaEl.value = buildTemplatePrompt(templateState) || schemaSource;
+    updateSchemaPreview();
+
+    refreshOpenAIPresetSelect();
+    await saveState();
+    await syncTableInjection();
+    await syncInstructionInjection();
+    await syncSchemaInjection();
+    refreshPromptPreview(true);
+    await loadState();
+    setStatus('已恢复默认');
   };
 
   const setStatus = (msg) => {
@@ -2700,6 +2841,20 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       if (modalCustomEl) {
         modalCustomEl.innerHTML = '';
         modalCustomEl.appendChild(buildHistoryItem(idx, item, total));
+        const summary = document.createElement('div');
+        summary.className = 'wtl-editor-hint';
+        summary.textContent = item?.source ? `来源：${item.source}` : '来源：手动/未知';
+        modalCustomEl.appendChild(summary);
+        if (item?.aiCommandText) {
+          const label = document.createElement('div');
+          label.className = 'wtl-badge';
+          label.textContent = '填表指令（AI）';
+          const block = document.createElement('div');
+          block.className = 'wtl-modal-message';
+          block.textContent = item.aiCommandText;
+          modalCustomEl.appendChild(label);
+          modalCustomEl.appendChild(block);
+        }
       }
       modalContentEl.value = md || '';
       modalContentEl.readOnly = true;
@@ -3404,6 +3559,11 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       });
       localStorage.setItem('wtl.lastAi', aiText || '');
       const cmds = parseCommands(extractEditPayload(aiText));
+      pendingAiHistory = {
+        aiCommandText: extractEditPayload(aiText) || '',
+        aiRawText: aiText || '',
+        source: sendMode === 'external' ? '第三方 API' : '酒馆'
+      };
       const applied = applyCommands(stripTableWrapper(tableMdEl?.value || ''), cmds, templateState, hiddenRows);
       hiddenRows = applied?.hiddenRows || {};
       const wrapped = ensureTableWrapper(applied?.markdown || '');
@@ -3484,6 +3644,24 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     await saveState();
     renderPreview(tableMdEl?.value || '');
     setStatus('已保存');
+  });
+
+  resetGlobalBtn?.addEventListener('click', () => {
+    const confirmBtn = makeModalSaveButton('确认恢复', async () => {
+      await resetAllDefaults();
+    });
+    openConfirmModal('全局恢复默认', '该操作将重置所有 WTL 设置为默认（预设/模板/顺序/注入设置等），是否继续？', [confirmBtn]);
+  });
+
+  clearTableBtn?.addEventListener('click', () => {
+    const confirmBtn = makeModalSaveButton('确认清空', async () => {
+      if (tableMdEl) tableMdEl.value = '';
+      renderPreview('');
+      await saveState();
+      refreshPromptPreview(true);
+      setStatus('表格已清空');
+    });
+    openConfirmModal('清空表格', '该操作将清空当前聊天表格内容，是否继续？', [confirmBtn]);
   });
 
   tableMdEl?.addEventListener('input', () => {

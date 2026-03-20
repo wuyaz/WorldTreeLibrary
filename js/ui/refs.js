@@ -19,6 +19,8 @@ export function getUiRefs() {
 
     editTableBtn: byId('wtl-edit-table'),
     editTemplateBtn: byId('wtl-edit-template'),
+    resetGlobalBtn: byId('wtl-reset-global'),
+    clearTableBtn: byId('wtl-clear-table'),
     historyBackBtn: byId('wtl-history-back'),
     historyUndoBtn: byId('wtl-history-undo'),
     historyBtn: byId('wtl-history'),

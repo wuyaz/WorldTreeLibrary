@@ -5,18 +5,18 @@ const defaultWorldBookName = 'Current Chat';
 
 const escapeAttr = (value) => {
   return String(value ?? '')
-    .replace(/&/g, '&')
-    .replace(/"/g, '"')
-    .replace(/</g, '<')
-    .replace(/>/g, '>');
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 };
 
 const unescapeAttr = (value) => {
   return String(value ?? '')
-    .replace(/"/g, '"')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/&/g, '&');
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
 };
 
 const extractWorldBookEntriesFromText = (text, entryMap) => {
