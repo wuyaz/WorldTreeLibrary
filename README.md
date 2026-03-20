@@ -52,10 +52,22 @@ WorldTreeLibrary/
    ├─ api/
    │  ├─ reference.js
    │  └─ memory.js
+   ├─ logic/
+   │  ├─ reference.js        # 参考信息构建/格式化
+   │  ├─ prompt.js           # 提示词拼装
+   │  └─ ai.js               # AI 调用（ST/外部）
+   ├─ table/
+   │  ├─ markdown.js         # 表格解析/渲染
+   │  ├─ template.js         # 模板解析/提示词
+   │  ├─ commands.js         # 编辑指令解析
+   │  └─ apply.js            # 指令应用
    ├─ ui/
-   │  ├─ registerButton.js
-   │  └─ registerTopTab.js
-   ├─ main.js               # 运行入口（ESM）
+   │  ├─ refs.js             # DOM 引用集中
+   │  ├─ bindings.js         # UI 绑定/事件逻辑主入口
+   │  ├─ blocks.js           # UI 块辅助
+   │  └─ registerTopTab.js   # 顶部抽屉注册
+   ├─ storage.js            # localStorage/预设读写
+   ├─ main.js               # 运行入口（轻量）
    ├─ assets.js             # 资源加载工具
    └─ config.js             # 配置加载/合并
 ```
@@ -270,6 +282,7 @@ hide(1,2,true)
 
 ## 运行入口与 UI 加载
 
-- 入口：[`js/main.js`](js/main.js)
+- 入口：[`js/main.js`](js/main.js:1)
 - UI 模板：[`assets/wtl-ui.html`](assets/wtl-ui.html)（运行时加载）
 - CSS：[`wtl.css`](wtl.css)（运行时注入）
+- UI 注册：[`js/ui/registerTopTab.js`](js/ui/registerTopTab.js:1) 负责顶部抽屉注册与 `onOpen` 绑定
