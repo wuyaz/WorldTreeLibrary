@@ -2,44 +2,9 @@
 import { ensureWtlStyle, loadDefaults, loadPreset } from './assets.js';
 
 export const initConfig = async () => {
-  const fallbackDefaults = {
-    schema: '<WTL_Table>\n</WTL_Table>',
-    order: [],
-    refOrder: [],
-    blocks: [],
-    refBlocks: [],
-    wbReadMode: 'auto',
-    wbManual: '{"books": []}',
-    schemaMode: 'global',
-    entry: 'WorldTreeMemory',
-    preprompt: '',
-    instruction: '',
-    sendMode: 'st',
-    openaiUrl: 'https://api.openai.com/v1',
-    openaiKey: '',
-    openaiModel: '',
-    openaiTemp: '0.7',
-    openaiMax: '64000',
-    tablePos: 'outlet',
-    tableRole: 'system',
-    tableDepth: '4',
-    tableOrder: '0',
-    tableInjectEnabled: 'false',
-    instInjectEnabled: 'true',
-    instPos: 'outlet',
-    instRole: 'system',
-    instDepth: '4',
-    instOrder: '1',
-    schemaInjectEnabled: 'false',
-    schemaPos: 'outlet',
-    schemaRole: 'system',
-    schemaDepth: '4',
-    schemaOrder: '2'
-  };
-
   const defaultsData = (await loadDefaults()) || {};
   window.__WTL_DEFAULTS__ = defaultsData;
-  const defaults = { ...fallbackDefaults, ...defaultsData };
+  const defaults = defaultsData;
 
   const presetData = {
     openai: (await loadPreset('openai')) || {},
@@ -113,3 +78,4 @@ export const initConfig = async () => {
 
   return { defaults, defaultsData, presetData };
 };
+
