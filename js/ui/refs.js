@@ -130,6 +130,9 @@ export function getUiRefs() {
     stModeEl: byId('wtl-mode-st'),
     instBlockEl: byId('wtl-inst-block'),
     schemaBlockEl: byId('wtl-schema-block'),
+    instModeEl: byId('wtl-inst-mode'),
+    schemaModeSendEl: byId('wtl-schema-mode-send'),
+    tableModeEl: byId('wtl-table-mode'),
     tablePreviewEl: byId('wtl-table-preview'),
     logContentEl: byId('wtl-log-content'),
     logPromptBtn: byId('wtl-log-prompt'),
@@ -154,6 +157,7 @@ export function getUiRefs() {
     openaiRefreshEl: byId('wtl-openai-refresh'),
     openaiTempEl: byId('wtl-openai-temp'),
     openaiMaxEl: byId('wtl-openai-max'),
+    openaiStreamEl: byId('wtl-openai-stream'),
     externalSaveEl: byId('wtl-external-save'),
 
     tablePosEl: byId('wtl-table-pos'),

@@ -1,75 +1,10 @@
 // 依赖 st-api-wrapper 的全局对象
 const ST_API = window.ST_API;
 
-export async function upsertMemoryTableEntry(params) {
-  const {
-    bookName,
-    entryName,
-    content,
-    scope,
-    position = 'outlet',
-    role = null,
-    depth,
-    order = 0,
-    enabled = true
-  } = params;
+const WORLD_BOOK_WRITE_ERROR = 'WorldTreeLibrary 已禁止写入世界书；请改用聊天绑定存储或变量存储。';
 
-  const book = await ST_API.worldBook.get({
-    name: bookName,
-    scope
-  });
-
-  const existing = book.worldBook.entries.find(
-    entry => entry.name === entryName
-  );
-
-  if (!existing) {
-    const created = await ST_API.worldBook.createEntry(
-      {
-        name: bookName,
-        scope,
-        entry: {
-          name: entryName,
-          content,
-          enabled,
-          position,
-          role,
-          depth,
-          order,
-          activationMode: 'always',
-          key: [],
-          secondaryKey: [],
-          selectiveLogic: 'andAny'
-        }
-      }
-    );
-
-    return {
-      ok: created.ok,
-      mode: 'created',
-      entry: created.entry
-    };
-  }
-
-  const updated = await ST_API.worldBook.updateEntry({
-    name: bookName,
-    scope,
-    index: existing.index,
-    patch: {
-      content,
-      enabled,
-      position,
-      role,
-      depth,
-      order
-    }
-  });
-
-  return {
-    ok: updated.ok,
-    mode: 'updated',
-    entry: updated.entry
-  };
+export async function upsertMemoryTableEntry() {
+  throw new Error(WORLD_BOOK_WRITE_ERROR);
 }
 
 export async function saveMemoryTableState(params) {
@@ -96,14 +31,13 @@ export async function persistMemory(params) {
     ...(params.stateStore || {})
   });
 
-  let wbRes;
   if (params.worldBook) {
-    wbRes = await upsertMemoryTableEntry(params.worldBook);
+    throw new Error(WORLD_BOOK_WRITE_ERROR);
   }
 
   return {
-    ok: stateRes.ok && (wbRes ? wbRes.ok : true),
+    ok: stateRes.ok,
     state: stateRes,
-    worldBook: wbRes
+    worldBook: null
   };
 }

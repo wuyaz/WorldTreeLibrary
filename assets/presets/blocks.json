@@ -21,7 +21,7 @@
       "label": "参考信息",
       "type": "reference",
       "hidden": false,
-      "prefix": "<story_information>\n下面是用于参考的填表信息，仅供参考，实际填表以<history_story>为准\n",
+      "prefix": "<story_information>\n下面是用于参考的设定信息，仅供填表参考，实际填表以<history_story>为准\n",
       "suffix": "\n</story_information>"
     },
     {
@@ -29,7 +29,7 @@
       "label": "聊天记录",
       "type": "chat",
       "hidden": false,
-      "prefix": "<history_story>\n这是用于填表的聊天记录\n",
+      "prefix": "<history_story>\n这是用于填表的最新一期聊天记录，你需要根据这些内容进行表格信息的更新\n",
       "suffix": "\n</history_story>"
     },
     {
@@ -37,7 +37,7 @@
       "label": "表格模板",
       "type": "schema",
       "hidden": false,
-      "prefix": "<WTL_TableTemplate>\n",
+      "prefix": "<WTL_TableTemplate>\n这是用于填表的标准模板，详细定义了每一部分记录了什么，以及如何更新填写表格\n",
       "suffix": "\n</WTL_TableTemplate>"
     },
     {
@@ -45,7 +45,7 @@
       "label": "当前表格",
       "type": "table",
       "hidden": false,
-      "prefix": "<WTL_TableLatest>\n这是本地的表格，你需要根据<history_story>更新它\n",
+      "prefix": "<WTL_TableLatest>\n我整理了一部分重要的历史记忆信息，现在已经将其转为易读的表格，表格如下：\n",
       "suffix": "\n</WTL_TableLatest>"
     }
   ]

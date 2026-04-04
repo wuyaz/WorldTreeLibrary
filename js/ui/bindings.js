@@ -32,6 +32,8 @@ import {
   PREPROMPT_PRESET_ACTIVE_KEY,
   INSTRUCTION_PRESET_KEY,
   INSTRUCTION_PRESET_ACTIVE_KEY,
+  SCHEMA_PRESET_KEY,
+  SCHEMA_PRESET_ACTIVE_KEY,
   safeParseJson,
   getOpenAIPresets,
   setOpenAIPresets,
@@ -176,6 +178,9 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     stModeEl,
     instBlockEl,
     schemaBlockEl,
+    instModeEl,
+    schemaModeSendEl,
+    tableModeEl,
     tablePreviewEl,
     logContentEl,
     logPromptBtn,
@@ -197,6 +202,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     openaiRefreshEl,
     openaiTempEl,
     openaiMaxEl,
+    openaiStreamEl,
     externalSaveEl,
     tablePosEl,
     tableRoleEl,
@@ -228,6 +234,9 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   let templateEditMode = false;
   let schemaSource = '';
   let pendingAiHistory = null;
+  let macroRegistered = false;
+  let currentChatStateKey = '';
+  let runtimeInjectedInput = null;
 
   const getCharacterName = () => {
     const ctx = window.SillyTavern?.getContext?.();
@@ -400,6 +409,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     if (openaiKeyEl && typeof p.key === 'string') openaiKeyEl.value = p.key;
     if (openaiTempEl && p.temp !== undefined) openaiTempEl.value = String(p.temp);
     if (openaiMaxEl && p.max !== undefined) openaiMaxEl.value = String(p.max);
+    if (openaiStreamEl && p.stream !== undefined) openaiStreamEl.checked = p.stream !== false;
     if (openaiModelEl && typeof p.model === 'string') {
       openaiModelEl.innerHTML = `<option value="${p.model}">${p.model}</option>`;
       openaiModelEl.value = p.model;
@@ -824,62 +834,305 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     depthEl.title = isFixed ? '' : '仅固定深度时生效';
   };
 
+  const getPromptMacroPayload = () => ({
+    instruction: instructionEl?.value || '',
+    template: buildTemplatePrompt(templateState) || schemaEl?.value || '',
+    table: getTablePreviewForSend(tableMdEl?.value || '')
+  });
+
+  const syncPromptMacros = async () => {
+    const macros = window.ST_API?.macros;
+    if (!macros?.register) return;
+    const payload = getPromptMacroPayload();
+    const defs = [
+      ['WTL_TableInstruction', 'WorldTreeLibrary 填表指令', () => payload.instruction],
+      ['WTL_TableTemplate', 'WorldTreeLibrary 表格模板', () => payload.template],
+      ['WTL_TableLatest', 'WorldTreeLibrary 当前表格', () => payload.table]
+    ];
+    if (macroRegistered && macros.unregister) {
+      for (const [name] of defs) {
+        try {
+          await macros.unregister({ name });
+        } catch (e) {
+          console.warn('[WorldTreeLibrary] macro.unregister failed', name, e);
+        }
+      }
+    }
+    for (const [name, description, handler] of defs) {
+      await macros.register({
+        name,
+        options: {
+          category: 'custom',
+          description,
+          handler,
+          ensureExperimentalMacroEngine: true
+        }
+      });
+    }
+    macroRegistered = true;
+  };
+
+  const applyAllPromptMacros = async (text) => {
+    const input = String(text || '');
+    const macros = window.ST_API?.macros;
+    if (!input.trim() || !macros?.process) return input;
+    try {
+      const res = await macros.process({ text: input, env: {} });
+      return res?.text || input;
+    } catch (e) {
+      console.warn('[WorldTreeLibrary] macros.process failed', e);
+      return input;
+    }
+  };
+
+  const getSendModeFlags = () => {
+    const rawMode = sendModeEl?.value || defaults.sendMode || 'st';
+    const mode = rawMode === 'stMacro' ? 'st' : rawMode;
+    return {
+      mode,
+      isExternal: mode === 'external',
+      isStLike: mode === 'st'
+    };
+  };
+
+  const getDefaultPromptValues = () => ({
+    preprompt: getDefaultPromptText('preprompt', PREPROMPT_PRESET_KEY, PREPROMPT_PRESET_ACTIVE_KEY) || '',
+    instruction: getDefaultPromptText('instruction', INSTRUCTION_PRESET_KEY, INSTRUCTION_PRESET_ACTIVE_KEY) || '',
+    schema: resolveSchemaByScope()?.text || loadSchemaForMode(schemaModeEl?.value || defaults.schemaMode) || getDefaultSchemaText() || ''
+  });
+
+  const ensurePromptFieldDefaults = ({ syncSchema = false } = {}) => {
+    const fallback = getDefaultPromptValues();
+    let changed = false;
+
+    if (prePromptEl && !String(prePromptEl.value || '').trim() && fallback.preprompt) {
+      prePromptEl.value = fallback.preprompt;
+      changed = true;
+    }
+
+    if (instructionEl && !String(instructionEl.value || '').trim() && fallback.instruction) {
+      instructionEl.value = fallback.instruction;
+      changed = true;
+    }
+
+    if (schemaEl && !String(schemaEl.value || '').trim() && fallback.schema) {
+      schemaEl.value = fallback.schema;
+      schemaSource = fallback.schema;
+      if (syncSchema && schemaModeEl) saveSchemaForMode(schemaModeEl.value, schemaSource);
+      templateState = parseSchemaToTemplate(schemaSource);
+      templateActiveSectionId = templateState.sections[0]?.id || '';
+      updateSchemaPreview();
+      changed = true;
+    }
+
+    return changed;
+  };
+
+  const getStoredOrDefault = (key, fallback = '') => {
+    const raw = localStorage.getItem(key);
+    if (raw === null || raw === undefined) return fallback;
+    const text = String(raw);
+    if (!text.trim() || text === 'undefined' || text === 'null') return fallback;
+    return text;
+  };
+
+  const setStoredIfEmpty = (key, fallback = '') => {
+    const raw = localStorage.getItem(key);
+    const text = raw === null || raw === undefined ? '' : String(raw);
+    const empty = !text.trim() || text === 'undefined' || text === 'null';
+    if (empty && fallback !== undefined && fallback !== null && String(fallback).trim()) {
+      localStorage.setItem(key, String(fallback));
+      return String(fallback);
+    }
+    return empty ? '' : text;
+  };
+
+  const ensureMacroHelpBlock = (id, macroName, usageText) => {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = id;
+      el.className = 'wtl-badge';
+      el.style.marginTop = '8px';
+      el.style.whiteSpace = 'pre-wrap';
+    }
+    el.textContent = `宏名：${macroName}\n用法：${usageText}`;
+    return el;
+  };
+
+  const setModeConfigVisibility = ({ mode, fieldIds = [], helpHost = null, helpId = '', macroName = '', usageText = '' }) => {
+    const isMacro = mode === 'macro';
+    fieldIds.forEach((id) => {
+      const field = document.getElementById(id);
+      if (!field) return;
+      const label = field.previousElementSibling;
+      if (label?.tagName === 'LABEL') label.style.display = isMacro ? 'none' : '';
+      const row = field.closest('.wtl-row');
+      if (row && row.contains(field) && row.children.length <= 3) {
+        row.style.display = isMacro ? 'none' : '';
+      } else {
+        field.style.display = isMacro ? 'none' : '';
+      }
+    });
+
+    if (!helpHost || !helpId || !macroName) return;
+    const help = ensureMacroHelpBlock(helpId, macroName, usageText);
+    if (!help.parentElement) helpHost.appendChild(help);
+    help.style.display = isMacro ? 'block' : 'none';
+  };
+
+  const refreshModeUi = () => {
+    const { isExternal, isStLike } = getSendModeFlags();
+    if (stModeEl) stModeEl.style.display = isStLike ? 'block' : 'none';
+    if (externalEl) externalEl.style.display = isExternal ? 'block' : 'none';
+    if (instBlockEl) instBlockEl.style.display = isStLike ? 'block' : 'none';
+    if (schemaBlockEl) schemaBlockEl.style.display = isStLike ? 'block' : 'none';
+
+    setModeConfigVisibility({
+      mode: instModeEl?.value || defaults.instMode || 'inject',
+      fieldIds: ['wtl-inst-inject-toggle', 'wtl-inst-pos', 'wtl-inst-role', 'wtl-inst-depth', 'wtl-inst-order'],
+      helpHost: instBlockEl,
+      helpId: 'wtl-inst-macro-help',
+      macroName: '{{WTL_TableInstruction}}',
+      usageText: '将该宏填写到预设或系统提示词的目标位置，发送时会自动替换为当前填表指令。'
+    });
+
+    setModeConfigVisibility({
+      mode: schemaModeSendEl?.value || defaults.schemaSendMode || 'inject',
+      fieldIds: ['wtl-schema-inject-toggle', 'wtl-schema-pos', 'wtl-schema-role', 'wtl-schema-depth', 'wtl-schema-order'],
+      helpHost: schemaBlockEl,
+      helpId: 'wtl-schema-macro-help',
+      macroName: '{{WTL_TableTemplate}}',
+      usageText: '将该宏填写到预设或系统提示词的目标位置，发送时会自动替换为当前表格模板。'
+    });
+
+    setModeConfigVisibility({
+      mode: tableModeEl?.value || defaults.tableMode || 'inject',
+      fieldIds: ['wtl-table-inject-toggle', 'wtl-table-pos', 'wtl-table-role', 'wtl-table-depth', 'wtl-table-order'],
+      helpHost: tableModeEl?.parentElement,
+      helpId: 'wtl-table-macro-help',
+      macroName: '{{WTL_TableLatest}}',
+      usageText: '将该宏填写到预设或系统提示词的目标位置，发送时会自动替换为当前表格内容。'
+    });
+  };
+
   const loadState = async () => {
+    currentChatStateKey = getChatKey();
     const table = await loadTableForChat();
-    appendHistory(parseMarkdownTableToJson(table), table);
-    const schemaMode = localStorage.getItem('wtl.schemaMode') || defaults.schemaMode;
+    const schemaMode = getStoredOrDefault('wtl.schemaMode', defaults.schemaMode);
     const presetSchemaActive = localStorage.getItem('wtl.schema.presetActive') || '默认';
     const presetOrderActive = localStorage.getItem('wtl.order.presetActive') || '默认';
     const presetRefOrderActive = localStorage.getItem('wtl.refOrder.presetActive') || '默认';
     const presetBlocksActive = localStorage.getItem('wtl.blocks.presetActive') || '默认';
     const presetRefBlocksActive = localStorage.getItem('wtl.refBlocks.presetActive') || '默认';
 
-    const schemaPreset = getDefaultSchemaText();
+    const schemaPreset = getDefaultSchemaText() || '';
     const orderPreset = (safeParseJson(localStorage.getItem('wtl.order.presets')) || {})[presetOrderActive];
     const refOrderPreset = (safeParseJson(localStorage.getItem('wtl.refOrder.presets')) || {})[presetRefOrderActive];
     const blocksPreset = (safeParseJson(localStorage.getItem('wtl.blocks.presets')) || {})[presetBlocksActive];
     const refBlocksPreset = (safeParseJson(localStorage.getItem('wtl.refBlocks.presets')) || {})[presetRefBlocksActive];
 
     const resolvedSchema = resolveSchemaByScope();
-    const schema = resolvedSchema?.text || loadSchemaForMode(schemaMode) || schemaPreset;
+    let schema = resolvedSchema?.text || loadSchemaForMode(schemaMode) || schemaPreset;
+    if (!schema || !String(schema).trim()) {
+      schema = schemaPreset || '';
+      saveSchemaForMode(schemaMode, schema);
+    }
     schemaSource = schema;
     templateState = parseSchemaToTemplate(schemaSource);
     templateActiveSectionId = templateState.sections[0]?.id || '';
     const blockOrder = JSON.parse(localStorage.getItem('wtl.blockOrder') || 'null') || blocksPreset || getBlocksPreset() || [];
     const refBlockOrder = JSON.parse(localStorage.getItem('wtl.refBlockOrder') || 'null') || refBlocksPreset || getRefBlocksPreset() || [];
-    const wbReadMode = localStorage.getItem('wtl.wbReadMode') || defaults.wbReadMode;
-    const wbManual = localStorage.getItem('wtl.wbManual') || defaults.wbManual;
-    const entry = localStorage.getItem('wtl.entry') || defaults.entry;
-    const preprompt = localStorage.getItem('wtl.preprompt') || getDefaultPromptText('preprompt', PREPROMPT_PRESET_KEY, PREPROMPT_PRESET_ACTIVE_KEY);
-    const instruction = localStorage.getItem('wtl.instruction') || getDefaultPromptText('instruction', INSTRUCTION_PRESET_KEY, INSTRUCTION_PRESET_ACTIVE_KEY);
-    const sendMode = localStorage.getItem('wtl.sendMode') || defaults.sendMode;
-    const openaiUrl = localStorage.getItem('wtl.openaiUrl') || defaults.openaiUrl;
-    const openaiKey = localStorage.getItem('wtl.openaiKey') || defaults.openaiKey;
-    const openaiModel = localStorage.getItem('wtl.openaiModel') || defaults.openaiModel;
-    const openaiTemp = localStorage.getItem('wtl.openaiTemp') || defaults.openaiTemp;
-    const openaiMax = localStorage.getItem('wtl.openaiMax') || defaults.openaiMax;
+    if (!blockOrder?.length && (blocksPreset || getBlocksPreset())?.length) {
+      localStorage.setItem('wtl.blockOrder', JSON.stringify(blocksPreset || getBlocksPreset() || []));
+    }
+    if (!refBlockOrder?.length && (refBlocksPreset || getRefBlocksPreset())?.length) {
+      localStorage.setItem('wtl.refBlockOrder', JSON.stringify(refBlocksPreset || getRefBlocksPreset() || []));
+    }
+    const wbReadMode = getStoredOrDefault('wtl.wbReadMode', defaults.wbReadMode);
+    const wbManual = getStoredOrDefault('wtl.wbManual', defaults.wbManual);
+    const entry = getStoredOrDefault('wtl.entry', defaults.entry);
+    let preprompt = setStoredIfEmpty('wtl.preprompt', getDefaultPromptText('preprompt', PREPROMPT_PRESET_KEY, PREPROMPT_PRESET_ACTIVE_KEY));
+    let instruction = setStoredIfEmpty('wtl.instruction', getDefaultPromptText('instruction', INSTRUCTION_PRESET_KEY, INSTRUCTION_PRESET_ACTIVE_KEY));
+    let sendMode = getStoredOrDefault('wtl.sendMode', defaults.sendMode);
+    if (sendMode === 'stMacro') {
+      sendMode = 'st';
+      localStorage.setItem('wtl.sendMode', sendMode);
+    }
+    const instMode = getStoredOrDefault('wtl.instMode', defaults.instMode || 'inject');
+    const schemaSendMode = getStoredOrDefault('wtl.schemaSendMode', defaults.schemaSendMode || 'inject');
+    const tableMode = getStoredOrDefault('wtl.tableMode', defaults.tableMode || 'inject');
+    const defaultOpenAIPreset = getOpenAIPresets()?.['默认'] || {};
+    const openaiUrl = getStoredOrDefault('wtl.openaiUrl', defaultOpenAIPreset.url || '');
+    const openaiKey = getStoredOrDefault('wtl.openaiKey', defaultOpenAIPreset.key || '');
+    const openaiModel = getStoredOrDefault('wtl.openaiModel', defaultOpenAIPreset.model || '');
+    const openaiTemp = getStoredOrDefault('wtl.openaiTemp', String(defaultOpenAIPreset.temp ?? '0.7'));
+    const openaiMax = getStoredOrDefault('wtl.openaiMax', String(defaultOpenAIPreset.max ?? '1024'));
+    const openaiStream = (localStorage.getItem('wtl.openaiStream') ?? String(defaultOpenAIPreset.stream ?? true)) === 'true';
 
-    const autoFillEnabled = (localStorage.getItem('wtl.autoFillEnabled') || 'false') === 'true';
-    const autoFillFloors = localStorage.getItem('wtl.autoFillFloors') || '12';
-    const autoFillEvery = localStorage.getItem('wtl.autoFillEvery') || '1';
+    const autoFillInitKey = 'wtl.autoFillInitialized';
+    const autoFillDefaultsVersionKey = 'wtl.autoFillDefaultsVersion';
+    const autoFillDefaultsVersion = '2026-04-03-auto-on';
+    if (!localStorage.getItem(autoFillInitKey) || localStorage.getItem(autoFillDefaultsVersionKey) !== autoFillDefaultsVersion) {
+      localStorage.setItem('wtl.autoFillEnabled', String(defaults.autoFillEnabled ?? false));
+      localStorage.setItem('wtl.autoFillFloors', String(defaults.autoFillFloors || '12'));
+      localStorage.setItem('wtl.autoFillEvery', String(defaults.autoFillEvery || '1'));
+      localStorage.setItem(autoFillInitKey, 'true');
+      localStorage.setItem(autoFillDefaultsVersionKey, autoFillDefaultsVersion);
+    }
+    const autoFillEnabledStored = localStorage.getItem('wtl.autoFillEnabled');
+    const autoFillEnabled = (autoFillEnabledStored ?? String(defaults.autoFillEnabled ?? false)) === 'true';
+    const autoFillFloors = getStoredOrDefault('wtl.autoFillFloors', defaults.autoFillFloors || '12');
+    const autoFillEvery = getStoredOrDefault('wtl.autoFillEvery', defaults.autoFillEvery || '1');
 
-    const tablePos = localStorage.getItem('wtl.tablePos') || defaults.tablePos;
-    const tableRole = localStorage.getItem('wtl.tableRole') || defaults.tableRole;
-    const tableDepth = localStorage.getItem('wtl.tableDepth') || defaults.tableDepth;
-    const tableOrder = localStorage.getItem('wtl.tableOrder') || defaults.tableOrder;
-    const tableInjectEnabled = localStorage.getItem('wtl.tableInjectEnabled') || defaults.tableInjectEnabled;
+    const tablePos = getStoredOrDefault('wtl.tablePos', defaults.tablePos);
+    const tableRole = getStoredOrDefault('wtl.tableRole', defaults.tableRole);
+    const tableDepth = getStoredOrDefault('wtl.tableDepth', defaults.tableDepth);
+    const tableOrder = getStoredOrDefault('wtl.tableOrder', defaults.tableOrder);
+    const tableInjectEnabled = getStoredOrDefault('wtl.tableInjectEnabled', defaults.tableInjectEnabled);
 
-    const instInjectEnabled = localStorage.getItem('wtl.instInjectEnabled') || defaults.instInjectEnabled;
-    const instPos = localStorage.getItem('wtl.instPos') || defaults.instPos;
-    const instRole = localStorage.getItem('wtl.instRole') || defaults.instRole;
-    const instDepth = localStorage.getItem('wtl.instDepth') || defaults.instDepth;
-    const instOrder = localStorage.getItem('wtl.instOrder') || defaults.instOrder;
+    const instInjectEnabled = getStoredOrDefault('wtl.instInjectEnabled', defaults.instInjectEnabled);
+    const instPos = getStoredOrDefault('wtl.instPos', defaults.instPos);
+    const instRole = getStoredOrDefault('wtl.instRole', defaults.instRole);
+    const instDepth = getStoredOrDefault('wtl.instDepth', defaults.instDepth);
+    const instOrder = getStoredOrDefault('wtl.instOrder', defaults.instOrder);
 
-    const schemaInjectEnabled = localStorage.getItem('wtl.schemaInjectEnabled') || defaults.schemaInjectEnabled;
-    const schemaPos = localStorage.getItem('wtl.schemaPos') || defaults.schemaPos;
-    const schemaRole = localStorage.getItem('wtl.schemaRole') || defaults.schemaRole;
-    const schemaDepth = localStorage.getItem('wtl.schemaDepth') || defaults.schemaDepth;
-    const schemaOrder = localStorage.getItem('wtl.schemaOrder') || defaults.schemaOrder;
+    const schemaInjectEnabled = getStoredOrDefault('wtl.schemaInjectEnabled', defaults.schemaInjectEnabled);
+    const schemaPos = getStoredOrDefault('wtl.schemaPos', defaults.schemaPos);
+    const schemaRole = getStoredOrDefault('wtl.schemaRole', defaults.schemaRole);
+    const schemaDepth = getStoredOrDefault('wtl.schemaDepth', defaults.schemaDepth);
+    const schemaOrder = getStoredOrDefault('wtl.schemaOrder', defaults.schemaOrder);
+
+    setStoredIfEmpty('wtl.schemaMode', defaults.schemaMode);
+    setStoredIfEmpty('wtl.wbReadMode', defaults.wbReadMode);
+    setStoredIfEmpty('wtl.wbManual', defaults.wbManual);
+    setStoredIfEmpty('wtl.entry', defaults.entry);
+    setStoredIfEmpty('wtl.sendMode', sendMode);
+    setStoredIfEmpty('wtl.instMode', instMode);
+    setStoredIfEmpty('wtl.schemaSendMode', schemaSendMode);
+    setStoredIfEmpty('wtl.tableMode', tableMode);
+    setStoredIfEmpty('wtl.openaiUrl', openaiUrl);
+    setStoredIfEmpty('wtl.openaiKey', openaiKey);
+    setStoredIfEmpty('wtl.openaiModel', openaiModel);
+    setStoredIfEmpty('wtl.openaiTemp', openaiTemp);
+    setStoredIfEmpty('wtl.openaiMax', openaiMax);
+    setStoredIfEmpty('wtl.autoFillFloors', autoFillFloors);
+    setStoredIfEmpty('wtl.autoFillEvery', autoFillEvery);
+    setStoredIfEmpty('wtl.tablePos', tablePos);
+    setStoredIfEmpty('wtl.tableRole', tableRole);
+    setStoredIfEmpty('wtl.tableDepth', tableDepth);
+    setStoredIfEmpty('wtl.tableOrder', tableOrder);
+    setStoredIfEmpty('wtl.tableInjectEnabled', tableInjectEnabled);
+    setStoredIfEmpty('wtl.instPos', instPos);
+    setStoredIfEmpty('wtl.instRole', instRole);
+    setStoredIfEmpty('wtl.instDepth', instDepth);
+    setStoredIfEmpty('wtl.instOrder', instOrder);
+    setStoredIfEmpty('wtl.instInjectEnabled', instInjectEnabled);
+    setStoredIfEmpty('wtl.schemaPos', schemaPos);
+    setStoredIfEmpty('wtl.schemaRole', schemaRole);
+    setStoredIfEmpty('wtl.schemaDepth', schemaDepth);
+    setStoredIfEmpty('wtl.schemaOrder', schemaOrder);
+    setStoredIfEmpty('wtl.schemaInjectEnabled', schemaInjectEnabled);
 
     if (tableMdEl) tableMdEl.value = table;
     if (schemaEl) schemaEl.value = buildTemplatePrompt(templateState) || schema;
@@ -895,6 +1148,9 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     if (prePromptEl) prePromptEl.value = preprompt;
     if (instructionEl) instructionEl.value = instruction;
     if (sendModeEl) sendModeEl.value = sendMode;
+    if (instModeEl) instModeEl.value = instMode;
+    if (schemaModeSendEl) schemaModeSendEl.value = schemaSendMode;
+    if (tableModeEl) tableModeEl.value = tableMode;
 
     const prepromptPresets = getPromptPresets(PREPROMPT_PRESET_KEY);
     const instructionPresets = getPromptPresets(INSTRUCTION_PRESET_KEY);
@@ -932,7 +1188,8 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     }
     if (openaiTempEl) openaiTempEl.value = openaiTemp;
     if (openaiMaxEl) openaiMaxEl.value = openaiMax;
-
+    if (openaiStreamEl) openaiStreamEl.checked = openaiStream;
+ 
     setAutoUi(autoFillEnabled);
     if (autoFloorsEl) autoFloorsEl.value = autoFillFloors;
     if (autoEveryEl) autoEveryEl.value = autoFillEvery;
@@ -967,19 +1224,26 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       renderRefBlockList(refBlockOrder);
     }
 
-    if (stModeEl) stModeEl.style.display = sendMode === 'st' ? 'block' : 'none';
-    if (externalEl) externalEl.style.display = sendMode === 'external' ? 'block' : 'none';
-    if (instBlockEl) instBlockEl.style.display = sendMode === 'st' ? 'block' : 'none';
-    if (schemaBlockEl) schemaBlockEl.style.display = sendMode === 'st' ? 'block' : 'none';
+    const restoredDefaultsOnLoad = ensurePromptFieldDefaults({ syncSchema: true });
+
+    refreshModeUi();
 
     if (templateEditorEl) templateEditorEl.style.display = 'none';
     templateState = parseSchemaToTemplate(schema);
     templateActiveSectionId = templateState.sections[0]?.id || '';
 
     renderPreview(table);
+    if (restoredDefaultsOnLoad) {
+      await saveState();
+    }
+    if (autoFillEnabledStored === null) {
+      await saveState();
+    }
+    await syncPromptMacros();
   };
 
   const saveState = async () => {
+    ensurePromptFieldDefaults({ syncSchema: true });
     if (tableMdEl) await saveTableForChat(ensureTableWrapper(tableMdEl.value), pendingAiHistory || {});
     pendingAiHistory = null;
     if (schemaModeEl) saveSchemaForMode(schemaModeEl.value, schemaSource || schemaEl?.value || '');
@@ -990,6 +1254,9 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     if (prePromptEl) localStorage.setItem('wtl.preprompt', prePromptEl.value);
     if (instructionEl) localStorage.setItem('wtl.instruction', instructionEl.value);
     if (sendModeEl) localStorage.setItem('wtl.sendMode', sendModeEl.value);
+    if (instModeEl) localStorage.setItem('wtl.instMode', instModeEl.value || 'inject');
+    if (schemaModeSendEl) localStorage.setItem('wtl.schemaSendMode', schemaModeSendEl.value || 'inject');
+    if (tableModeEl) localStorage.setItem('wtl.tableMode', tableModeEl.value || 'inject');
 
     if (autoToggleBtn) localStorage.setItem('wtl.autoFillEnabled', autoToggleBtn.dataset.active === 'true' ? 'true' : 'false');
     if (tableInjectToggleBtn) localStorage.setItem('wtl.tableInjectEnabled', tableInjectToggleBtn.checked ? 'true' : 'false');
@@ -1003,6 +1270,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     if (openaiModelEl) localStorage.setItem('wtl.openaiModel', openaiModelEl.value);
     if (openaiTempEl) localStorage.setItem('wtl.openaiTemp', openaiTempEl.value);
     if (openaiMaxEl) localStorage.setItem('wtl.openaiMax', openaiMaxEl.value);
+    if (openaiStreamEl) localStorage.setItem('wtl.openaiStream', openaiStreamEl.checked ? 'true' : 'false');
 
     if (tablePosEl) localStorage.setItem('wtl.tablePos', tablePosEl.value);
     if (tableRoleEl) localStorage.setItem('wtl.tableRole', tableRoleEl.value);
@@ -1050,6 +1318,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       }));
       localStorage.setItem('wtl.refBlockOrder', JSON.stringify(blocks));
     }
+    await syncPromptMacros();
   };
 
   const removeStorageByPrefix = (prefix) => {
@@ -1083,13 +1352,63 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
 
   const resetAllDefaults = async () => {
     const presetData = window.__WTL_PRESETS__ || {};
-    const defaultSchema = getDefaultSchemaText();
-    const defaultPreprompt = getPresetTextByName(PREPROMPT_PRESET_KEY, '默认', '')
-      || (Array.isArray(presetData?.preprompt?.['默认']) ? presetData.preprompt['默认'].join('\n') : String(presetData?.preprompt?.['默认'] || ''))
+    const readPresetText = (group, name = '默认') => {
+      const raw = presetData?.[group]?.[name];
+      if (Array.isArray(raw)) return raw.join('\n');
+      if (typeof raw === 'string') return raw;
+      return '';
+    };
+
+    const defaultSchema = readPresetText('schema') || getDefaultSchemaText() || '';
+    const defaultPreprompt = readPresetText('preprompt')
+      || getPresetTextByName(PREPROMPT_PRESET_KEY, '默认', '')
       || '';
-    const defaultInstruction = getPresetTextByName(INSTRUCTION_PRESET_KEY, '默认', '')
-      || (Array.isArray(presetData?.instruction?.['默认']) ? presetData.instruction['默认'].join('\n') : String(presetData?.instruction?.['默认'] || ''))
+    const defaultInstruction = readPresetText('instruction')
+      || getPresetTextByName(INSTRUCTION_PRESET_KEY, '默认', '')
       || '';
+
+    const resetKeys = [
+      'wtl.preprompt',
+      'wtl.instruction',
+      'wtl.schema',
+      'wtl.schemaMode',
+      'wtl.wbReadMode',
+      'wtl.wbManual',
+      'wtl.entry',
+      'wtl.sendMode',
+      'wtl.instMode',
+      'wtl.schemaSendMode',
+      'wtl.tableMode',
+      'wtl.openaiUrl',
+      'wtl.openaiKey',
+      'wtl.openaiModel',
+      'wtl.openaiTemp',
+      'wtl.openaiMax',
+      'wtl.openaiStream',
+      'wtl.autoFillEnabled',
+      'wtl.autoFillFloors',
+      'wtl.autoFillEvery',
+      'wtl.autoFillInitialized',
+      'wtl.autoFillDefaultsVersion',
+      'wtl.tablePos',
+      'wtl.tableRole',
+      'wtl.tableDepth',
+      'wtl.tableOrder',
+      'wtl.tableInjectEnabled',
+      'wtl.instPos',
+      'wtl.instRole',
+      'wtl.instDepth',
+      'wtl.instOrder',
+      'wtl.instInjectEnabled',
+      'wtl.schemaPos',
+      'wtl.schemaRole',
+      'wtl.schemaDepth',
+      'wtl.schemaOrder',
+      'wtl.schemaInjectEnabled',
+      'wtl.blockOrder',
+      'wtl.refBlockOrder'
+    ];
+    resetKeys.forEach((key) => localStorage.removeItem(key));
 
     setPresetStore('wtl.openai.presets', presetData.openai);
     setPresetStore(PREPROMPT_PRESET_KEY, presetData.preprompt);
@@ -1109,17 +1428,21 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     localStorage.setItem('wtl.refBlocks.presetActive', '默认');
 
     setSchemaScopedPresets({});
+    localStorage.removeItem('wtl.schema.presetsByScope');
     removeStorageByPrefix('wtl.schema.character.');
 
     if (schemaModeEl) schemaModeEl.value = defaults.schemaMode;
     if (sendModeEl) sendModeEl.value = defaults.sendMode;
+    if (instModeEl) instModeEl.value = defaults.instMode || 'inject';
+    if (schemaModeSendEl) schemaModeSendEl.value = defaults.schemaSendMode || 'inject';
+    if (tableModeEl) tableModeEl.value = defaults.tableMode || 'inject';
     if (wbModeEl) wbModeEl.value = defaults.wbReadMode;
     if (wbManualEl) wbManualEl.value = defaults.wbManual;
     if (entryEl) entryEl.value = defaults.entry;
 
-    setAutoUi(false);
-    if (autoFloorsEl) autoFloorsEl.value = '12';
-    if (autoEveryEl) autoEveryEl.value = '1';
+    setAutoUi(defaults.autoFillEnabled === true || defaults.autoFillEnabled === 'true');
+    if (autoFloorsEl) autoFloorsEl.value = defaults.autoFillFloors || '12';
+    if (autoEveryEl) autoEveryEl.value = defaults.autoFillEvery || '1';
 
     if (tableInjectToggleBtn) tableInjectToggleBtn.checked = defaults.tableInjectEnabled === 'true' || defaults.tableInjectEnabled === true;
     if (tablePosEl) tablePosEl.value = defaults.tablePos;
@@ -1142,11 +1465,13 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     if (schemaOrderEl) schemaOrderEl.value = defaults.schemaOrder;
     setDepthOnlyWhenFixed(schemaPosEl, schemaDepthEl);
 
-    if (openaiUrlEl) openaiUrlEl.value = defaults.openaiUrl;
-    if (openaiKeyEl) openaiKeyEl.value = defaults.openaiKey;
-    if (openaiModelEl) openaiModelEl.value = defaults.openaiModel || '';
-    if (openaiTempEl) openaiTempEl.value = defaults.openaiTemp;
-    if (openaiMaxEl) openaiMaxEl.value = defaults.openaiMax;
+    const defaultOpenAIPreset = getOpenAIPresets()?.['默认'] || {};
+    if (openaiUrlEl) openaiUrlEl.value = defaultOpenAIPreset.url || '';
+    if (openaiKeyEl) openaiKeyEl.value = defaultOpenAIPreset.key || '';
+    if (openaiModelEl) openaiModelEl.value = defaultOpenAIPreset.model || '';
+    if (openaiTempEl) openaiTempEl.value = String(defaultOpenAIPreset.temp ?? '0.7');
+    if (openaiMaxEl) openaiMaxEl.value = String(defaultOpenAIPreset.max ?? '1024');
+    if (openaiStreamEl) openaiStreamEl.checked = defaultOpenAIPreset.stream !== false;
 
     if (prePromptEl) prePromptEl.value = defaultPreprompt || '';
     if (instructionEl) instructionEl.value = defaultInstruction || '';
@@ -1168,8 +1493,6 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
 
     if (blockListEl) renderBlockList(getBlocksPreset() || []);
     if (refBlockListEl) renderRefBlockList(getRefBlocksPreset() || []);
-    localStorage.removeItem('wtl.blockOrder');
-    localStorage.removeItem('wtl.refBlockOrder');
 
     schemaSource = defaultSchema || '';
     templateState = parseSchemaToTemplate(schemaSource);
@@ -1177,13 +1500,21 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     if (schemaEl) schemaEl.value = buildTemplatePrompt(templateState) || schemaSource;
     updateSchemaPreview();
 
+    hiddenRows = {};
+    tableSectionOrder = [];
+    activeSection = templateState.sections[0]?.name || '';
+    const resetTable = ensureTableWrapper(renderJsonToMarkdown(buildEmptyTableFromTemplate(templateState)));
+    if (tableMdEl) tableMdEl.value = resetTable;
+    renderPreview(resetTable);
+
     refreshOpenAIPresetSelect();
+    refreshModeUi();
     await saveState();
+    await syncPromptMacros();
     await syncTableInjection();
     await syncInstructionInjection();
     await syncSchemaInjection();
     refreshPromptPreview(true);
-    await loadState();
     setStatus('已恢复默认');
   };
 
@@ -2994,196 +3325,163 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     }
   };
 
-  const syncTableInjection = async () => {
-    if (!window.ST_API?.worldBook) return;
-    const enabled = Boolean(tableInjectToggleBtn?.checked);
+  const getManagedPromptInjectionItems = () => {
     const baseName = entryEl?.value || 'WorldTreeMemory';
-    const entryName = `${baseName}__table`;
-    const content = getTablePreviewForSend(tableMdEl?.value || '');
-    const position = tablePosEl?.value || defaults.tablePos;
-    const role = tableRoleEl?.value || defaults.tableRole;
-    const depth = Number(tableDepthEl?.value || defaults.tableDepth);
-    const order = Number(tableOrderEl?.value || defaults.tableOrder);
-    const bookName = 'Current Chat';
-    const scope = 'chat';
-
-    let book = null;
-    try {
-      const res = await window.ST_API.worldBook.get({ name: bookName, scope });
-      book = res?.worldBook || null;
-    } catch (e) {
-      console.warn('[WorldTreeLibrary] worldBook.get failed', e);
-      return;
-    }
-    if (!book) return;
-
-    const existing = (book.entries || []).find(e => e?.name === entryName);
-    if (!enabled) {
-      if (existing) {
-        await window.ST_API.worldBook.updateEntry({
-          name: bookName,
-          scope,
-          index: existing.index,
-          patch: { enabled: false }
-        });
-      }
-      return;
-    }
-
-    const patch = {
-      name: entryName,
-      content,
-      enabled: true,
-      activationMode: 'always',
-      position,
-      role,
-      depth: Number.isFinite(depth) ? depth : Number(defaults.tableDepth || 4),
-      order: Number.isFinite(order) ? order : Number(defaults.tableOrder || 0)
+    const items = [];
+    const pushItem = ({ kind, enabled, mode, content, position, role, depth, order, defaultDepth = 0, defaultOrder = 0 }) => {
+      if (!enabled || mode === 'macro') return;
+      const text = String(content || '').trim();
+      if (!text) return;
+      const numericDepth = Number(depth);
+      const numericOrder = Number(order);
+      items.push({
+        kind,
+        content: text,
+        position,
+        role,
+        depth: Number.isFinite(numericDepth) ? numericDepth : defaultDepth,
+        order: Number.isFinite(numericOrder) ? numericOrder : defaultOrder
+      });
     };
 
-    if (!existing) {
-      await window.ST_API.worldBook.createEntry({
-        name: bookName,
-        scope,
-        entry: patch
-      });
-      return;
-    }
-
-    await window.ST_API.worldBook.updateEntry({
-      name: bookName,
-      scope,
-      index: existing.index,
-      patch
+    pushItem({
+      kind: 'instruction',
+      enabled: Boolean(instInjectToggleEl?.checked),
+      mode: instModeEl?.value || defaults.instMode || 'inject',
+      content: instructionEl?.value || '',
+      position: instPosEl?.value || defaults.instPos,
+      role: instRoleEl?.value || defaults.instRole,
+      depth: instDepthEl?.value || defaults.instDepth,
+      order: instOrderEl?.value || defaults.instOrder,
+      defaultDepth: Number(defaults.instDepth || 0),
+      defaultOrder: Number(defaults.instOrder || 0)
     });
+
+    pushItem({
+      kind: 'schema',
+      enabled: Boolean(schemaInjectToggleEl?.checked),
+      mode: schemaModeSendEl?.value || defaults.schemaSendMode || 'inject',
+      content: schemaEl?.value || '',
+      position: schemaPosEl?.value || defaults.schemaPos,
+      role: schemaRoleEl?.value || defaults.schemaRole,
+      depth: schemaDepthEl?.value || defaults.schemaDepth,
+      order: schemaOrderEl?.value || defaults.schemaOrder,
+      defaultDepth: Number(defaults.schemaDepth || 0),
+      defaultOrder: Number(defaults.schemaOrder || 0)
+    });
+
+    pushItem({
+      kind: 'table',
+      enabled: Boolean(tableInjectToggleBtn?.checked),
+      mode: tableModeEl?.value || defaults.tableMode || 'inject',
+      content: getTablePreviewForSend(tableMdEl?.value || ''),
+      position: tablePosEl?.value || defaults.tablePos,
+      role: tableRoleEl?.value || defaults.tableRole,
+      depth: tableDepthEl?.value || defaults.tableDepth,
+      order: tableOrderEl?.value || defaults.tableOrder,
+      defaultDepth: Number(defaults.tableDepth || 0),
+      defaultOrder: Number(defaults.tableOrder || 0)
+    });
+
+    return { baseName, items };
+  };
+
+  const getManagedPromptInjectionEntryName = ({ baseName, position, role, depth }) => {
+    const safe = (value) => String(value ?? '')
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'default';
+    const depthKey = position === 'fixed' ? `d${Number.isFinite(Number(depth)) ? Number(depth) : 0}` : 'na';
+    return `${baseName}__promptInject__${safe(position)}__${safe(role)}__${depthKey}`;
+  };
+
+  const buildManagedPromptInjectionText = () => {
+    const { items } = getManagedPromptInjectionItems();
+    if (!Array.isArray(items) || !items.length) return '';
+    const sorted = items.slice().sort((a, b) => {
+      const posA = String(a.position || '');
+      const posB = String(b.position || '');
+      if (posA !== posB) return posA.localeCompare(posB, 'zh-CN');
+      const depthA = Number.isFinite(Number(a.depth)) ? Number(a.depth) : 0;
+      const depthB = Number.isFinite(Number(b.depth)) ? Number(b.depth) : 0;
+      if (depthA !== depthB) return depthA - depthB;
+      const orderA = Number.isFinite(Number(a.order)) ? Number(a.order) : 0;
+      const orderB = Number.isFinite(Number(b.order)) ? Number(b.order) : 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return String(a.kind || '').localeCompare(String(b.kind || ''), 'zh-CN');
+    });
+    const chunks = sorted.map((item) => {
+      const content = String(item.content || '').trim();
+      if (!content) return '';
+      const header = `<!-- WTL_INJECT:${item.kind}:${item.position}:${item.role || 'system'}:${Number.isFinite(Number(item.depth)) ? Number(item.depth) : 0}:${Number.isFinite(Number(item.order)) ? Number(item.order) : 0} -->`;
+      return `${header}\n${content}`.trim();
+    }).filter(Boolean);
+    if (!chunks.length) return '';
+    return `<!-- WTL_RUNTIME_INJECT_START -->\n${chunks.join('\n\n')}\n<!-- WTL_RUNTIME_INJECT_END -->`;
+  };
+
+  const findSendTextarea = () => {
+    const selectors = [
+      '#send_textarea',
+      '#send_textarea textarea',
+      'textarea#send_textarea',
+      '#prompt-textarea',
+      'textarea[name="input"]',
+      'form textarea'
+    ];
+    for (const selector of selectors) {
+      const el = document.querySelector(selector);
+      if (el && typeof el.value === 'string') return el;
+    }
+    const all = Array.from(document.querySelectorAll('textarea'));
+    return all.find((el) => typeof el.value === 'string') || null;
+  };
+
+  const restoreRuntimeInjectedInput = () => {
+    if (!runtimeInjectedInput?.el) return;
+    try {
+      runtimeInjectedInput.el.value = runtimeInjectedInput.value;
+      runtimeInjectedInput.el.dispatchEvent(new Event('input', { bubbles: true }));
+      runtimeInjectedInput.el.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (e) {
+      console.warn('[WorldTreeLibrary] restore runtime inject input failed', e);
+    } finally {
+      runtimeInjectedInput = null;
+    }
+  };
+
+  const applyRuntimeManagedPromptInjection = async () => {
+    restoreRuntimeInjectedInput();
+    const { mode: sendMode, isStLike } = getSendModeFlags();
+    if (!isStLike || sendMode !== 'st') return false;
+    const injectedText = buildManagedPromptInjectionText();
+    if (!String(injectedText || '').trim()) return false;
+    const textarea = findSendTextarea();
+    if (!textarea) return false;
+    const original = String(textarea.value || '');
+    const next = original.trim() ? `${injectedText}\n\n${original}` : injectedText;
+    runtimeInjectedInput = { el: textarea, value: original };
+    textarea.value = next;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  };
+
+  const syncManagedPromptInjections = async () => {
+    const payload = buildManagedPromptInjectionText();
+    localStorage.setItem('wtl.runtimeManagedPromptInjection', payload || '');
+  };
+
+  const syncTableInjection = async () => {
+    await syncManagedPromptInjections();
   };
 
   const syncInstructionInjection = async () => {
-    if (!window.ST_API?.worldBook) return;
-    const enabled = Boolean(instInjectToggleEl?.checked);
-    const baseName = entryEl?.value || 'WorldTreeMemory';
-    const entryName = `${baseName}__instruction`;
-    const content = (instructionEl?.value || '').trim();
-    const position = instPosEl?.value || defaults.instPos;
-    const role = instRoleEl?.value || defaults.instRole;
-    const depth = Number(instDepthEl?.value || defaults.instDepth);
-    const order = Number(instOrderEl?.value || defaults.instOrder);
-    const bookName = 'Current Chat';
-    const scope = 'chat';
-
-    let book = null;
-    try {
-      const res = await window.ST_API.worldBook.get({ name: bookName, scope });
-      book = res?.worldBook || null;
-    } catch (e) {
-      console.warn('[WorldTreeLibrary] worldBook.get failed', e);
-      return;
-    }
-    if (!book) return;
-
-    const existing = (book.entries || []).find(e => e?.name === entryName);
-    if (!enabled) {
-      if (existing) {
-        await window.ST_API.worldBook.updateEntry({
-          name: bookName,
-          scope,
-          index: existing.index,
-          patch: { enabled: false }
-        });
-      }
-      return;
-    }
-
-    const patch = {
-      name: entryName,
-      content,
-      enabled: true,
-      activationMode: 'always',
-      position,
-      role,
-      depth: Number.isFinite(depth) ? depth : Number(defaults.instDepth || 4),
-      order: Number.isFinite(order) ? order : Number(defaults.instOrder || 0)
-    };
-
-    if (!existing) {
-      await window.ST_API.worldBook.createEntry({
-        name: bookName,
-        scope,
-        entry: patch
-      });
-      return;
-    }
-
-    await window.ST_API.worldBook.updateEntry({
-      name: bookName,
-      scope,
-      index: existing.index,
-      patch
-    });
+    await syncManagedPromptInjections();
   };
 
   const syncSchemaInjection = async () => {
-    if (!window.ST_API?.worldBook) return;
-    const enabled = Boolean(schemaInjectToggleEl?.checked);
-    const baseName = entryEl?.value || 'WorldTreeMemory';
-    const entryName = `${baseName}__schema`;
-    const content = (schemaEl?.value || '').trim();
-    const position = schemaPosEl?.value || defaults.schemaPos;
-    const role = schemaRoleEl?.value || defaults.schemaRole;
-    const depth = Number(schemaDepthEl?.value || defaults.schemaDepth);
-    const order = Number(schemaOrderEl?.value || defaults.schemaOrder);
-    const bookName = 'Current Chat';
-    const scope = 'chat';
-
-    let book = null;
-    try {
-      const res = await window.ST_API.worldBook.get({ name: bookName, scope });
-      book = res?.worldBook || null;
-    } catch (e) {
-      console.warn('[WorldTreeLibrary] worldBook.get failed', e);
-      return;
-    }
-    if (!book) return;
-
-    const existing = (book.entries || []).find(e => e?.name === entryName);
-    if (!enabled) {
-      if (existing) {
-        await window.ST_API.worldBook.updateEntry({
-          name: bookName,
-          scope,
-          index: existing.index,
-          patch: { enabled: false }
-        });
-      }
-      return;
-    }
-
-    const patch = {
-      name: entryName,
-      content,
-      enabled: true,
-      activationMode: 'always',
-      position,
-      role,
-      depth: Number.isFinite(depth) ? depth : Number(defaults.schemaDepth || 4),
-      order: Number.isFinite(order) ? order : Number(defaults.schemaOrder || 2)
-    };
-
-    if (!existing) {
-      await window.ST_API.worldBook.createEntry({
-        name: bookName,
-        scope,
-        entry: patch
-      });
-      return;
-    }
-
-    await window.ST_API.worldBook.updateEntry({
-      name: bookName,
-      scope,
-      index: existing.index,
-      patch
-    });
+    await syncManagedPromptInjections();
   };
 
   const ensureHooks = async () => {
@@ -3193,16 +3491,15 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       id: 'WorldTreeLibrary.hooks',
       intercept: {
         targets: ['sendButton', 'sendEnter'],
-        block: { sendButton: true, sendEnter: true },
-        onlyWhenSendOnEnter: true
+        block: { sendButton: true, sendEnter: true }
       },
       broadcast: { target: 'dom' }
     });
 
     window.addEventListener('st-api-wrapper:intercept', async (e) => {
-      const p = e.detail;
+      const p = e.detail || {};
       if (p.target !== 'sendButton' && p.target !== 'sendEnter') return;
-      const sendMode = sendModeEl?.value || 'st';
+      const { mode: sendMode, isStLike } = getSendModeFlags();
 
       await refreshPromptPreview(true);
 
@@ -3221,17 +3518,24 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
         console.warn('[WorldTreeLibrary] inject failed', err);
       }
 
-      if (sendMode !== 'st') {
-        await window.ST_API.hooks.bypassOnce({ id: 'WorldTreeLibrary.hooks', target: 'sendButton' });
-        document.getElementById('send_but')?.click();
-        return;
+      const target = p.target || 'sendButton';
+      if (!isStLike && sendMode !== 'external') {
+        console.warn('[WorldTreeLibrary] unknown send mode, fallback to default send', sendMode);
       }
 
+      let injected = false;
       try {
-        await window.ST_API.hooks.bypassOnce({ id: 'WorldTreeLibrary.hooks', target: 'sendButton' });
+        injected = await applyRuntimeManagedPromptInjection();
+        await window.ST_API.hooks.bypassOnce({ id: 'WorldTreeLibrary.hooks', target });
         document.getElementById('send_but')?.click();
       } catch (err) {
         console.warn('[WorldTreeLibrary] inject failed', err);
+      } finally {
+        if (injected) {
+          window.setTimeout(() => {
+            restoreRuntimeInjectedInput();
+          }, 0);
+        }
       }
     });
   };
@@ -3309,7 +3613,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
         refBlocksPreset: getRefBlocksPreset() || [],
         refOrderPreset: getRefOrderPreset() || []
       });
-      const promptText = buildPrompt({
+      const promptTextRaw = buildPrompt({
         blockEls: getBlockEls(blockListEl),
         refTextBlocks: refBlocks,
         prePromptText: prePromptEl?.value || '',
@@ -3319,6 +3623,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
         templateState,
         hiddenRows
       });
+      const promptText = await applyAllPromptMacros(promptTextRaw);
       localStorage.setItem('wtl.lastPrompt', promptText || '');
       if (logPromptBtn?.dataset?.active === 'true') logContentEl.value = promptText || '';
     } catch (e) {
@@ -3391,15 +3696,32 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   externalNavRefBtn?.addEventListener('click', () => setExternalLeftTab('ref'));
   externalNavWbBtn?.addEventListener('click', () => setExternalLeftTab('wb'));
 
-  sendModeEl?.addEventListener('change', () => {
+  sendModeEl?.addEventListener('change', async () => {
     const mode = sendModeEl.value;
-    if (stModeEl) stModeEl.style.display = mode === 'st' ? 'block' : 'none';
-    if (externalEl) externalEl.style.display = mode === 'external' ? 'block' : 'none';
-    if (instBlockEl) instBlockEl.style.display = mode === 'st' ? 'block' : 'none';
+    refreshModeUi();
+    await saveState();
     if (mode === 'external') {
       setExternalLeftTab('order');
-      refreshPromptPreview(true);
     }
+    refreshPromptPreview(true);
+  });
+  instModeEl?.addEventListener('change', async () => {
+    refreshModeUi();
+    await saveState();
+    await syncInstructionInjection();
+    refreshPromptPreview(true);
+  });
+  schemaModeSendEl?.addEventListener('change', async () => {
+    refreshModeUi();
+    await saveState();
+    await syncSchemaInjection();
+    refreshPromptPreview(true);
+  });
+  tableModeEl?.addEventListener('change', async () => {
+    refreshModeUi();
+    await saveState();
+    await syncTableInjection();
+    refreshPromptPreview(true);
   });
 
   // 外部模式预览：自动刷新（仅配置页打开时生效）
@@ -3423,6 +3745,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   if ((sendModeEl?.value || 'st') === 'external') {
     setExternalLeftTab('order');
   }
+  refreshModeUi();
 
   schemaModeEl?.addEventListener('change', () => {
     if (!schemaModeEl || !schemaEl) return;
@@ -3506,7 +3829,8 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       key: openaiKeyEl?.value || '',
       model: openaiModelEl?.value || '',
       temp: openaiTempEl?.value || '',
-      max: openaiMaxEl?.value || ''
+      max: openaiMaxEl?.value || '',
+      stream: openaiStreamEl?.checked !== false
     };
     setOpenAIPresets(presets);
     refreshOpenAIPresetSelect();
@@ -3537,7 +3861,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
         refBlocksPreset: getRefBlocksPreset() || [],
         refOrderPreset: getRefOrderPreset() || []
       });
-      const promptText = buildPrompt({
+      const promptTextRaw = buildPrompt({
         blockEls: getBlockEls(blockListEl),
         refTextBlocks: refBlocks,
         prePromptText: prePromptEl?.value || '',
@@ -3547,6 +3871,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
         templateState,
         hiddenRows
       });
+      const promptText = await applyAllPromptMacros(promptTextRaw);
       localStorage.setItem('wtl.lastPrompt', promptText || '');
       if (logPromptBtn?.dataset?.active === 'true' && logContentEl) logContentEl.value = promptText || '';
 
@@ -3565,7 +3890,8 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
           apiKey: openaiKeyEl?.value || '',
           model: openaiModelEl?.value || '',
           temperature: Number(openaiTempEl?.value || 0.7),
-          maxTokens: Number(openaiMaxEl?.value || 1024)
+          maxTokens: Number(openaiMaxEl?.value || 1024),
+          stream: openaiStreamEl?.checked !== false
         }
       });
       localStorage.setItem('wtl.lastAi', aiText || '');
@@ -3661,7 +3987,12 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
 
   resetGlobalBtn?.addEventListener('click', () => {
     const confirmBtn = makeModalSaveButton('确认恢复', async () => {
-      await resetAllDefaults();
+      resetGlobalBtn.disabled = true;
+      try {
+        await resetAllDefaults();
+      } finally {
+        resetGlobalBtn.disabled = false;
+      }
     });
     openConfirmModal('全局恢复默认', '该操作将重置所有 WTL 设置为默认（预设/模板/顺序/注入设置等），是否继续？', [confirmBtn]);
   });
@@ -3682,16 +4013,41 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     refreshPromptPreview(true);
   });
   prePromptEl?.addEventListener('input', () => {
+    if (!String(prePromptEl.value || '').trim()) {
+      ensurePromptFieldDefaults();
+    }
+    refreshPromptPreview(true);
+  });
+  prePromptEl?.addEventListener('blur', async () => {
+    if (!ensurePromptFieldDefaults()) return;
+    await saveState();
     refreshPromptPreview(true);
   });
   instructionEl?.addEventListener('input', () => {
+    if (!String(instructionEl.value || '').trim()) {
+      ensurePromptFieldDefaults();
+    }
+    refreshPromptPreview(true);
+  });
+  instructionEl?.addEventListener('blur', async () => {
+    if (!ensurePromptFieldDefaults()) return;
+    await saveState();
     refreshPromptPreview(true);
   });
   schemaEl?.addEventListener('input', () => {
+    if (!String(schemaEl.value || '').trim()) {
+      ensurePromptFieldDefaults({ syncSchema: true });
+    }
     schemaSource = schemaEl.value;
     if (schemaModeEl) saveSchemaForMode(schemaModeEl.value, schemaSource);
     templateState = parseSchemaToTemplate(schemaSource);
     templateActiveSectionId = templateState.sections[0]?.id || '';
+    updateSchemaPreview();
+    refreshPromptPreview(true);
+  });
+  schemaEl?.addEventListener('blur', async () => {
+    if (!ensurePromptFieldDefaults({ syncSchema: true })) return;
+    await saveState();
     refreshPromptPreview(true);
   });
 
@@ -4359,6 +4715,22 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   bindDrag(blockListEl);
   bindDrag(refBlockListEl);
 
+  const reloadStateForCurrentChat = async () => {
+    const nextChatKey = getChatKey();
+    if (!nextChatKey) return;
+    const changed = currentChatStateKey !== nextChatKey;
+    await loadState();
+    if (changed) {
+      lastRef = null;
+      pendingAiHistory = null;
+    }
+    const cachedPrompt = localStorage.getItem('wtl.lastPrompt') || '';
+    const cachedAi = localStorage.getItem('wtl.lastAi') || '';
+    if (logPromptBtn?.dataset.active === 'true' && logContentEl) logContentEl.value = cachedPrompt;
+    if (logAiBtn?.dataset.active === 'true' && logContentEl) logContentEl.value = cachedAi;
+    await refreshPromptPreview(true);
+  };
+
   loadState();
   if (logPromptBtn) logPromptBtn.dataset.active = 'true';
   if (logAiBtn) logAiBtn.dataset.active = 'false';
@@ -4374,13 +4746,13 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   if (!window.__wtlChatHook) {
     window.__wtlChatHook = true;
     if (event_types?.CHAT_CHANGED) {
-      eventSource.on(event_types.CHAT_CHANGED, () => refreshPromptPreview(true));
+      eventSource.on(event_types.CHAT_CHANGED, () => reloadStateForCurrentChat());
     }
     if (event_types?.CHAT_LOADED) {
-      eventSource.on(event_types.CHAT_LOADED, () => refreshPromptPreview(true));
+      eventSource.on(event_types.CHAT_LOADED, () => reloadStateForCurrentChat());
     }
     if (event_types?.CHAT_CHANGED_MANUALLY) {
-      eventSource.on(event_types.CHAT_CHANGED_MANUALLY, () => refreshPromptPreview(true));
+      eventSource.on(event_types.CHAT_CHANGED_MANUALLY, () => reloadStateForCurrentChat());
     }
   }
 }

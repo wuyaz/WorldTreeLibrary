@@ -72,7 +72,7 @@
           </div>
           <div class="wtl-editor-panel">
             <div class="wtl-row" style="justify-content: space-between;">
-              <div class="wtl-editor-title">列列表</div>
+              <div class="wtl-editor-title">列名列表</div>
               <div class="wtl-editor-inline">
                 <button id="wtl-column-add" class="menu_button"><i class="fa-solid fa-plus"></i> 新增列</button>
               </div>
@@ -138,15 +138,20 @@
       <div class="wtl-section-title">填表模式</div>
       <div class="wtl-row">
         <select id="wtl-send-mode" class="text_pole">
-          <option value="st">使用酒馆生成</option>
+          <option value="st">酒馆默认填表</option>
           <option value="external">调用第三方 API</option>
         </select>
       </div>
       <div id="wtl-mode-st" class="wtl-section" style="margin-top:8px;">
         <div class="wtl-block-columns" style="margin-top:8px;">
           <div>
-            <div class="wtl-badge">指令注入设置</div>
+            <div class="wtl-badge">填表指令设置</div>
             <div id="wtl-inst-block" style="margin-top:8px;">
+              <label>填表模式</label>
+              <select id="wtl-inst-mode" class="text_pole">
+                <option value="inject">自动注入</option>
+                <option value="macro">宏注入（{{WTL_TableInstruction}}）</option>
+              </select>
               <label>指令注入开关</label>
               <label class="wtl-switch">
                 <input id="wtl-inst-inject-toggle" type="checkbox" />
@@ -176,8 +181,13 @@
             </div>
           </div>
           <div>
-            <div class="wtl-badge">模板注入设置</div>
+            <div class="wtl-badge">表格模板设置</div>
             <div id="wtl-schema-block" style="margin-top:8px;">
+              <label>模板模式</label>
+              <select id="wtl-schema-mode-send" class="text_pole">
+                <option value="inject">自动注入</option>
+                <option value="macro">宏注入（{{WTL_TableTemplate}}）</option>
+              </select>
               <label>模板注入开关</label>
               <label class="wtl-switch">
                 <input id="wtl-schema-inject-toggle" type="checkbox" />
@@ -285,6 +295,11 @@
       <div class="wtl-section-title">表格注入设置</div>
       <div class="wtl-grid">
         <div>
+          <label>表格注入模式</label>
+          <select id="wtl-table-mode" class="text_pole">
+            <option value="inject">自动注入</option>
+            <option value="macro">宏注入（{{WTL_TableLatest}}）</option>
+          </select>
           <label>表格注入开关</label>
           <label class="wtl-switch">
             <input id="wtl-table-inject-toggle" type="checkbox" />
@@ -344,6 +359,11 @@
         <input id="wtl-openai-temp" class="text_pole" type="number" step="0.1" placeholder="0.7" />
         <label>最大上下文 (max_tokens)</label>
         <input id="wtl-openai-max" class="text_pole" type="number" placeholder="1024" />
+        <label>流式传输</label>
+        <label class="wtl-switch">
+          <input id="wtl-openai-stream" type="checkbox" checked />
+          <span class="wtl-switch-track"><span class="wtl-switch-knob"></span></span>
+        </label>
         <div class="wtl-row" style="justify-content: flex-end;">
           <button id="wtl-external-save" class="menu_button">保存为预设</button>
         </div>
