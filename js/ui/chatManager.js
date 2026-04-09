@@ -1587,8 +1587,8 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
           </span>
           <span class="wtl-chat-manager-toggle-count">
             <span class="wtl-chat-manager-count" data-role="count">0 条</span>
-            <i class="fa-solid fa-chevron-down" data-role="chevron"></i>
           </span>
+          <span class="wtl-chat-manager-toggle-chevron"><i class="fa-solid fa-chevron-down" data-role="chevron"></i></span>
         </button>
         <div class="wtl-chat-manager-panel"></div>
       `;
