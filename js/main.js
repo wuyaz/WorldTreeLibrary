@@ -1,12 +1,16 @@
 // @ts-nocheck
 import { initConfig } from './config.js';
 import { loadHtml } from './assets.js';
+import { getFeatureFlags } from './storage.js';
 import { registerTopTab } from './ui/registerTopTab.js';
+import { registerFeatureMenu } from './ui/registerFeatureMenu.js';
 import { bindWorldTreeUi } from './ui/bindings.js';
+import { createChatManagerController } from './ui/chatManager.js';
 
 (function () {
   let attempts = 0;
   let registered = false;
+  let chatManager = null;
   const init = async () => {
     const ctx = window.SillyTavern?.getContext?.();
     if (!ctx || !window.ST_API?.ui) {
@@ -20,9 +24,18 @@ import { bindWorldTreeUi } from './ui/bindings.js';
     const { defaults } = await initConfig();
     const { eventSource, event_types } = ctx || {};
 
+    if (!chatManager) {
+      chatManager = createChatManagerController();
+    }
+
+    const applyFeatureFlags = (flags = getFeatureFlags()) => {
+      chatManager?.setEnabled(flags.chatManager !== false);
+    };
+
     const register = async () => {
       if (registered) return;
       registered = true;
+      let topTabRegistered = false;
       try {
         await registerTopTab({
           loadHtml,
@@ -31,11 +44,33 @@ import { bindWorldTreeUi } from './ui/bindings.js';
             bindWorldTreeUi({ root, ctx, defaults });
           }
         });
+        topTabRegistered = true;
       } catch (err) {
+        console.warn('[WorldTreeLibrary] register top tab failed', err);
+      }
+
+      try {
+        await registerFeatureMenu({
+          onChange: (flags) => {
+            applyFeatureFlags(flags);
+            const root = document.getElementById('wtl-root');
+            if (root) {
+              root.classList.toggle('wtl-memory-disabled', flags.memoryTable === false);
+              const disabledEl = document.getElementById('wtl-memory-feature-disabled');
+              if (disabledEl) disabledEl.style.display = flags.memoryTable === false ? 'block' : 'none';
+            }
+          }
+        });
+      } catch (err) {
+        console.warn('[WorldTreeLibrary] register feature menu failed', err);
+      }
+
+      if (!topTabRegistered) {
         registered = false;
-        console.warn('[WorldTreeLibrary] register ui failed', err);
       }
     };
+
+    applyFeatureFlags();
 
     if (eventSource?.on && event_types?.APP_READY) {
       eventSource.on(event_types.APP_READY, register);

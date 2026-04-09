@@ -81,6 +81,40 @@ export function bindResetAndHistoryControls({
   });
 }
 
+export function bindEditorResetGroup({
+  reset,
+  history,
+  common,
+  schema
+}) {
+  bindResetAndHistoryControls({
+    ...reset,
+    ...history,
+    ...common,
+    ...schema
+  });
+}
+
+export function bindTemplateEditorGroup({
+  controls,
+  dialog,
+  lists,
+  preview,
+  state,
+  renderers,
+  actions
+}) {
+  bindTemplateEditingControls({
+    ...controls,
+    ...dialog,
+    ...lists,
+    ...preview,
+    ...state,
+    ...renderers,
+    ...actions
+  });
+}
+
 export function bindTemplateEditingControls({
   editTableBtn,
   editTemplateBtn,

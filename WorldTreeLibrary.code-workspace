@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../st-api-wrapper"
+		}
+	],
+	"settings": {
+		"github.gitProtocol": "ssh"
+	}
+}

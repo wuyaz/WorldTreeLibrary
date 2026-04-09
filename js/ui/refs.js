@@ -8,6 +8,7 @@ export function getUiRefs() {
     pageConfigEl: byId('wtl-page-config'),
     openConfigBtn: byId('wtl-open-config'),
     backMainBtn: byId('wtl-back-main'),
+    memoryFeatureDisabledEl: byId('wtl-memory-feature-disabled'),
     batchBtn: byId('wtl-batch'),
     batchStartEl: byId('wtl-batch-start'),
     batchEndEl: byId('wtl-batch-end'),

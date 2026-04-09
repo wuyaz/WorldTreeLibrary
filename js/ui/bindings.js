@@ -65,8 +65,10 @@ import {
 import { importPresetFile, exportPresetFile } from './presetFiles.js';
 import { createHistoryModalController, downloadJsonFile } from './history.js';
 import {
-  bindSchemaPresetControls,
-  bindTextPresetControls,
+  createSchemaPresetHelpers,
+  createOpenAiPresetHelpers,
+  bindSchemaPresetGroup,
+  bindPromptPresetGroups,
   refreshSchemaPresetSelect,
   refreshTextPresetSelect
 } from './presetControllers.js';
@@ -82,13 +84,16 @@ import {
   bindWorldBookControls,
   bindOpenAiPresetControls,
   createFillController,
+  bindRuntimeModeControls,
   bindCommonActionControls
 } from './actionControllers.js';
 import { createStateController } from './stateControllers.js';
 import {
   createPromptMacroController,
   getDefaultSendModeFlags,
-  setModeConfigVisibility
+  setModeConfigVisibility,
+  bindPromptInputControls,
+  bindPromptEditorControls
 } from './promptControllers.js';
 import {
   bindPageControls,
@@ -116,12 +121,13 @@ import {
   mergeManualWorldBookConfig
 } from './manualWorldBookState.js';
 import {
-  bindResetAndHistoryControls,
-  bindTemplateEditingControls
+  bindEditorResetGroup,
+  bindTemplateEditorGroup
 } from './editorControllers.js';
 import { createBlockEditorController } from './blockEditor.js';
 import { createBlockModalController } from './blockModalController.js';
 import { getUiRefs } from './refs.js';
+import { createChatManagerController } from './chatManager.js';
 import {
   PREPROMPT_PRESET_KEY,
   PREPROMPT_PRESET_ACTIVE_KEY,
@@ -129,6 +135,7 @@ import {
   INSTRUCTION_PRESET_ACTIVE_KEY,
   SCHEMA_PRESET_KEY,
   SCHEMA_PRESET_ACTIVE_KEY,
+  getFeatureFlags,
   safeParseJson,
   getOpenAIPresets,
   setOpenAIPresets,
@@ -160,6 +167,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     pageConfigEl,
     openConfigBtn,
     backMainBtn,
+    memoryFeatureDisabledEl,
     batchBtn,
     batchStartEl,
     batchEndEl,
@@ -328,9 +336,9 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   let templateEditMode = false;
   let schemaSource = '';
   let pendingAiHistory = null;
-  let macroRegistered = false;
   let currentChatStateKey = '';
   let runtimeInjectedInput = null;
+  let featureFlags = getFeatureFlags();
 
   const getCharacterName = () => getCharacterNameFromContext(window.SillyTavern?.getContext?.());
 
@@ -338,66 +346,6 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
 
   const getChatMetadata = () => getChatMetadataFromContext(window.SillyTavern?.getContext?.());
 
-  const getTablePreviewForSend = (md) => {
-    const raw = stripTableWrapper(md || '');
-    const lines = raw.split('\n');
-    let sectionIndex = 0;
-    let inSection = false;
-    let headerLine = null;
-    let sepLine = null;
-    const out = [];
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const headerMatch = /^##\s+(.+)$/.exec(line.trim());
-      if (headerMatch) {
-        sectionIndex += 1;
-        inSection = true;
-        headerLine = null;
-        sepLine = null;
-        const meta = templateState?.sections?.[sectionIndex - 1];
-        if (meta && meta.sendable === false) {
-          inSection = false;
-          continue;
-        }
-        out.push(line);
-        continue;
-      }
-      if (!inSection) {
-        out.push(line);
-        continue;
-      }
-      if (line.trim().startsWith('|')) {
-        if (!headerLine) {
-          headerLine = line;
-          out.push(line);
-          continue;
-        }
-        if (!sepLine) {
-          sepLine = line;
-          out.push(line);
-          continue;
-        }
-        const rowIndex = Math.max(1, out.filter(l => l.trim().startsWith('|')).length - 2);
-        const hidden = Boolean(hiddenRows?.[String(sectionIndex)]?.[String(rowIndex)]);
-        if (!hidden) out.push(line);
-        continue;
-      }
-      out.push(line);
-    }
-    return wrapTable(out.join('\n').trim());
-  };
-
-  const getSchemaScopeLabel = (scope) => ({ chat: '聊天', character: '角色', global: '全局' }[scope] || '全局');
-  const getSchemaScope = () => {
-    if (schemaBindChatEl?.checked) return 'chat';
-    if (schemaBindCharacterEl?.checked) return 'character';
-    return 'global';
-  };
-  const updateSchemaBindRadios = (scope) => {
-    if (schemaBindGlobalEl) schemaBindGlobalEl.checked = scope === 'global';
-    if (schemaBindCharacterEl) schemaBindCharacterEl.checked = scope === 'character';
-    if (schemaBindChatEl) schemaBindChatEl.checked = scope === 'chat';
-  };
   const getCurrentChatId = () => {
     const ctx = window.SillyTavern?.getContext?.();
     return ctx?.chatId || ctx?.chat?.id || ctx?.chat?.file || ctx?.chat?.name || '';
@@ -407,6 +355,22 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     const characterId = ctx?.characterId || ctx?.character?.id || ctx?.character?.avatar || '';
     return characterId || '';
   };
+  const {
+    getSchemaScopeLabel,
+    getSchemaScope,
+    updateSchemaBindRadios,
+    resolveSchemaByScope
+  } = createSchemaPresetHelpers({
+    schemaBindGlobalEl,
+    schemaBindCharacterEl,
+    schemaBindChatEl,
+    getSchemaScopedPresets,
+    getSchemaPresets,
+    getDefaultSchemaText,
+    getCurrentChatId,
+    getCurrentCharacterId,
+    localStorageRef: localStorage
+  });
   const getChatDisplayName = () => {
     const ctx = window.SillyTavern?.getContext?.();
     return ctx?.chat?.name || ctx?.chat?.file || ctx?.chatId || '当前聊天';
@@ -415,66 +379,22 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     const name = getCharacterName();
     return name || '当前角色';
   };
-  const getSchemaScopedPresetName = (scope, chatId, charId) => {
-    const map = getSchemaScopedPresets();
-    if (scope === 'chat') return map?.chat?.[chatId] || '';
-    if (scope === 'character') return map?.character?.[charId] || '';
-    return map?.global || '';
-  };
-  const setSchemaScopedPresetName = (scope, name, chatId, charId) => {
-    const map = getSchemaScopedPresets();
-    if (scope === 'chat') {
-      map.chat = map.chat || {};
-      if (name) map.chat[chatId] = name; else delete map.chat[chatId];
-    } else if (scope === 'character') {
-      map.character = map.character || {};
-      if (name) map.character[charId] = name; else delete map.character[charId];
-    } else {
-      map.global = name || '';
-    }
-    setSchemaScopedPresets(map);
-  };
-  const resolveSchemaByScope = () => {
-    const chatId = getCurrentChatId();
-    const charId = getCurrentCharacterId();
-    const map = getSchemaScopedPresets();
-    const presets = getSchemaPresets();
-    const chatName = map?.chat?.[chatId];
-    if (chatName && presets[chatName]) {
-      return { scope: 'chat', name: chatName, text: presets[chatName] };
-    }
-    const charName = map?.character?.[charId];
-    if (charName && presets[charName]) {
-      return { scope: 'character', name: charName, text: presets[charName] };
-    }
-    const globalName = map?.global || localStorage.getItem('wtl.schema.presetActive') || '默认';
-    const globalText = presets[globalName] || presets['默认'] || getDefaultSchemaText();
-    return { scope: 'global', name: globalName || '默认', text: globalText || '' };
-  };
   const getSchemaPreset = () => getDefaultSchemaText();
 
-  const refreshOpenAIPresetSelect = () => {
-    if (!openaiPresetEl) return;
-    const presets = getOpenAIPresets();
-    const names = Object.keys(presets).sort();
-    openaiPresetEl.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('') || `<option value="">(无预设)</option>`;
-  };
-  const loadOpenAIPresetByName = (name) => {
-    const presets = getOpenAIPresets();
-    const p = presets?.[name];
-    if (!p) return false;
-    if (openaiUrlEl && typeof p.url === 'string') openaiUrlEl.value = p.url;
-    if (openaiKeyEl && typeof p.key === 'string') openaiKeyEl.value = p.key;
-    if (openaiTempEl && p.temp !== undefined) openaiTempEl.value = String(p.temp);
-    if (openaiMaxEl && p.max !== undefined) openaiMaxEl.value = String(p.max);
-    if (openaiStreamEl && p.stream !== undefined) openaiStreamEl.checked = p.stream !== false;
-    if (openaiModelEl && typeof p.model === 'string') {
-      openaiModelEl.innerHTML = `<option value="${p.model}">${p.model}</option>`;
-      openaiModelEl.value = p.model;
-    }
-    if (openaiPresetNameEl) openaiPresetNameEl.value = name;
-    return true;
-  };
+  const {
+    refreshOpenAIPresetSelect,
+    loadOpenAIPresetByName
+  } = createOpenAiPresetHelpers({
+    openaiPresetEl,
+    openaiPresetNameEl,
+    openaiUrlEl,
+    openaiKeyEl,
+    openaiTempEl,
+    openaiMaxEl,
+    openaiStreamEl,
+    openaiModelEl,
+    getOpenAIPresets
+  });
 
   const loadTableForChat = async () => {
     const hiddenRowsRef = { value: hiddenRows };
@@ -677,66 +597,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     depthEl.title = isFixed ? '' : '仅固定深度时生效';
   };
 
-  const getPromptMacroPayload = () => ({
-    instruction: instructionEl?.value || '',
-    template: buildTemplatePrompt(templateState) || schemaEl?.value || '',
-    table: getTablePreviewForSend(tableMdEl?.value || '')
-  });
-
-  const syncPromptMacros = async () => {
-    const macros = window.ST_API?.macros;
-    if (!macros?.register) return;
-    const payload = getPromptMacroPayload();
-    const defs = [
-      ['WTL_TableInstruction', 'WorldTreeLibrary 填表指令', () => payload.instruction],
-      ['WTL_TableTemplate', 'WorldTreeLibrary 表格模板', () => payload.template],
-      ['WTL_TableLatest', 'WorldTreeLibrary 当前表格', () => payload.table]
-    ];
-    if (macroRegistered && macros.unregister) {
-      for (const [name] of defs) {
-        try {
-          await macros.unregister({ name });
-        } catch (e) {
-          console.warn('[WorldTreeLibrary] macro.unregister failed', name, e);
-        }
-      }
-    }
-    for (const [name, description, handler] of defs) {
-      await macros.register({
-        name,
-        options: {
-          category: 'custom',
-          description,
-          handler,
-          ensureExperimentalMacroEngine: true
-        }
-      });
-    }
-    macroRegistered = true;
-  };
-
-  const applyAllPromptMacros = async (text) => {
-    const input = String(text || '');
-    const macros = window.ST_API?.macros;
-    if (!input.trim() || !macros?.process) return input;
-    try {
-      const res = await macros.process({ text: input, env: {} });
-      return res?.text || input;
-    } catch (e) {
-      console.warn('[WorldTreeLibrary] macros.process failed', e);
-      return input;
-    }
-  };
-
-  const getSendModeFlags = () => {
-    const rawMode = sendModeEl?.value || defaults.sendMode || 'st';
-    const mode = rawMode === 'stMacro' ? 'st' : rawMode;
-    return {
-      mode,
-      isExternal: mode === 'external',
-      isStLike: mode === 'st'
-    };
-  };
+  const getSendModeFlags = () => getDefaultSendModeFlags({ sendModeEl, defaults });
 
   const getDefaultPromptValues = () => ({
     preprompt: getDefaultPromptText('preprompt', PREPROMPT_PRESET_KEY, PREPROMPT_PRESET_ACTIVE_KEY) || '',
@@ -744,120 +605,62 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     schema: resolveSchemaByScope()?.text || loadSchemaForMode(schemaModeEl?.value || defaults.schemaMode) || getDefaultSchemaText() || ''
   });
 
-  const ensurePromptFieldDefaults = ({ syncSchema = false } = {}) => {
-    const fallback = getDefaultPromptValues();
-    let changed = false;
-
-    if (prePromptEl && !String(prePromptEl.value || '').trim() && fallback.preprompt) {
-      prePromptEl.value = fallback.preprompt;
-      changed = true;
-    }
-
-    if (instructionEl && !String(instructionEl.value || '').trim() && fallback.instruction) {
-      instructionEl.value = fallback.instruction;
-      changed = true;
-    }
-
-    if (schemaEl && !String(schemaEl.value || '').trim() && fallback.schema) {
-      schemaEl.value = fallback.schema;
-      schemaSource = fallback.schema;
-      if (syncSchema && schemaModeEl) saveSchemaForMode(schemaModeEl.value, schemaSource);
-      templateState = parseSchemaToTemplate(schemaSource);
-      templateActiveSectionId = templateState.sections[0]?.id || '';
-      updateSchemaPreview();
-      changed = true;
-    }
-
-    return changed;
-  };
-
-  const getStoredOrDefault = (key, fallback = '') => {
-    const raw = localStorage.getItem(key);
-    if (raw === null || raw === undefined) return fallback;
-    const text = String(raw);
-    if (!text.trim() || text === 'undefined' || text === 'null') return fallback;
-    return text;
-  };
-
-  const setStoredIfEmpty = (key, fallback = '') => {
-    const raw = localStorage.getItem(key);
-    const text = raw === null || raw === undefined ? '' : String(raw);
-    const empty = !text.trim() || text === 'undefined' || text === 'null';
-    if (empty && fallback !== undefined && fallback !== null && String(fallback).trim()) {
-      localStorage.setItem(key, String(fallback));
-      return String(fallback);
-    }
-    return empty ? '' : text;
-  };
-
-  const ensureMacroHelpBlock = (id, macroName, usageText) => {
-    let el = document.getElementById(id);
-    if (!el) {
-      el = document.createElement('div');
-      el.id = id;
-      el.className = 'wtl-badge';
-      el.style.marginTop = '8px';
-      el.style.whiteSpace = 'pre-wrap';
-    }
-    el.textContent = `宏名：${macroName}\n用法：${usageText}`;
-    return el;
-  };
-
-  const setModeConfigVisibility = ({ mode, fieldIds = [], helpHost = null, helpId = '', macroName = '', usageText = '' }) => {
-    const isMacro = mode === 'macro';
-    fieldIds.forEach((id) => {
-      const field = document.getElementById(id);
-      if (!field) return;
-      const label = field.previousElementSibling;
-      if (label?.tagName === 'LABEL') label.style.display = isMacro ? 'none' : '';
-      const row = field.closest('.wtl-row');
-      if (row && row.contains(field) && row.children.length <= 3) {
-        row.style.display = isMacro ? 'none' : '';
-      } else {
-        field.style.display = isMacro ? 'none' : '';
-      }
-    });
-
-    if (!helpHost || !helpId || !macroName) return;
-    const help = ensureMacroHelpBlock(helpId, macroName, usageText);
-    if (!help.parentElement) helpHost.appendChild(help);
-    help.style.display = isMacro ? 'block' : 'none';
-  };
-
-  const refreshModeUi = () => {
-    const { isExternal, isStLike } = getSendModeFlags();
-    if (stModeEl) stModeEl.style.display = isStLike ? 'block' : 'none';
-    if (externalEl) externalEl.style.display = isExternal ? 'block' : 'none';
-    if (instBlockEl) instBlockEl.style.display = isStLike ? 'block' : 'none';
-    if (schemaBlockEl) schemaBlockEl.style.display = isStLike ? 'block' : 'none';
-
-    setModeConfigVisibility({
-      mode: instModeEl?.value || defaults.instMode || 'inject',
-      fieldIds: ['wtl-inst-inject-toggle', 'wtl-inst-pos', 'wtl-inst-role', 'wtl-inst-depth', 'wtl-inst-order'],
-      helpHost: instBlockEl,
-      helpId: 'wtl-inst-macro-help',
-      macroName: '{{WTL_TableInstruction}}',
-      usageText: '将该宏填写到预设或系统提示词的目标位置，发送时会自动替换为当前填表指令。'
-    });
-
-    setModeConfigVisibility({
-      mode: schemaModeSendEl?.value || defaults.schemaSendMode || 'inject',
-      fieldIds: ['wtl-schema-inject-toggle', 'wtl-schema-pos', 'wtl-schema-role', 'wtl-schema-depth', 'wtl-schema-order'],
-      helpHost: schemaBlockEl,
-      helpId: 'wtl-schema-macro-help',
-      macroName: '{{WTL_TableTemplate}}',
-      usageText: '将该宏填写到预设或系统提示词的目标位置，发送时会自动替换为当前表格模板。'
-    });
-
-    setModeConfigVisibility({
-      mode: tableModeEl?.value || defaults.tableMode || 'inject',
-      fieldIds: ['wtl-table-inject-toggle', 'wtl-table-pos', 'wtl-table-role', 'wtl-table-depth', 'wtl-table-order'],
-      helpHost: tableModeEl?.parentElement,
-      helpId: 'wtl-table-macro-help',
-      macroName: '{{WTL_TableLatest}}',
-      usageText: '将该宏填写到预设或系统提示词的目标位置，发送时会自动替换为当前表格内容。'
-    });
-  };
+  const {
+    getStoredOrDefault,
+    setStoredIfEmpty,
+    getTablePreviewForSend,
+    syncPromptMacros,
+    applyAllPromptMacros,
+    ensurePromptFieldDefaults,
+    refreshModeUi
+  } = createPromptMacroController({
+    defaults,
+    localStorageRef: localStorage,
+    sendModeEl,
+    instModeEl,
+    schemaModeSendEl,
+    tableModeEl,
+    stModeEl,
+    externalEl,
+    instBlockEl,
+    schemaBlockEl,
+    tableInjectToggleBtn,
+    tablePosEl,
+    tableRoleEl,
+    tableDepthEl,
+    tableOrderEl,
+    instInjectToggleEl,
+    instPosEl,
+    instRoleEl,
+    instDepthEl,
+    instOrderEl,
+    schemaInjectToggleEl,
+    schemaPosEl,
+    schemaRoleEl,
+    schemaDepthEl,
+    schemaOrderEl,
+    prePromptEl,
+    instructionEl,
+    schemaEl,
+    schemaModeEl,
+    getDefaultPromptValues,
+    saveSchemaForMode,
+    parseSchemaToTemplate,
+    buildTemplatePrompt,
+    getTemplateState: () => templateState,
+    setTemplateState: (value) => {
+      templateState = value;
+      schemaSource = schemaEl?.value || schemaSource;
+    },
+    setTemplateActiveSectionId: (value) => {
+      templateActiveSectionId = value || '';
+    },
+    getTableMarkdown: () => tableMdEl?.value || '',
+    getHiddenRows: () => hiddenRows,
+    updateSchemaPreview,
+    getSendModeFlags,
+    setModeConfigVisibility
+  });
 
   const stateRef = {
     get manualState() {
@@ -1036,6 +839,24 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     const toast = window?.toastr;
     if (!toast || typeof toast[type] !== 'function') return;
     toast[type](msg, 'WorldTreeLibrary');
+  };
+
+  const chatManagerController = createChatManagerController({
+    notifyStatus,
+    setStatus
+  });
+
+  const applyFeatureUi = () => {
+    featureFlags = getFeatureFlags();
+    const memoryEnabled = featureFlags.memoryTable !== false;
+    if (memoryFeatureDisabledEl) memoryFeatureDisabledEl.style.display = memoryEnabled ? 'none' : 'block';
+
+    root.classList.toggle('wtl-memory-disabled', !memoryEnabled);
+    if (openConfigBtn) openConfigBtn.disabled = !memoryEnabled;
+    if (!memoryEnabled && pageConfigEl && pageMainEl) {
+      pageConfigEl.style.display = 'none';
+      pageMainEl.style.display = 'flex';
+    }
   };
 
 
@@ -1879,360 +1700,283 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     runFillOnce
   });
 
-  autoToggleBtn?.addEventListener('click', async () => {
-    const enabled = autoToggleBtn.dataset.active === 'true';
-    const next = !enabled;
-    setAutoUi(next);
-    await saveState();
-    setStatus(next ? '自动填表：已开启' : '自动填表：已关闭');
-  });
-
-  tableInjectToggleBtn?.addEventListener('change', async () => {
-    const next = Boolean(tableInjectToggleBtn.checked);
-    setTableInjectUi(next);
-    await saveState();
-    await syncTableInjection();
-    setStatus(next ? '表格注入：已开启' : '表格注入：已关闭');
-  });
-  instInjectToggleEl?.addEventListener('change', async () => {
-    const next = Boolean(instInjectToggleEl.checked);
-    await saveState();
-    await syncInstructionInjection();
-    setStatus(next ? '指令注入：已开启' : '指令注入：已关闭');
-  });
-  schemaInjectToggleEl?.addEventListener('change', async () => {
-    const next = Boolean(schemaInjectToggleEl.checked);
-    await saveState();
-    await syncSchemaInjection();
-    setStatus(next ? '模板注入：已开启' : '模板注入：已关闭');
-  });
-  tablePosEl?.addEventListener('change', async () => {
-    setDepthOnlyWhenFixed(tablePosEl, tableDepthEl);
-    await saveState();
-  });
-  instPosEl?.addEventListener('change', async () => {
-    setDepthOnlyWhenFixed(instPosEl, instDepthEl);
-    await saveState();
-  });
-  schemaPosEl?.addEventListener('change', async () => {
-    setDepthOnlyWhenFixed(schemaPosEl, schemaDepthEl);
-    await saveState();
-  });
-  autoFloorsEl?.addEventListener('input', () => {
-    saveState();
-  });
-  autoEveryEl?.addEventListener('input', () => {
-    saveState();
-  });
-
-  tableMdEl?.addEventListener('input', () => {
-    renderPreview(tableMdEl.value);
-    refreshPromptPreview(true);
-  });
-  prePromptEl?.addEventListener('input', () => {
-    if (!String(prePromptEl.value || '').trim()) {
-      ensurePromptFieldDefaults();
-    }
-    refreshPromptPreview(true);
-  });
-  prePromptEl?.addEventListener('blur', async () => {
-    if (!ensurePromptFieldDefaults()) return;
-    await saveState();
-    refreshPromptPreview(true);
-  });
-  instructionEl?.addEventListener('input', () => {
-    if (!String(instructionEl.value || '').trim()) {
-      ensurePromptFieldDefaults();
-    }
-    refreshPromptPreview(true);
-  });
-  instructionEl?.addEventListener('blur', async () => {
-    if (!ensurePromptFieldDefaults()) return;
-    await saveState();
-    refreshPromptPreview(true);
-  });
-  schemaEl?.addEventListener('input', () => {
-    if (!String(schemaEl.value || '').trim()) {
-      ensurePromptFieldDefaults({ syncSchema: true });
-    }
-    schemaSource = schemaEl.value;
-    if (schemaModeEl) saveSchemaForMode(schemaModeEl.value, schemaSource);
-    templateState = parseSchemaToTemplate(schemaSource);
-    templateActiveSectionId = templateState.sections[0]?.id || '';
-    updateSchemaPreview();
-    refreshPromptPreview(true);
-  });
-  schemaEl?.addEventListener('blur', async () => {
-    if (!ensurePromptFieldDefaults({ syncSchema: true })) return;
-    await saveState();
-    refreshPromptPreview(true);
-  });
-
-  const { updateSchemaEffectiveUi } = bindSchemaPresetControls({
-    schemaPresetEl,
-    schemaPresetNameEl,
-    schemaPresetLoadEl,
-    schemaPresetSaveEl,
-    schemaPresetRenameEl,
-    schemaPresetDelEl,
-    schemaPresetImportEl,
-    schemaPresetFileEl,
-    schemaPresetExportEl,
-    schemaBindGlobalEl,
-    schemaBindCharacterEl,
-    schemaBindChatEl,
-    schemaEl,
-    schemaEffectiveEl,
-    getSchemaPresets,
-    setSchemaPresets,
-    getSchemaScope,
-    getSchemaScopeLabel,
-    getSchemaScopedPresets,
-    setSchemaScopedPresets,
-    getCurrentChatId,
-    getCurrentCharacterId,
-    resolveSchemaByScope,
-    parseSchemaToTemplate,
-    updateSchemaPreview,
+  bindRuntimeModeControls({
+    autoToggleBtn,
+    tableInjectToggleBtn,
+    instInjectToggleEl,
+    schemaInjectToggleEl,
+    tablePosEl,
+    tableDepthEl,
+    instPosEl,
+    instDepthEl,
+    schemaPosEl,
+    schemaDepthEl,
+    autoFloorsEl,
+    autoEveryEl,
+    tableMdEl,
+    setAutoUi,
+    setTableInjectUi,
+    setDepthOnlyWhenFixed,
+    saveState,
+    syncTableInjection,
+    syncInstructionInjection,
+    syncSchemaInjection,
+    renderPreview,
     refreshPromptPreview,
-    importPresetFile,
-    exportPresetFile,
-    downloadJsonFile,
-    saveSchemaPresetValue,
-    renameSchemaPresetValue,
-    deleteSchemaPresetValue,
-    updateSchemaBindRadios,
-    onSchemaLoaded: ({ schemaSource: nextSchemaSource, templateState: nextTemplateState }) => {
-      schemaSource = nextSchemaSource;
-      templateState = nextTemplateState;
-      templateActiveSectionId = templateState.sections[0]?.id || '';
-    },
     setStatus
   });
 
-  bindTextPresetControls({
-    selectEl: prepromptPresetEl,
-    nameEl: prepromptPresetNameEl,
-    textareaEl: prePromptEl,
-    loadBtn: prepromptPresetLoadEl,
-    saveBtn: prepromptPresetSaveEl,
-    renameBtn: prepromptPresetRenameEl,
-    deleteBtn: prepromptPresetDelEl,
-    importBtn: prepromptPresetImportEl,
-    fileEl: prepromptPresetFileEl,
-    exportBtn: prepromptPresetExportEl,
-    storageKey: PREPROMPT_PRESET_KEY,
-    activeStorageKey: PREPROMPT_PRESET_ACTIVE_KEY,
-    getPromptPresets,
-    setPromptPresets,
-    loadTextPresetValue,
-    saveTextPresetValue,
-    renameTextPresetValue,
-    deleteTextPresetValue,
-    importPresetFile,
-    exportPresetFile,
-    downloadJsonFile,
-    refreshPromptPreview,
-    setStatus,
-    labels: {
-      subject: '破限提示',
-      filename: 'wtl-preprompt-presets.json'
-    }
-  });
-
-  bindTextPresetControls({
-    selectEl: instructionPresetEl,
-    nameEl: instructionPresetNameEl,
-    textareaEl: instructionEl,
-    loadBtn: instructionPresetLoadEl,
-    saveBtn: instructionPresetSaveEl,
-    renameBtn: instructionPresetRenameEl,
-    deleteBtn: instructionPresetDelEl,
-    importBtn: instructionPresetImportEl,
-    fileEl: instructionPresetFileEl,
-    exportBtn: instructionPresetExportEl,
-    storageKey: INSTRUCTION_PRESET_KEY,
-    activeStorageKey: INSTRUCTION_PRESET_ACTIVE_KEY,
-    getPromptPresets,
-    setPromptPresets,
-    loadTextPresetValue,
-    saveTextPresetValue,
-    renameTextPresetValue,
-    deleteTextPresetValue,
-    importPresetFile,
-    exportPresetFile,
-    downloadJsonFile,
-    refreshPromptPreview,
-    setStatus,
-    labels: {
-      subject: '填表指令',
-      filename: 'wtl-instruction-presets.json'
-    }
-  });
-
-  editPrepromptBtn?.addEventListener('click', async () => {
-    if (!prePromptEl || !editPrepromptBtn) return;
-    const editing = prePromptEl.readOnly === false;
-    if (!editing) {
-      prePromptEl.readOnly = false;
-      editPrepromptBtn.textContent = '保存';
-      prePromptEl.focus();
-      return;
-    }
-    prePromptEl.readOnly = true;
-    editPrepromptBtn.textContent = '编辑';
-    await saveState();
-    refreshPromptPreview(true);
-    setStatus('破限提示已保存');
-  });
-
-  editInstructionBtn?.addEventListener('click', async () => {
-    if (!instructionEl || !editInstructionBtn) return;
-    const editing = instructionEl.readOnly === false;
-    if (!editing) {
-      instructionEl.readOnly = false;
-      editInstructionBtn.textContent = '保存';
-      instructionEl.focus();
-      return;
-    }
-    instructionEl.readOnly = true;
-    editInstructionBtn.textContent = '编辑';
-    await saveState();
-    refreshPromptPreview(true);
-    setStatus('填表指令已保存');
-  });
-
-  resetPrepromptBtn?.addEventListener('click', async () => {
-    if (!prePromptEl) return;
-    const confirmBtn = makeModalSaveButton('确认恢复', async () => {
-      let nextValue = getPresetTextByName(PREPROMPT_PRESET_KEY, '默认', '');
-      if (!nextValue && window.__WTL_PRESETS__?.preprompt?.['默认']) {
-        const fallback = window.__WTL_PRESETS__.preprompt['默认'];
-        nextValue = Array.isArray(fallback) ? fallback.join('\n') : String(fallback || '');
-      }
-      prePromptEl.value = nextValue || '';
-      prePromptEl.readOnly = true;
-      if (editPrepromptBtn) editPrepromptBtn.textContent = '编辑';
-      localStorage.setItem(PREPROMPT_PRESET_ACTIVE_KEY, '默认');
-      if (prepromptPresetEl) prepromptPresetEl.value = '默认';
-      if (prepromptPresetNameEl) prepromptPresetNameEl.value = '默认';
-      await saveState();
-      refreshPromptPreview(true);
-      setStatus('破限提示已恢复默认');
-    });
-    openConfirmModal('恢复默认破限提示', '该操作将覆盖当前破限提示内容，是否继续？', [confirmBtn]);
-  });
-
-  resetInstructionBtn?.addEventListener('click', async () => {
-    if (!instructionEl) return;
-    const confirmBtn = makeModalSaveButton('确认恢复', async () => {
-      let nextValue = getPresetTextByName(INSTRUCTION_PRESET_KEY, '默认', '');
-      if (!nextValue && window.__WTL_PRESETS__?.instruction?.['默认']) {
-        const fallback = window.__WTL_PRESETS__.instruction['默认'];
-        nextValue = Array.isArray(fallback) ? fallback.join('\n') : String(fallback || '');
-      }
-      instructionEl.value = nextValue || '';
-      instructionEl.readOnly = true;
-      if (editInstructionBtn) editInstructionBtn.textContent = '编辑';
-      localStorage.setItem(INSTRUCTION_PRESET_ACTIVE_KEY, '默认');
-      if (instructionPresetEl) instructionPresetEl.value = '默认';
-      if (instructionPresetNameEl) instructionPresetNameEl.value = '默认';
-      await saveState();
-      refreshPromptPreview(true);
-      setStatus('填表指令已恢复默认');
-    });
-    openConfirmModal('恢复默认填表指令', '该操作将覆盖当前填表指令内容，是否继续？', [confirmBtn]);
-  });
-
-  bindResetAndHistoryControls({
-    resetSchemaBtn,
-    blockResetEl,
-    refBlockResetEl,
-    historyBackBtn,
-    historyUndoBtn,
-    historyBtn,
-    makeModalSaveButton,
-    openConfirmModal,
-    getSchemaPreset,
-    parseSchemaToTemplate,
-    renderJsonToMarkdown,
-    buildEmptyTableFromTemplate,
-    buildTemplatePrompt,
+  bindPromptInputControls({
+    prePromptEl,
+    instructionEl,
     schemaEl,
-    tableMdEl,
-    renderPreview,
-    renderTemplateSections,
-    renderTemplateColumns,
+    schemaModeEl,
+    parseSchemaToTemplate,
+    saveSchemaForMode,
+    ensurePromptFieldDefaults,
     updateSchemaPreview,
-    saveState,
     refreshPromptPreview,
-    setStatus,
-    getBlocksPreset,
-    renderBlockList,
-    getRefBlocksPreset,
-    renderRefBlockList,
-    restoreHistoryByOffset,
-    openHistoryModal,
-    onSchemaReset: ({ schemaSource: nextSchemaSource, templateState: nextTemplateState }) => {
-      schemaSource = nextSchemaSource;
-      templateState = nextTemplateState;
-      templateActiveSectionId = templateState.sections[0]?.id || '';
-    }
-  });
-
-  bindTemplateEditingControls({
-    editTableBtn,
-    editTemplateBtn,
-    sectionAddBtn,
-    columnAddBtn,
-    sectionApplyBtn,
-    editorDialogSaveEl,
-    editorDialogCloseEl,
-    editorOverlayEl,
-    editorDialogInsertEnabledEl,
-    editorDialogAddEl,
-    editorDialogUpdateEnabledEl,
-    editorDialogEditEl,
-    editorDialogDeleteEnabledEl,
-    editorDialogDelEl,
-    sectionListEl,
-    columnListEl,
-    tableTabsEl,
-    headEl,
-    bindTemplateDrag,
-    openTemplateDialog,
-    closeTemplateDialog,
-    saveTemplateDialogChanges,
-    saveTemplateState,
-    renderPreview,
-    applyPreviewEditsToMarkdown,
-    disableTableInlineEditing,
     saveState,
-    refreshPromptPreview,
-    updateSchemaPreview,
-    reorderColumns,
-    reorderSections,
-    tableMdEl,
-    getTemplateEditMode: () => templateEditMode,
-    setTemplateEditMode: (value) => {
-      templateEditMode = Boolean(value);
+    getSchemaSource: () => schemaSource,
+    setSchemaSource: (value) => {
+      schemaSource = value;
     },
-    getTableEditMode: () => tableEditMode,
-    setTableEditMode: (value) => {
-      tableEditMode = Boolean(value);
-    },
-    getActiveSection: () => activeSection,
     getTemplateState: () => templateState,
     setTemplateState: (value) => {
       templateState = value;
     },
-    getTemplateActiveSectionId: () => templateActiveSectionId,
-    setTableSectionOrder: (value) => {
-      tableSectionOrder = value;
+    setTemplateActiveSectionId: (value) => {
+      templateActiveSectionId = value || '';
+    }
+  });
+
+  const { updateSchemaEffectiveUi } = bindSchemaPresetGroup({
+    schema: {
+      schemaPresetEl,
+      schemaPresetNameEl,
+      schemaPresetLoadEl,
+      schemaPresetSaveEl,
+      schemaPresetRenameEl,
+      schemaPresetDelEl,
+      schemaPresetImportEl,
+      schemaPresetFileEl,
+      schemaPresetExportEl,
+      schemaBindGlobalEl,
+      schemaBindCharacterEl,
+      schemaBindChatEl,
+      schemaEl,
+      schemaEffectiveEl
     },
-    renderTemplateSections,
-    renderTemplateColumns,
-    setStatus
+    common: {
+      getSchemaPresets,
+      setSchemaPresets,
+      getSchemaScopedPresets,
+      setSchemaScopedPresets,
+      getCurrentChatId,
+      getCurrentCharacterId,
+      parseSchemaToTemplate,
+      updateSchemaPreview,
+      refreshPromptPreview,
+      importPresetFile,
+      exportPresetFile,
+      downloadJsonFile,
+      saveSchemaPresetValue,
+      renameSchemaPresetValue,
+      deleteSchemaPresetValue,
+      setStatus,
+      onSchemaLoaded: ({ schemaSource: nextSchemaSource, templateState: nextTemplateState }) => {
+        schemaSource = nextSchemaSource;
+        templateState = nextTemplateState;
+        templateActiveSectionId = templateState.sections[0]?.id || '';
+      }
+    },
+    helpers: {
+      getSchemaScope,
+      getSchemaScopeLabel,
+      resolveSchemaByScope,
+      updateSchemaBindRadios
+    }
+  });
+
+  bindPromptPresetGroups({
+    preprompt: {
+      selectEl: prepromptPresetEl,
+      nameEl: prepromptPresetNameEl,
+      textareaEl: prePromptEl,
+      loadBtn: prepromptPresetLoadEl,
+      saveBtn: prepromptPresetSaveEl,
+      renameBtn: prepromptPresetRenameEl,
+      deleteBtn: prepromptPresetDelEl,
+      importBtn: prepromptPresetImportEl,
+      fileEl: prepromptPresetFileEl,
+      exportBtn: prepromptPresetExportEl,
+      storageKey: PREPROMPT_PRESET_KEY,
+      activeStorageKey: PREPROMPT_PRESET_ACTIVE_KEY
+    },
+    instruction: {
+      selectEl: instructionPresetEl,
+      nameEl: instructionPresetNameEl,
+      textareaEl: instructionEl,
+      loadBtn: instructionPresetLoadEl,
+      saveBtn: instructionPresetSaveEl,
+      renameBtn: instructionPresetRenameEl,
+      deleteBtn: instructionPresetDelEl,
+      importBtn: instructionPresetImportEl,
+      fileEl: instructionPresetFileEl,
+      exportBtn: instructionPresetExportEl,
+      storageKey: INSTRUCTION_PRESET_KEY,
+      activeStorageKey: INSTRUCTION_PRESET_ACTIVE_KEY
+    },
+    common: {
+      getPromptPresets,
+      setPromptPresets,
+      loadTextPresetValue,
+      saveTextPresetValue,
+      renameTextPresetValue,
+      deleteTextPresetValue,
+      importPresetFile,
+      exportPresetFile,
+      downloadJsonFile,
+      refreshPromptPreview,
+      setStatus
+    }
+  });
+
+  bindPromptEditorControls({
+    editPrepromptBtn,
+    resetPrepromptBtn,
+    editInstructionBtn,
+    resetInstructionBtn,
+    prePromptEl,
+    instructionEl,
+    prepromptPresetEl,
+    prepromptPresetNameEl,
+    instructionPresetEl,
+    instructionPresetNameEl,
+    PREPROMPT_PRESET_KEY,
+    PREPROMPT_PRESET_ACTIVE_KEY,
+    INSTRUCTION_PRESET_KEY,
+    INSTRUCTION_PRESET_ACTIVE_KEY,
+    getPresetTextByName,
+    makeModalSaveButton,
+    openConfirmModal,
+    saveState,
+    refreshPromptPreview,
+    setStatus,
+    localStorageRef: localStorage
+  });
+
+  bindEditorResetGroup({
+    reset: {
+      resetSchemaBtn,
+      blockResetEl,
+      refBlockResetEl
+    },
+    history: {
+      historyBackBtn,
+      historyUndoBtn,
+      historyBtn,
+      restoreHistoryByOffset,
+      openHistoryModal
+    },
+    common: {
+      makeModalSaveButton,
+      openConfirmModal,
+      saveState,
+      refreshPromptPreview,
+      setStatus,
+      getBlocksPreset,
+      renderBlockList,
+      getRefBlocksPreset,
+      renderRefBlockList
+    },
+    schema: {
+      getSchemaPreset,
+      parseSchemaToTemplate,
+      renderJsonToMarkdown,
+      buildEmptyTableFromTemplate,
+      buildTemplatePrompt,
+      schemaEl,
+      tableMdEl,
+      renderPreview,
+      renderTemplateSections,
+      renderTemplateColumns,
+      updateSchemaPreview,
+      onSchemaReset: ({ schemaSource: nextSchemaSource, templateState: nextTemplateState }) => {
+        schemaSource = nextSchemaSource;
+        templateState = nextTemplateState;
+        templateActiveSectionId = templateState.sections[0]?.id || '';
+      }
+    }
+  });
+
+  bindTemplateEditorGroup({
+    controls: {
+      editTableBtn,
+      editTemplateBtn,
+      sectionAddBtn,
+      columnAddBtn,
+      sectionApplyBtn
+    },
+    dialog: {
+      editorDialogSaveEl,
+      editorDialogCloseEl,
+      editorOverlayEl,
+      editorDialogInsertEnabledEl,
+      editorDialogAddEl,
+      editorDialogUpdateEnabledEl,
+      editorDialogEditEl,
+      editorDialogDeleteEnabledEl,
+      editorDialogDelEl,
+      openTemplateDialog,
+      closeTemplateDialog,
+      saveTemplateDialogChanges
+    },
+    lists: {
+      sectionListEl,
+      columnListEl,
+      tableTabsEl,
+      headEl,
+      bindTemplateDrag
+    },
+    preview: {
+      renderPreview,
+      applyPreviewEditsToMarkdown,
+      disableTableInlineEditing,
+      reorderColumns,
+      reorderSections,
+      tableMdEl
+    },
+    state: {
+      getTemplateEditMode: () => templateEditMode,
+      setTemplateEditMode: (value) => {
+        templateEditMode = Boolean(value);
+      },
+      getTableEditMode: () => tableEditMode,
+      setTableEditMode: (value) => {
+        tableEditMode = Boolean(value);
+      },
+      getActiveSection: () => activeSection,
+      getTemplateState: () => templateState,
+      setTemplateState: (value) => {
+        templateState = value;
+      },
+      getTemplateActiveSectionId: () => templateActiveSectionId,
+      setTableSectionOrder: (value) => {
+        tableSectionOrder = value;
+      }
+    },
+    renderers: {
+      renderTemplateSections,
+      renderTemplateColumns,
+      updateSchemaPreview,
+      refreshPromptPreview
+    },
+    actions: {
+      saveTemplateState,
+      saveState,
+      setStatus
+    }
   });
 
   batchBtn?.addEventListener('click', async () => {
@@ -2251,6 +1995,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   bindDrag(refBlockListEl);
 
   loadState();
+  applyFeatureUi();
   if (logPromptBtn) logPromptBtn.dataset.active = 'true';
   if (logAiBtn) logAiBtn.dataset.active = 'false';
   const cached = localStorage.getItem('wtl.lastPrompt') || '';

@@ -228,6 +228,13 @@
   opacity: 0.8;
 }
 
+#wtl-root .wtl-feature-disabled {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--wtl-bg-elev) 88%, transparent), color-mix(in srgb, var(--wtl-accent) 8%, transparent));
+}
+#wtl-root.wtl-memory-disabled .wtl-memory-feature {
+  display: none !important;
+}
+
 #wtl-root .wtl-tab-list {
   display: inline-flex;
   gap: 6px;

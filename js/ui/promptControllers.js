@@ -261,6 +261,166 @@ export function getDefaultSendModeFlags({ sendModeEl, defaults }) {
   };
 }
 
+export function bindPromptInputControls({
+  prePromptEl,
+  instructionEl,
+  schemaEl,
+  schemaModeEl,
+  parseSchemaToTemplate,
+  saveSchemaForMode,
+  ensurePromptFieldDefaults,
+  updateSchemaPreview,
+  refreshPromptPreview,
+  saveState,
+  getSchemaSource,
+  setSchemaSource,
+  getTemplateState,
+  setTemplateState,
+  setTemplateActiveSectionId
+}) {
+  prePromptEl?.addEventListener('input', () => {
+    if (!String(prePromptEl.value || '').trim()) {
+      ensurePromptFieldDefaults();
+    }
+    refreshPromptPreview(true);
+  });
+
+  prePromptEl?.addEventListener('blur', async () => {
+    if (!ensurePromptFieldDefaults()) return;
+    await saveState();
+    refreshPromptPreview(true);
+  });
+
+  instructionEl?.addEventListener('input', () => {
+    if (!String(instructionEl.value || '').trim()) {
+      ensurePromptFieldDefaults();
+    }
+    refreshPromptPreview(true);
+  });
+
+  instructionEl?.addEventListener('blur', async () => {
+    if (!ensurePromptFieldDefaults()) return;
+    await saveState();
+    refreshPromptPreview(true);
+  });
+
+  schemaEl?.addEventListener('input', () => {
+    if (!String(schemaEl.value || '').trim()) {
+      ensurePromptFieldDefaults({ syncSchema: true });
+    }
+    setSchemaSource(schemaEl.value);
+    if (schemaModeEl) saveSchemaForMode(schemaModeEl.value, getSchemaSource());
+    const nextTemplateState = parseSchemaToTemplate(getSchemaSource());
+    setTemplateState(nextTemplateState);
+    setTemplateActiveSectionId(nextTemplateState.sections[0]?.id || '');
+    updateSchemaPreview();
+    refreshPromptPreview(true);
+  });
+
+  schemaEl?.addEventListener('blur', async () => {
+    if (!ensurePromptFieldDefaults({ syncSchema: true })) return;
+    await saveState();
+    refreshPromptPreview(true);
+  });
+}
+
+export function bindPromptEditorControls({
+  editPrepromptBtn,
+  resetPrepromptBtn,
+  editInstructionBtn,
+  resetInstructionBtn,
+  prePromptEl,
+  instructionEl,
+  prepromptPresetEl,
+  prepromptPresetNameEl,
+  instructionPresetEl,
+  instructionPresetNameEl,
+  PREPROMPT_PRESET_KEY,
+  PREPROMPT_PRESET_ACTIVE_KEY,
+  INSTRUCTION_PRESET_KEY,
+  INSTRUCTION_PRESET_ACTIVE_KEY,
+  getPresetTextByName,
+  makeModalSaveButton,
+  openConfirmModal,
+  saveState,
+  refreshPromptPreview,
+  setStatus,
+  localStorageRef
+}) {
+  const resolvePresetDefaultText = (presetKey, groupKey) => {
+    let nextValue = getPresetTextByName(presetKey, '默认', '');
+    if (!nextValue && window.__WTL_PRESETS__?.[groupKey]?.['默认']) {
+      const fallback = window.__WTL_PRESETS__[groupKey]['默认'];
+      nextValue = Array.isArray(fallback) ? fallback.join('\n') : String(fallback || '');
+    }
+    return nextValue || '';
+  };
+
+  editPrepromptBtn?.addEventListener('click', async () => {
+    if (!prePromptEl || !editPrepromptBtn) return;
+    const editing = prePromptEl.readOnly === false;
+    if (!editing) {
+      prePromptEl.readOnly = false;
+      editPrepromptBtn.textContent = '保存';
+      prePromptEl.focus();
+      return;
+    }
+    prePromptEl.readOnly = true;
+    editPrepromptBtn.textContent = '编辑';
+    await saveState();
+    refreshPromptPreview(true);
+    setStatus('破限提示已保存');
+  });
+
+  editInstructionBtn?.addEventListener('click', async () => {
+    if (!instructionEl || !editInstructionBtn) return;
+    const editing = instructionEl.readOnly === false;
+    if (!editing) {
+      instructionEl.readOnly = false;
+      editInstructionBtn.textContent = '保存';
+      instructionEl.focus();
+      return;
+    }
+    instructionEl.readOnly = true;
+    editInstructionBtn.textContent = '编辑';
+    await saveState();
+    refreshPromptPreview(true);
+    setStatus('填表指令已保存');
+  });
+
+  resetPrepromptBtn?.addEventListener('click', async () => {
+    if (!prePromptEl) return;
+    const confirmBtn = makeModalSaveButton('确认恢复', async () => {
+      prePromptEl.value = resolvePresetDefaultText(PREPROMPT_PRESET_KEY, 'preprompt');
+      prePromptEl.readOnly = true;
+      if (editPrepromptBtn) editPrepromptBtn.textContent = '编辑';
+      localStorageRef.setItem(PREPROMPT_PRESET_ACTIVE_KEY, '默认');
+      if (prepromptPresetEl) prepromptPresetEl.value = '默认';
+      if (prepromptPresetNameEl) prepromptPresetNameEl.value = '默认';
+      await saveState();
+      refreshPromptPreview(true);
+      setStatus('破限提示已恢复默认');
+    });
+    openConfirmModal('恢复默认破限提示', '该操作将覆盖当前破限提示内容，是否继续？', [confirmBtn]);
+  });
+
+  resetInstructionBtn?.addEventListener('click', async () => {
+    if (!instructionEl) return;
+    const confirmBtn = makeModalSaveButton('确认恢复', async () => {
+      instructionEl.value = resolvePresetDefaultText(INSTRUCTION_PRESET_KEY, 'instruction');
+      instructionEl.readOnly = true;
+      if (editInstructionBtn) editInstructionBtn.textContent = '编辑';
+      localStorageRef.setItem(INSTRUCTION_PRESET_ACTIVE_KEY, '默认');
+      if (instructionPresetEl) instructionPresetEl.value = '默认';
+      if (instructionPresetNameEl) instructionPresetNameEl.value = '默认';
+      await saveState();
+      refreshPromptPreview(true);
+      setStatus('填表指令已恢复默认');
+    });
+    openConfirmModal('恢复默认填表指令', '该操作将覆盖当前填表指令内容，是否继续？', [confirmBtn]);
+  });
+}
+
 export function setModeConfigVisibility({ mode, fieldIds = [], helpHost = null, helpId = '', macroName = '', usageText = '', ensureMacroHelpBlock }) {
   const isMacro = mode === 'macro';
   fieldIds.forEach((id) => {

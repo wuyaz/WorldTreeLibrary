@@ -12,6 +12,42 @@ export function refreshSchemaPresetSelect(selectEl, presets) {
   populatePresetSelect(selectEl, presets);
 }
 
+export function bindSchemaPresetGroup({
+  schema,
+  common,
+  helpers
+}) {
+  return bindSchemaPresetControls({
+    ...schema,
+    ...common,
+    ...helpers
+  });
+}
+
+export function bindPromptPresetGroups({
+  preprompt,
+  instruction,
+  common
+}) {
+  bindTextPresetControls({
+    ...preprompt,
+    ...common,
+    labels: {
+      subject: '破限提示',
+      filename: 'wtl-preprompt-presets.json'
+    }
+  });
+
+  bindTextPresetControls({
+    ...instruction,
+    ...common,
+    labels: {
+      subject: '填表指令',
+      filename: 'wtl-instruction-presets.json'
+    }
+  });
+}
+
 export function bindTextPresetControls({
   selectEl,
   nameEl,
@@ -137,6 +173,98 @@ export function bindTextPresetControls({
       downloadJson: downloadJsonFile
     });
   });
+}
+
+export function createSchemaPresetHelpers({
+  schemaBindGlobalEl,
+  schemaBindCharacterEl,
+  schemaBindChatEl,
+  getSchemaScopedPresets,
+  getSchemaPresets,
+  getDefaultSchemaText,
+  getCurrentChatId,
+  getCurrentCharacterId,
+  localStorageRef
+}) {
+  const getSchemaScopeLabel = (scope) => ({ chat: '聊天', character: '角色', global: '全局' }[scope] || '全局');
+
+  const getSchemaScope = () => {
+    if (schemaBindChatEl?.checked) return 'chat';
+    if (schemaBindCharacterEl?.checked) return 'character';
+    return 'global';
+  };
+
+  const updateSchemaBindRadios = (scope) => {
+    if (schemaBindGlobalEl) schemaBindGlobalEl.checked = scope === 'global';
+    if (schemaBindCharacterEl) schemaBindCharacterEl.checked = scope === 'character';
+    if (schemaBindChatEl) schemaBindChatEl.checked = scope === 'chat';
+  };
+
+  const resolveSchemaByScope = () => {
+    const chatId = getCurrentChatId();
+    const charId = getCurrentCharacterId();
+    const map = getSchemaScopedPresets();
+    const presets = getSchemaPresets();
+    const chatName = map?.chat?.[chatId];
+    if (chatName && presets[chatName]) {
+      return { scope: 'chat', name: chatName, text: presets[chatName] };
+    }
+    const charName = map?.character?.[charId];
+    if (charName && presets[charName]) {
+      return { scope: 'character', name: charName, text: presets[charName] };
+    }
+    const globalName = map?.global || localStorageRef.getItem('wtl.schema.presetActive') || '默认';
+    const globalText = presets[globalName] || presets['默认'] || getDefaultSchemaText();
+    return { scope: 'global', name: globalName || '默认', text: globalText || '' };
+  };
+
+  return {
+    getSchemaScopeLabel,
+    getSchemaScope,
+    updateSchemaBindRadios,
+    resolveSchemaByScope
+  };
+}
+
+export function createOpenAiPresetHelpers({
+  openaiPresetEl,
+  openaiPresetNameEl,
+  openaiUrlEl,
+  openaiKeyEl,
+  openaiTempEl,
+  openaiMaxEl,
+  openaiStreamEl,
+  openaiModelEl,
+  getOpenAIPresets
+}) {
+  const refreshOpenAIPresetSelect = () => {
+    if (!openaiPresetEl) return;
+    const presets = getOpenAIPresets();
+    const names = Object.keys(presets).sort();
+    openaiPresetEl.innerHTML = names.map((n) => `<option value="${n}">${n}</option>`).join('') || `<option value="">(无预设)</option>`;
+  };
+
+  const loadOpenAIPresetByName = (name) => {
+    const presets = getOpenAIPresets();
+    const p = presets?.[name];
+    if (!p) return false;
+    if (openaiUrlEl && typeof p.url === 'string') openaiUrlEl.value = p.url;
+    if (openaiKeyEl && typeof p.key === 'string') openaiKeyEl.value = p.key;
+    if (openaiTempEl && p.temp !== undefined) openaiTempEl.value = String(p.temp);
+    if (openaiMaxEl && p.max !== undefined) openaiMaxEl.value = String(p.max);
+    if (openaiStreamEl && p.stream !== undefined) openaiStreamEl.checked = p.stream !== false;
+    if (openaiModelEl && typeof p.model === 'string') {
+      openaiModelEl.innerHTML = `<option value="${p.model}">${p.model}</option>`;
+      openaiModelEl.value = p.model;
+    }
+    if (openaiPresetNameEl) openaiPresetNameEl.value = name;
+    return true;
+  };
+
+  return {
+    refreshOpenAIPresetSelect,
+    loadOpenAIPresetByName
+  };
 }
 
 export function bindSchemaPresetControls({

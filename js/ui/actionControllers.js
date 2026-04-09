@@ -151,6 +151,7 @@ export function createFillController({
   buildReferenceBundle,
   formatReferenceText,
   getManualConfig,
+  wbModeEl,
   entryEl,
   tableMdEl,
   instructionEl,
@@ -199,7 +200,7 @@ export function createFillController({
     try {
       const ref = await buildReferenceBundle({
         overrideChat,
-        wbMode: entryEl?.ownerDocument?.getElementById('wtl-wb-mode')?.value || 'auto',
+        wbMode: wbModeEl?.value || 'auto',
         manualConfig: getManualConfig(),
         worldBookName: 'Current Chat'
       });
@@ -272,6 +273,90 @@ export function createFillController({
   };
 
   return { runFillOnce };
+}
+
+export function bindRuntimeModeControls({
+  autoToggleBtn,
+  tableInjectToggleBtn,
+  instInjectToggleEl,
+  schemaInjectToggleEl,
+  tablePosEl,
+  tableDepthEl,
+  instPosEl,
+  instDepthEl,
+  schemaPosEl,
+  schemaDepthEl,
+  autoFloorsEl,
+  autoEveryEl,
+  tableMdEl,
+  setAutoUi,
+  setTableInjectUi,
+  setDepthOnlyWhenFixed,
+  saveState,
+  syncTableInjection,
+  syncInstructionInjection,
+  syncSchemaInjection,
+  renderPreview,
+  refreshPromptPreview,
+  setStatus
+}) {
+  autoToggleBtn?.addEventListener('click', async () => {
+    const enabled = autoToggleBtn.dataset.active === 'true';
+    const next = !enabled;
+    setAutoUi(next);
+    await saveState();
+    setStatus(next ? '自动填表：已开启' : '自动填表：已关闭');
+  });
+
+  tableInjectToggleBtn?.addEventListener('change', async () => {
+    const next = Boolean(tableInjectToggleBtn.checked);
+    setTableInjectUi(next);
+    await saveState();
+    await syncTableInjection();
+    setStatus(next ? '表格注入：已开启' : '表格注入：已关闭');
+  });
+
+  instInjectToggleEl?.addEventListener('change', async () => {
+    const next = Boolean(instInjectToggleEl.checked);
+    await saveState();
+    await syncInstructionInjection();
+    setStatus(next ? '指令注入：已开启' : '指令注入：已关闭');
+  });
+
+  schemaInjectToggleEl?.addEventListener('change', async () => {
+    const next = Boolean(schemaInjectToggleEl.checked);
+    await saveState();
+    await syncSchemaInjection();
+    setStatus(next ? '模板注入：已开启' : '模板注入：已关闭');
+  });
+
+  tablePosEl?.addEventListener('change', async () => {
+    setDepthOnlyWhenFixed(tablePosEl, tableDepthEl);
+    await saveState();
+  });
+
+  instPosEl?.addEventListener('change', async () => {
+    setDepthOnlyWhenFixed(instPosEl, instDepthEl);
+    await saveState();
+  });
+
+  schemaPosEl?.addEventListener('change', async () => {
+    setDepthOnlyWhenFixed(schemaPosEl, schemaDepthEl);
+    await saveState();
+  });
+
+  autoFloorsEl?.addEventListener('input', () => {
+    saveState();
+  });
+
+  autoEveryEl?.addEventListener('input', () => {
+    saveState();
+  });
+
+  tableMdEl?.addEventListener('input', () => {
+    renderPreview(tableMdEl.value);
+    refreshPromptPreview(true);
+  });
 }
 
 export function bindCommonActionControls({

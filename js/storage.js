@@ -7,6 +7,12 @@ export const INSTRUCTION_PRESET_ACTIVE_KEY = 'wtl.instruction.presetActive';
 export const SCHEMA_PRESET_KEY = 'wtl.schema.presets';
 export const SCHEMA_PRESET_ACTIVE_KEY = 'wtl.schema.presetActive';
 export const SCHEMA_PRESET_SCOPE_KEY = 'wtl.schema.presetsByScope';
+export const FEATURE_FLAGS_KEY = 'wtl.featureFlags';
+
+export const DEFAULT_FEATURE_FLAGS = {
+  memoryTable: true,
+  chatManager: true
+};
 
 export function safeParseJson(value) {
   if (!value) return null;
@@ -82,6 +88,23 @@ export const getSchemaScopedPresets = () => safeParseJson(localStorage.getItem(S
 
 export const setSchemaScopedPresets = (data) => {
   localStorage.setItem(SCHEMA_PRESET_SCOPE_KEY, JSON.stringify(data || {}));
+};
+
+export const getFeatureFlags = () => {
+  const parsed = safeParseJson(localStorage.getItem(FEATURE_FLAGS_KEY)) || {};
+  return {
+    ...DEFAULT_FEATURE_FLAGS,
+    ...(parsed && typeof parsed === 'object' ? parsed : {})
+  };
+};
+
+export const setFeatureFlags = (flags) => {
+  const next = {
+    ...DEFAULT_FEATURE_FLAGS,
+    ...(flags && typeof flags === 'object' ? flags : {})
+  };
+  localStorage.setItem(FEATURE_FLAGS_KEY, JSON.stringify(next));
+  return next;
 };
 
 export const getBlocksPreset = () => getPresetFromStorage('wtl.blocks.presets', 'wtl.blocks.presetActive', []);

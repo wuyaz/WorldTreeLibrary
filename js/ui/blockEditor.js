@@ -1,4 +1,4 @@
-function buildBlockLabel(block) {
+export function buildBlockLabel(block) {
   return block.label || block.id || '未知块';
 }
 
