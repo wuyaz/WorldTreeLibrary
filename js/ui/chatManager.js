@@ -221,11 +221,12 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   background: linear-gradient(135deg, color-mix(in srgb, var(--SmartThemeUnderlineColor) 18%, transparent), color-mix(in srgb, var(--SmartThemeQuoteColor) 12%, transparent));
   color: var(--SmartThemeBodyColor);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
   cursor: pointer;
+  min-width: 0;
 }
 .wtl-chat-manager-toggle:hover {
   background: linear-gradient(135deg, color-mix(in srgb, var(--SmartThemeUnderlineColor) 24%, transparent), color-mix(in srgb, var(--SmartThemeQuoteColor) 16%, transparent));
@@ -235,6 +236,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  overflow: hidden;
 }
 .wtl-chat-manager-toggle-tools {
   display: flex;
@@ -248,18 +250,31 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   gap: 2px;
   min-width: 0;
   text-align: left;
+  overflow: hidden;
 }
 .wtl-chat-manager-toggle-title {
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .wtl-chat-manager-toggle-subtitle {
   font-size: 12px;
   opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .wtl-chat-manager-toggle-count {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex: 0 0 auto;
+}
+.wtl-chat-manager-toggle-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
   flex: 0 0 auto;
 }
 .wtl-chat-manager-panel {
@@ -303,6 +318,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
 }
 .wtl-chat-manager-search {
   flex: 1 1 360px;
+  min-width: 180px;
 }
 .wtl-chat-manager-toolbar-main {
   display: flex;
@@ -310,12 +326,17 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  justify-content: space-between;
 }
 .wtl-chat-manager-toolbar-tools {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   flex: 0 0 auto;
+}
+.wtl-chat-manager-tabs {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .wtl-chat-manager-btn,
 .wtl-chat-manager-pill,
@@ -490,6 +511,8 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   z-index: 50000;
   background: color-mix(in srgb, var(--SmartThemeBgColor) 48%, transparent);
   backdrop-filter: blur(4px);
+  padding: 16px;
+  box-sizing: border-box;
 }
 .wtl-chat-manager-modal.is-open {
   display: flex;
@@ -560,6 +583,23 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   justify-content: flex-end;
   margin-top: 12px;
 }
+.wtl-chat-manager-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 90%, transparent);
+}
+.wtl-chat-manager-pagination-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .wtl-chat-manager-message {
   max-width: 88%;
   padding: 10px 12px;
@@ -588,6 +628,16 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   }
   .wtl-chat-manager-toolbar-main {
     flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .wtl-chat-manager-toggle {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+  .wtl-chat-manager-toggle-tools,
+  .wtl-chat-manager-toggle-count,
+  .wtl-chat-manager-toggle-chevron {
+    justify-content: flex-start;
   }
   .wtl-chat-manager-card {
     grid-template-columns: 1fr;
@@ -606,6 +656,17 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   }
   .wtl-chat-manager-tag-grid {
     grid-template-columns: 1fr;
+  }
+  .wtl-chat-manager-modal {
+    padding: 12px;
+  }
+  .wtl-chat-manager-modal-card {
+    width: min(720px, 100%);
+    margin: auto;
+  }
+  .wtl-chat-manager-pagination {
+    flex-direction: column;
+    align-items: stretch;
   }
   .wtl-chat-manager-check {
     padding-top: 0;
@@ -702,6 +763,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   };
 
   const getPreviewCount = () => Math.max(1, Number.parseInt(state.previewCount, 10) || 6);
+  const getPageSize = () => Math.max(1, Number.parseInt(state.pageSize, 10) || 20);
 
   const getCtx = () => window.SillyTavern?.getContext?.();
 
@@ -857,17 +919,17 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     const chevron = rootEl.querySelector('[data-role="chevron"]');
     const subtitle = rootEl.querySelector('[data-role="subtitle"]');
     const countEl = rootEl.querySelector('[data-role="count"]');
-    const tabsHost = rootEl.querySelector('.wtl-chat-manager-toggle-tabs');
     const isOpen = panel?.classList.contains('is-open');
     const filteredChats = getFilteredChats();
     const filterItems = renderFilters();
+    const totalPages = clampCurrentPage(filteredChats.length);
+    const pageSize = getPageSize();
+    const startIndex = (state.currentPage - 1) * pageSize;
+    const pagedChats = filteredChats.slice(startIndex, startIndex + pageSize);
 
     if (countEl) countEl.textContent = `${chats.length} 条`;
     if (subtitle) subtitle.textContent = isLoaded ? `管理 ${chats.length} 条聊天记录` : '点击载入欢迎页聊天记录';
     if (chevron) chevron.className = `fa-solid ${isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`;
-    if (tabsHost) {
-      tabsHost.innerHTML = tabs.map((tab) => `<span class="wtl-chat-manager-pill ${state.viewMode === tab.key ? 'is-active' : ''}" data-action="view" data-view="${tab.key}">${tab.label}</span>`).join('');
-    }
     if (!panel) return;
 
     const tabs = [
@@ -885,7 +947,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       <button type="button" class="wtl-chat-manager-pill ${state.activeFilter === item ? 'is-active' : ''}" data-action="filter" data-value="${escapeHtml(item)}">${escapeHtml(item)}</button>
     `).join('');
 
-    const listHtml = filteredChats.length ? filteredChats.map((chat) => {
+    const listHtml = pagedChats.length ? pagedChats.map((chat) => {
       const key = chat.globalKey;
       const folder = state.chatFolder[key] || '未分类';
       const tags = state.chatTags[key] || [];
@@ -926,6 +988,19 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       `;
     }).join('') : `<div class="wtl-chat-manager-empty">当前筛选下没有聊天记录。</div>`;
 
+    const paginationHtml = filteredChats.length > pageSize ? `
+      <div class="wtl-chat-manager-pagination">
+        <div class="wtl-chat-manager-pagination-main">
+          <span class="wtl-chat-manager-count">第 ${state.currentPage} / ${totalPages} 页</span>
+          <span class="wtl-chat-manager-count">当前显示 ${startIndex + 1}-${Math.min(startIndex + pagedChats.length, filteredChats.length)} / ${filteredChats.length}</span>
+        </div>
+        <div class="wtl-chat-manager-pagination-main">
+          <button type="button" class="wtl-chat-manager-btn" data-action="page-prev" ${state.currentPage <= 1 ? 'disabled' : ''}>上一页</button>
+          <button type="button" class="wtl-chat-manager-btn" data-action="page-next" ${state.currentPage >= totalPages ? 'disabled' : ''}>下一页</button>
+        </div>
+      </div>
+    ` : '';
+
     const batchHtml = state.isBatchMode ? `
       <div class="wtl-chat-manager-batchbar">
         <div class="wtl-chat-manager-count">已选择 ${state.selectedChats.size} 条聊天</div>
@@ -947,9 +1022,10 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       </div>
       ${filterItems.length ? `<div class="wtl-chat-manager-filters">${filterHtml}</div>` : ''}
       <div class="wtl-chat-manager-summary-row">
-        <div class="wtl-chat-manager-count">当前显示 ${filteredChats.length} / ${chats.length}</div>
+        <div class="wtl-chat-manager-count">当前显示 ${pagedChats.length} / ${filteredChats.length}（总计 ${chats.length}）</div>
       </div>
       <div class="wtl-chat-manager-list">${listHtml}</div>
+      ${paginationHtml}
       ${batchHtml}
     `;
   };
@@ -1063,6 +1139,12 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     saveAndRender();
   };
 
+  const clampCurrentPage = (totalItems) => {
+    const totalPages = Math.max(1, Math.ceil(totalItems / getPageSize()));
+    state.currentPage = Math.min(Math.max(1, Number.parseInt(state.currentPage, 10) || 1), totalPages);
+    return totalPages;
+  };
+
   const togglePin = (key) => {
     if (state.pinnedChats.includes(key)) state.pinnedChats = state.pinnedChats.filter((item) => item !== key);
     else state.pinnedChats.push(key);
@@ -1072,6 +1154,11 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   const setSelected = (key, checked) => {
     if (checked) state.selectedChats.add(key);
     else state.selectedChats.delete(key);
+    render();
+  };
+
+  const goToPage = (nextPage) => {
+    state.currentPage = Math.max(1, Number.parseInt(nextPage, 10) || 1);
     render();
   };
 
@@ -1101,6 +1188,10 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
           <div style="display:flex; flex-direction:column; gap:8px;">
             <label>预览最近楼层数</label>
             <input class="wtl-chat-manager-input" type="number" min="1" max="50" data-role="preview-count" value="${escapeHtml(getPreviewCount())}" />
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label>每页显示聊天数</label>
+            <input class="wtl-chat-manager-input" type="number" min="1" max="100" data-role="page-size" value="${escapeHtml(getPageSize())}" />
           </div>
           <div style="display:flex; flex-direction:column; gap:8px;">
             <div style="display:flex; justify-content:space-between; align-items:center;"><strong>文件夹</strong><button type="button" class="wtl-chat-manager-btn" data-action="add-folder-row">新增文件夹</button></div>
@@ -1142,11 +1233,14 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   const saveSettings = () => {
     const modal = ensureModal();
     const nextPreview = Math.max(1, Number.parseInt(modal.querySelector('[data-role="preview-count"]')?.value, 10) || 6);
+    const nextPageSize = Math.max(1, Number.parseInt(modal.querySelector('[data-role="page-size"]')?.value, 10) || 20);
     const nextFolders = Array.from(modal.querySelectorAll('[data-role="folder-name"]')).map((el) => el.value.trim()).filter(Boolean);
     const nextTags = Array.from(modal.querySelectorAll('[data-role="tag-name"]')).map((el) => el.value.trim()).filter(Boolean);
     state.previewCount = nextPreview;
+    state.pageSize = nextPageSize;
     state.folders = Array.from(new Set(nextFolders));
     state.tags = Array.from(new Set(nextTags));
+    state.currentPage = 1;
     Object.keys(state.chatFolder).forEach((key) => {
       if (!state.folders.includes(state.chatFolder[key])) delete state.chatFolder[key];
     });
@@ -1316,6 +1410,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     if (action === 'view') {
       state.viewMode = actionEl.dataset.view || 'time';
       state.activeFilter = '全部';
+      state.currentPage = 1;
       state.selectedChats.clear();
       state.isBatchMode = false;
       render();
@@ -1323,6 +1418,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     }
     if (action === 'filter') {
       state.activeFilter = actionEl.dataset.value || '全部';
+      state.currentPage = 1;
       render();
       return;
     }
@@ -1426,6 +1522,14 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       saveSettings();
       return;
     }
+    if (action === 'page-prev') {
+      goToPage(state.currentPage - 1);
+      return;
+    }
+    if (action === 'page-next') {
+      goToPage(state.currentPage + 1);
+      return;
+    }
     if (action === 'batch-folder') {
       handleBatch('folder');
       return;
@@ -1445,6 +1549,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       state.searchQuery = actionEl.value || '';
+      state.currentPage = 1;
       render();
     }, 180);
   };
