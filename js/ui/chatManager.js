@@ -13,6 +13,8 @@ const DEFAULT_STATE = {
   isBatchMode: false,
   selectedChats: [],
   previewCount: 6,
+  pageSize: 20,
+  currentPage: 1,
   folders: ['主线', '支线', '日常', '废案'],
   tags: ['高甜', '虐心', '战斗', 'R18'],
   chatFolder: {},
@@ -371,8 +373,9 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
 .wtl-chat-manager-card-main {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: 14px;
+  align-items: stretch;
 }
 .wtl-chat-manager-card-main-body,
 .wtl-chat-manager-actions {
@@ -449,6 +452,12 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   display: grid;
   grid-template-columns: repeat(3, 38px);
   gap: 8px;
+  align-content: center;
+  justify-content: end;
+  align-self: stretch;
+  min-width: 132px;
+  padding-left: 8px;
+  border-left: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor) 70%, transparent);
 }
 .wtl-chat-manager-mini {
   width: 38px;
@@ -520,6 +529,33 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   flex-direction: column;
   gap: 12px;
 }
+.wtl-chat-manager-tag-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.wtl-chat-manager-tag-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 78%, transparent);
+  cursor: pointer;
+}
+.wtl-chat-manager-tag-option:hover {
+  border-color: var(--SmartThemeUnderlineColor);
+}
+.wtl-chat-manager-tag-option input {
+  margin: 0;
+}
+.wtl-chat-manager-tag-option-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .wtl-chat-manager-modal-actions {
   justify-content: flex-end;
   margin-top: 12px;
@@ -561,6 +597,15 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   }
   .wtl-chat-manager-actions {
     grid-template-columns: repeat(3, 38px);
+    min-width: 0;
+    justify-content: start;
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor) 70%, transparent);
+    padding-top: 10px;
+  }
+  .wtl-chat-manager-tag-grid {
+    grid-template-columns: 1fr;
   }
   .wtl-chat-manager-check {
     padding-top: 0;
@@ -753,8 +798,8 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       title,
       body: html,
       actions: `
-        <button type="button" class="wtl-chat-manager-btn" data-action="close-modal">取消</button>
-        <button type="button" class="wtl-chat-manager-btn" data-action="confirm-choice">确定</button>
+        <button type="button" class="menu_button" data-action="close-modal">取消</button>
+        <button type="button" class="menu_button" data-action="confirm-choice">确定</button>
       `
     });
     return new Promise((resolve) => {
@@ -993,14 +1038,19 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     const currentTags = state.chatTags[key] || [];
     const selectHtml = state.tags.map((tag) => {
       const checked = currentTags.includes(tag) ? 'checked' : '';
-      return `<label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" value="${escapeHtml(tag)}" ${checked} data-role="tag-option" /> <span>${escapeHtml(tag)}</span></label>`;
+      return `
+        <label class="wtl-chat-manager-tag-option">
+          <input type="checkbox" value="${escapeHtml(tag)}" ${checked} data-role="tag-option" />
+          <span class="wtl-chat-manager-tag-option-text">${escapeHtml(tag)}</span>
+        </label>
+      `;
     }).join('') || '<div class="wtl-chat-manager-empty">当前没有可用标签，请先在设置里创建。</div>';
     openModal({
       title: '设置标签',
-      body: `<div style="display:flex; flex-direction:column; gap:8px;">${selectHtml}</div>`,
+      body: `<div class="wtl-chat-manager-tag-grid">${selectHtml}</div>`,
       actions: `
-        <button type="button" class="wtl-chat-manager-btn" data-action="close-modal">取消</button>
-        <button type="button" class="wtl-chat-manager-btn" data-action="confirm-tags" data-key="${escapeHtml(key)}">保存</button>
+        <button type="button" class="menu_button" data-action="close-modal">取消</button>
+        <button type="button" class="menu_button" data-action="confirm-tags" data-key="${escapeHtml(key)}">保存</button>
       `
     });
   };
@@ -1063,8 +1113,8 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
         </div>
       `,
       actions: `
-        <button type="button" class="wtl-chat-manager-btn" data-action="close-modal">取消</button>
-        <button type="button" class="wtl-chat-manager-btn" data-action="save-settings">保存设置</button>
+        <button type="button" class="menu_button" data-action="close-modal">取消</button>
+        <button type="button" class="menu_button" data-action="save-settings">保存设置</button>
       `
     });
   };
