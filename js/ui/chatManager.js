@@ -320,6 +320,97 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
 }
 .wtl-chat-manager-search { flex: 1 1 200px; min-width: 120px; }
 
+
+
+
+
+/* Edge风格标签页样式 - 用于二级菜单，与聊天记录模块融合 */
+.wtl-chat-manager-filters {
+  position: relative;
+  margin-bottom: 0;
+  z-index: 1;
+  border-radius: 12px 12px 0 0;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.wtl-chat-manager-filters .wtl-edge-pills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 4px 4px 0 4px;
+  position: relative;
+}
+
+.wtl-chat-manager-filters .wtl-edge-pill {
+  border: none;
+  background: transparent;
+  color: var(--SmartThemeBodyColor);
+  padding: 8px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  position: relative;
+  z-index: 1;
+  border-radius: 8px 8px 0 0;
+  margin: 0 2px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.wtl-chat-manager-filters .wtl-edge-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.wtl-chat-manager-filters .wtl-edge-pill.is-active {
+  color: var(--SmartThemeBodyColor);
+  font-weight: 600;
+  background: var(--SmartThemeBlurTintColor);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  border-bottom: none;
+  position: relative;
+  z-index: 2;
+}
+
+.wtl-chat-manager-filters .wtl-edge-pill.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--SmartThemeBlurTintColor);
+  z-index: 3;
+}
+
+/* Edge风格选项卡背景（融合效果） */
+.wtl-chat-manager-filters .wtl-edge-pill-background {
+  position: absolute;
+  top: 4px;
+  bottom: 0;
+  background: var(--SmartThemeBlurTintColor);
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 0;
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+/* 聊天记录模块与标签页融合 */
+.wtl-chat-manager-list {
+  background: var(--SmartThemeBlurTintColor);
+  border-radius: 0 0 12px 12px;
+  margin-top: -1px; /* 与标签页重叠1像素 */
+  padding: 16px;
+  position: relative;
+  z-index: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 传统按钮样式 */
 .wtl-chat-manager-btn, .wtl-chat-manager-pill, .wtl-chat-manager-mini {
   border: 1px solid var(--SmartThemeBorderColor);
   background: rgba(255,255,255,0.05);
@@ -495,106 +586,173 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   font-style: italic;
 }
 
-.wtl-chat-manager-modal {
-  position: fixed; inset: 0; z-index: 50000;
-  display: none; align-items: center; justify-content: center;
-  background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(6px);
-  padding: 16px; box-sizing: border-box;
-  opacity: 0; transition: opacity 0.2s ease;
-}
-.wtl-chat-manager-modal.is-open {
-  display: flex; opacity: 1;
-}
-.wtl-chat-manager-modal-card {
-  width: 100%; max-width: 480px;
-  max-height: 85vh; display: flex; flex-direction: column;
-  border: 1px solid var(--SmartThemeBorderColor); border-radius: 16px;
-  background: var(--SmartThemeBlurTintColor, #21252b);
-  color: var(--SmartThemeBodyColor, #abb2bf);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-  transform: translateY(20px); transition: transform 0.2s ease;
-  overflow: hidden;
-}
-.wtl-chat-manager-modal.is-open .wtl-chat-manager-modal-card {
-  transform: translateY(0);
-}
-.wtl-chat-manager-modal-input {
-  width: 100%;
-  min-height: 42px;
-  resize: vertical;
-  box-sizing: border-box;
-  background: var(--SmartThemeBlurTintColor);
-  color: var(--SmartThemeBodyColor);
-  border: 1px solid var(--SmartThemeBorderColor);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-.wtl-chat-manager-modal-head {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 20px; background: rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid var(--SmartThemeBorderColor);
-  font-size: 16px; font-weight: bold; color: var(--SmartThemeEmColor, #61afef);
-  flex-shrink: 0;
-}
-.wtl-chat-manager-modal-head button {
-  background: transparent; border: none; color: inherit; opacity: 0.5;
-  cursor: pointer; font-size: 18px; padding: 0; transition: 0.2s;
-  display: flex; align-items: center; justify-content: center;
-}
-.wtl-chat-manager-modal-head button:hover {
-  opacity: 1; color: #e06c75; transform: scale(1.1);
-}
-.wtl-chat-manager-modal-body-wrap {
-  flex: 1; overflow-y: auto; padding: 20px;
-}
-.wtl-chat-manager-modal-body {
-  display: flex; flex-direction: column; gap: 16px;
-}
-.wtl-chat-manager-tag-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-.wtl-chat-manager-tag-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--SmartThemeBorderColor);
-  border-radius: 12px;
-  background: rgba(255,255,255,0.05);
-  cursor: pointer;
-}
-.wtl-chat-manager-tag-option:hover { border-color: var(--SmartThemeUnderlineColor); }
-.wtl-chat-manager-tag-option input { margin: 0; }
-.wtl-chat-manager-tag-option-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.wtl-chat-manager-modal-actions {
-  display: flex; justify-content: flex-end; gap: 12px;
-  padding: 16px 20px; background: rgba(0, 0, 0, 0.2);
-  border-top: 1px solid var(--SmartThemeBorderColor);
-  flex-shrink: 0;
-}
-.wtl-chat-manager-modal-actions button {
-  padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: bold;
-  cursor: pointer; transition: 0.2s; border: 1px solid transparent;
-}
-.wtl-chat-manager-modal-actions button[data-action="close-modal"] {
-  background: transparent; border-color: var(--SmartThemeBorderColor); color: var(--SmartThemeBodyColor);
-}
-.wtl-chat-manager-modal-actions button[data-action="close-modal"]:hover {
-  background: rgba(255,255,255,0.1);
-}
-.wtl-chat-manager-modal-actions button:not([data-action="close-modal"]) {
-  background: var(--SmartThemeEmColor, #61afef); color: #000;
-}
-.wtl-chat-manager-modal-actions button:not([data-action="close-modal"]):hover {
-  filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(97, 175, 239, 0.3);
-}
+  .wtl-chat-manager-modal {
+    position: fixed; inset: 0; z-index: 50000;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(6px);
+    padding: 16px; box-sizing: border-box;
+    opacity: 0; transition: opacity 0.2s ease;
+  }
+  .wtl-chat-manager-modal.is-open {
+    display: flex; opacity: 1;
+  }
+  .wtl-chat-manager-modal-card {
+    width: 100%; max-width: 480px;
+    max-height: 85vh; display: flex; flex-direction: column;
+    border: 1px solid var(--SmartThemeBorderColor); border-radius: 16px;
+    background: var(--SmartThemeBlurTintColor, #21252b);
+    color: var(--SmartThemeBodyColor, #abb2bf);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    transform: translateY(20px); transition: transform 0.2s ease;
+    overflow: hidden;
+  }
+  .wtl-chat-manager-modal.is-open .wtl-chat-manager-modal-card {
+    transform: translateY(0);
+  }
+  .wtl-chat-manager-modal-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px; background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+    font-size: 16px; font-weight: bold; color: var(--SmartThemeEmColor, #61afef);
+    flex-shrink: 0;
+  }
+  .wtl-chat-manager-modal-head button {
+    background: transparent; border: none; color: inherit; opacity: 0.7;
+    cursor: pointer; font-size: 20px; padding: 8px; transition: 0.2s;
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 8px;
+    line-height: 1;
+  }
+  .wtl-chat-manager-modal-head button:hover {
+    opacity: 1; color: #e06c75; background: rgba(224, 108, 117, 0.1); transform: scale(1.1);
+  }
+  .wtl-chat-manager-modal-body-wrap {
+    flex: 1; overflow-y: auto; padding: 20px;
+  }
+  .wtl-chat-manager-modal-body {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .wtl-chat-manager-modal-input {
+    width: 100%; box-sizing: border-box;
+    background: rgba(0,0,0,0.3); color: var(--SmartThemeBodyColor);
+    border: 1px solid var(--SmartThemeBorderColor); border-radius: 8px;
+    padding: 10px 12px; font-size: 14px; transition: border-color 0.2s;
+  }
+  .wtl-chat-manager-modal-input:focus {
+    border-color: var(--SmartThemeEmColor, #61afef); outline: none;
+  }
+  textarea.wtl-chat-manager-modal-input {
+    min-height: 80px; resize: vertical; line-height: 1.5;
+  }
+  .wtl-chat-manager-tag-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;
+  }
+  .wtl-chat-manager-tag-option {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    border: 1px solid var(--SmartThemeBorderColor); border-radius: 8px;
+    background: rgba(255,255,255,0.05); cursor: pointer; transition: 0.2s;
+  }
+  .wtl-chat-manager-tag-option:hover {
+    background: rgba(255,255,255,0.1); border-color: var(--SmartThemeQuoteColor, #e5c07b);
+  }
+  .wtl-chat-manager-tag-option input[type="checkbox"] {
+    accent-color: var(--SmartThemeQuoteColor, #c678dd); width: 16px; height: 16px; margin:0; cursor:pointer;
+  }
+  .wtl-chat-manager-tag-option-text {
+    font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .wtl-chat-manager-modal-actions {
+    display: flex; justify-content: flex-end; gap: 12px;
+    padding: 16px 20px; background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid var(--SmartThemeBorderColor);
+    flex-shrink: 0;
+  }
+  .wtl-chat-manager-modal-actions button {
+    padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: bold;
+    cursor: pointer; transition: 0.2s; border: 1px solid transparent;
+  }
+  .wtl-chat-manager-modal-actions button[data-action="close-modal"] {
+    background: transparent; border-color: var(--SmartThemeBorderColor); color: var(--SmartThemeBodyColor);
+  }
+  .wtl-chat-manager-modal-actions button[data-action="close-modal"]:hover {
+    background: rgba(255,255,255,0.1);
+  }
+  .wtl-chat-manager-modal-actions button:not([data-action="close-modal"]) {
+    background: var(--SmartThemeEmColor, #61afef); color: #000;
+  }
+  .wtl-chat-manager-modal-actions button:not([data-action="close-modal"]):hover {
+    filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(97, 175, 239, 0.3);
+  }
+  /* 酒馆风格按钮 */
+  .menu_button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--SmartThemeBodyColor);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 36px;
+  }
+  .menu_button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--SmartThemeEmColor);
+  }
+  .menu_button:active {
+    transform: translateY(1px);
+  }
+  .menu_button.primary {
+    background: var(--SmartThemeEmColor);
+    border-color: var(--SmartThemeEmColor);
+    color: #000;
+  }
+  .menu_button.primary:hover {
+    background: var(--SmartThemeEmColorHover, color-mix(in srgb, var(--SmartThemeEmColor) 90%, #000));
+    border-color: var(--SmartThemeEmColorHover, color-mix(in srgb, var(--SmartThemeEmColor) 90%, #000));
+  }
+  /* 酒馆风格按钮 */
+  .menu_button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--SmartThemeBodyColor);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 36px;
+  }
+  .menu_button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--SmartThemeEmColor);
+  }
+  .menu_button:active {
+    transform: translateY(1px);
+  }
+  .menu_button.primary {
+    background: var(--SmartThemeEmColor);
+    border-color: var(--SmartThemeEmColor);
+    color: #000;
+  }
+  .menu_button.primary:hover {
+    background: var(--SmartThemeEmColorHover, color-mix(in srgb, var(--SmartThemeEmColor) 90%, #000));
+    border-color: var(--SmartThemeEmColorHover, color-mix(in srgb, var(--SmartThemeEmColor) 90%, #000));
+  }
 
 .wtl-chat-manager-pagination {
   display: flex;
@@ -627,8 +785,28 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
 
 @media (max-width: 768px) {
   .wtl-chat-manager-subtitle { display: none; }
-  .wtl-chat-manager-toolbar { flex-direction: column; align-items: stretch; }
-  .wtl-chat-manager-search { width: 100%; }
+  .wtl-chat-manager-toolbar { 
+    flex-direction: row !important; 
+    align-items: center !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .wtl-chat-manager-search { 
+    width: auto !important; 
+    flex: 1 1 180px;
+    min-width: 120px;
+  }
+  .wtl-edge-tabs {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .wtl-edge-tab {
+    padding: 8px 12px;
+    font-size: 12px;
+    margin-right: -6px;
+    border-radius: 8px 8px 0 0;
+  }
+}
   .wtl-chat-manager-card { padding: 12px; gap: 8px; }
   .wtl-chat-card-grid { grid-template-columns: 32px 32px; grid-template-rows: 32px 32px; }
   .wtl-chat-card-title-row,
@@ -640,10 +818,57 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   .wtl-chat-card-filename {
     margin-left: 0;
   }
-  .wtl-chat-manager-modal-card { max-width: 100%; max-height: 90vh; border-radius: 12px; }
-  .wtl-chat-manager-modal-head { padding: 12px 16px; }
-  .wtl-chat-manager-modal-body-wrap { padding: 16px; }
-  .wtl-chat-manager-modal-actions { padding: 12px 16px; }
+  .wtl-chat-manager-modal-card { 
+    max-width: 100%; 
+    max-height: 90vh; 
+    border-radius: 12px; 
+    margin: 0;
+    width: calc(100% - 32px);
+  }
+  .wtl-chat-manager-modal {
+    padding: 16px;
+    align-items: center;
+    justify-content: center;
+  }
+  .wtl-chat-manager-modal-head { 
+    padding: 12px 16px; 
+    font-size: 14px;
+  }
+  .wtl-chat-manager-modal-body-wrap { 
+    padding: 16px; 
+    max-height: calc(90vh - 120px);
+  }
+  .wtl-chat-manager-modal-actions { 
+    padding: 12px 16px; 
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .wtl-chat-manager-modal-actions button {
+    padding: 10px 16px;
+    font-size: 13px;
+    flex: 0 0 auto;
+    min-width: 80px;
+  }
+  .wtl-chat-manager-tag-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+  .wtl-chat-manager-tag-option {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .wtl-chat-manager-filters .wtl-edge-pill {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  .wtl-chat-manager-modal-input {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  textarea.wtl-chat-manager-modal-input {
+    min-height: 60px;
+  }
   .wtl-chat-manager-pagination { flex-direction: column; align-items: stretch; }
 }
 `;
@@ -660,7 +885,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       <div class="wtl-chat-manager-modal-card">
         <div class="wtl-chat-manager-modal-head">
           <strong data-role="title">聊天管理</strong>
-          <button type="button" class="menu_button" data-action="close-modal"><i class="fa-solid fa-xmark"></i></button>
+          <button type="button" data-action="close-modal" title="关闭">×</button>
         </div>
         <div class="wtl-chat-manager-modal-body-wrap">
         <textarea class="wtl-chat-manager-modal-input" data-role="content" style="display:none;"></textarea>
@@ -818,45 +1043,81 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     });
   };
 
-  const chooseFromList = async ({ title, items, currentValue = '', allowEmpty = false, emptyLabel = '未设置' }) => {
-    const rows = items.map((item) => `<option value="${escapeHtml(item)}" ${item === currentValue ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('');
-    const html = `
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        <div>${escapeHtml(title)}</div>
-        <select class="wtl-chat-manager-select" data-role="choice-select">
-          ${allowEmpty ? `<option value="">${escapeHtml(emptyLabel)}</option>` : ''}
-          ${rows}
-        </select>
-      </div>
-    `;
-    openModal({
-      title,
-      body: html,
-      actions: `
-        <button type="button" class="menu_button" data-action="close-modal">取消</button>
-        <button type="button" class="menu_button" data-action="confirm-choice">确定</button>
-      `
-    });
-    return new Promise((resolve) => {
-      const modal = ensureModal();
-      const finalize = (value) => {
-        modal.removeEventListener('click', onClick);
-        resolve(value);
-      };
-      const onClick = (event) => {
-        const actionEl = event.target.closest('[data-action]');
-        if (!actionEl) return;
-        if (actionEl.dataset.action === 'confirm-choice') {
-          const select = modal.querySelector('[data-role="choice-select"]');
-          closeModal();
-          finalize(select?.value ?? '');
-        }
-        if (actionEl.dataset.action === 'close-modal') {
-          finalize(null);
-        }
-      };
-      modal.addEventListener('click', onClick);
-    });
+  const chooseFromList = async ({ title, items, currentValue = '', allowEmpty = false, emptyLabel = '未设置', type = 'select' }) => {
+    if (type === 'tabs') {
+      const tabsHtml = items.map((item) => `
+        <button type="button" class="wtl-chat-manager-pill ${item === currentValue ? 'is-active' : ''}" data-value="${escapeHtml(item)}">${escapeHtml(item)}</button>
+      `).join('');
+      const emptyTab = allowEmpty ? `<button type="button" class="wtl-chat-manager-pill ${currentValue === '' ? 'is-active' : ''}" data-value="">${escapeHtml(emptyLabel)}</button>` : '';
+      const html = `
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div style="font-weight: bold; font-size: 15px; color: var(--SmartThemeEmColor); margin-bottom: 8px;">${escapeHtml(title)}</div>
+          <div class="wtl-chat-manager-filters" style="margin: 0; padding: 16px; background: rgba(0,0,0,0.1); border-radius: 12px;">
+            ${emptyTab}
+            ${tabsHtml}
+          </div>
+          <div style="text-align: center; font-size: 12px; opacity: 0.7; margin-top: 8px;">点击任一标签选择分组</div>
+        </div>
+      `;
+      openModal({
+        title,
+        body: html,
+        actions: ''
+      });
+      return new Promise((resolve) => {
+        const modal = ensureModal();
+        const finalize = (value) => {
+          modal.removeEventListener('click', onClick);
+          resolve(value);
+        };
+        const onClick = (event) => {
+          const tabEl = event.target.closest('.wtl-chat-manager-pill');
+          if (tabEl) {
+            closeModal();
+            finalize(tabEl.dataset.value ?? '');
+          }
+        };
+        modal.addEventListener('click', onClick);
+      });
+    } else {
+      const rows = items.map((item) => `<option value="${escapeHtml(item)}" ${item === currentValue ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('');
+      const html = `
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div>${escapeHtml(title)}</div>
+          <select class="wtl-chat-manager-select" data-role="choice-select">
+            ${allowEmpty ? `<option value="">${escapeHtml(emptyLabel)}</option>` : ''}
+            ${rows}
+          </select>
+        </div>
+      `;
+      openModal({
+        title,
+        body: html,
+        actions: `
+          <button type="button" class="menu_button primary" data-action="confirm-choice">确定</button>
+        `
+      });
+      return new Promise((resolve) => {
+        const modal = ensureModal();
+        const finalize = (value) => {
+          modal.removeEventListener('click', onClick);
+          resolve(value);
+        };
+        const onClick = (event) => {
+          const actionEl = event.target.closest('[data-action]');
+          if (!actionEl) return;
+          if (actionEl.dataset.action === 'confirm-choice') {
+            const select = modal.querySelector('[data-role="choice-select"]');
+            closeModal();
+            finalize(select?.value ?? '');
+          }
+          if (actionEl.dataset.action === 'close-modal') {
+            finalize(null);
+          }
+        };
+        modal.addEventListener('click', onClick);
+      });
+    }
   };
 
   const removeChatMeta = (key) => {
@@ -916,9 +1177,20 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       <button type="button" class="wtl-chat-manager-btn ${state.viewMode === tab.key ? 'is-active' : ''}" data-action="view" data-view="${tab.key}">${tab.label}</button>
     `).join('');
 
-    const filterHtml = filterItems.map((item) => `
-      <button type="button" class="wtl-chat-manager-pill ${state.activeFilter === item ? 'is-active' : ''}" data-action="filter" data-value="${escapeHtml(item)}">${escapeHtml(item)}</button>
-    `).join('');
+    const filterHtml = filterItems.length > 0 ? `
+      <div class="wtl-edge-pills-container" id="wtl-edge-pills-container">
+        ${filterItems.map((item, index) => `
+          <button type="button" 
+                  class="wtl-edge-pill ${state.activeFilter === item ? 'is-active' : ''}" 
+                  data-action="filter" 
+                  data-value="${escapeHtml(item)}"
+                  data-index="${index}">
+            ${escapeHtml(item)}
+          </button>
+        `).join('')}
+        <div class="wtl-edge-pill-background" id="wtl-edge-pill-background"></div>
+      </div>
+    ` : '';
 
     const listHtml = pagedChats.length ? pagedChats.map((chat) => {
       const key = chat.globalKey;
@@ -1001,6 +1273,9 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       ${paginationHtml}
       ${batchHtml}
     `;
+    
+    // 更新Edge风格标签页背景位置
+    setTimeout(updateEdgePillsBackground, 10);
   };
 
   const getChatByKey = (key) => chats.find((item) => item.globalKey === key);
@@ -1034,8 +1309,6 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     render();
   };
 
-  const promptText = (message, value = '') => window.prompt(message, value);
-
   const saveAndRender = () => {
     save();
     render();
@@ -1061,8 +1334,29 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   };
 
   const editChat = async (key) => {
-    await editTitle(key);
-    await editSummary(key);
+    const chat = getChatByKey(key);
+    if (!chat) return;
+    const currentTitle = state.chatTitleOverride[key] || String(chat.fileName || '').replace(/\.jsonl$/i, '');
+    const currentSummary = state.chatSummary[key] || '';
+    
+    openModal({
+      title: '编辑聊天',
+      body: `
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label>聊天标题</label>
+            <input class="wtl-chat-manager-modal-input" data-role="chat-title" value="${escapeHtml(currentTitle)}" placeholder="输入聊天标题" />
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label>聊天简介</label>
+            <textarea class="wtl-chat-manager-modal-input" data-role="chat-summary" placeholder="输入聊天简介" rows="4">${escapeHtml(currentSummary)}</textarea>
+          </div>
+        </div>
+      `,
+      actions: `
+        <button type="button" class="menu_button primary" data-action="save-chat-edit" data-key="${escapeHtml(key)}">保存</button>
+      `
+    });
   };
 
   const setFolder = async (key, targetFolder = null) => {
@@ -1073,7 +1367,8 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
         items: state.folders,
         currentValue: state.chatFolder[key] || '',
         allowEmpty: true,
-        emptyLabel: '未分类'
+        emptyLabel: '未分类',
+        type: 'tabs'
       });
     }
     if (folder === null) return;
@@ -1098,8 +1393,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       title: '设置标签',
       body: `<div class="wtl-chat-manager-tag-grid">${selectHtml}</div>`,
       actions: `
-        <button type="button" class="menu_button" data-action="close-modal">取消</button>
-        <button type="button" class="menu_button" data-action="confirm-tags" data-key="${escapeHtml(key)}">保存</button>
+        <button type="button" class="menu_button primary" data-action="confirm-tags" data-key="${escapeHtml(key)}">保存</button>
       `
     });
   };
@@ -1177,8 +1471,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
         </div>
       `,
       actions: `
-        <button type="button" class="menu_button" data-action="close-modal">取消</button>
-        <button type="button" class="menu_button" data-action="save-settings">保存设置</button>
+        <button type="button" class="menu_button primary" data-action="save-settings">保存设置</button>
       `
     });
   };
@@ -1309,13 +1602,12 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     }
   };
 
-  const createFilter = () => {
+  const createFilter = async () => {
     const type = state.viewMode === 'folder' ? '分组' : state.viewMode === 'tag' ? '标签' : '';
     if (!type) return;
-    const input = promptText(`输入新的${type}名称`, '');
-    if (input === null) return;
-    const clean = String(input).trim();
-    if (!clean) return;
+    const value = await requestInput({ title: `输入新的${type}名称`, placeholder: `请输入${type}名称` });
+    if (value === null || !String(value).trim()) return;
+    const clean = String(value).trim();
     if (type === '分组' && !state.folders.includes(clean)) state.folders.push(clean);
     if (type === '标签' && !state.tags.includes(clean)) state.tags.push(clean);
     saveAndRender();
@@ -1323,39 +1615,123 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
 
   const handleBatch = (mode) => {
     if (!ensureSelection()) return;
+    const count = state.selectedChats.size;
+    
     if (mode === 'folder') {
-      const value = promptText(`为 ${state.selectedChats.size} 条聊天设置分组`, state.folders[0] || '');
-      if (value === null) return;
-      const clean = String(value).trim();
-      if (!clean) return;
-      if (!state.folders.includes(clean)) state.folders.push(clean);
-      state.selectedChats.forEach((key) => {
-        state.chatFolder[key] = clean;
+      openModal({
+        title: `为 ${count} 条聊天设置分组`,
+        body: `
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div style="margin-bottom: 8px;">请选择分组：</div>
+            <div class="wtl-chat-manager-filters" style="margin: 0; padding: 16px; background: rgba(0,0,0,0.1); border-radius: 12px;">
+              <button type="button" class="wtl-chat-manager-pill" data-value="">未分类</button>
+              ${state.folders.map(folder => `
+                <button type="button" class="wtl-chat-manager-pill" data-value="${escapeHtml(folder)}">${escapeHtml(folder)}</button>
+              `).join('')}
+            </div>
+            <div style="font-size: 12px; opacity: 0.7; text-align: center;">点击任一标签为选中的聊天设置分组</div>
+          </div>
+        `,
+        actions: ''
       });
+      
+      const modal = ensureModal();
+      const onClick = (event) => {
+        const pillEl = event.target.closest('.wtl-chat-manager-pill');
+        if (pillEl) {
+          const value = pillEl.dataset.value || '';
+          const clean = String(value).trim();
+          if (clean && !state.folders.includes(clean)) state.folders.push(clean);
+          state.selectedChats.forEach((key) => {
+            if (clean) state.chatFolder[key] = clean;
+            else delete state.chatFolder[key];
+          });
+          state.isBatchMode = false;
+          state.selectedChats.clear();
+          closeModal();
+          saveAndRender();
+          modal.removeEventListener('click', onClick);
+        }
+      };
+      modal.addEventListener('click', onClick);
+      return;
     }
+    
     if (mode === 'tag-add') {
-      const value = promptText(`为 ${state.selectedChats.size} 条聊天添加标签`, '');
-      if (value === null) return;
-      const clean = String(value).trim();
-      if (!clean) return;
-      if (!state.tags.includes(clean)) state.tags.push(clean);
-      state.selectedChats.forEach((key) => {
-        state.chatTags[key] = Array.isArray(state.chatTags[key]) ? state.chatTags[key] : [];
-        if (!state.chatTags[key].includes(clean)) state.chatTags[key].push(clean);
+      openModal({
+        title: `为 ${count} 条聊天添加标签`,
+        body: `
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div style="margin-bottom: 8px;">请选择要添加的标签：</div>
+            <div class="wtl-chat-manager-tag-grid">
+              ${state.tags.map(tag => `
+                <label class="wtl-chat-manager-tag-option">
+                  <input type="checkbox" value="${escapeHtml(tag)}" data-role="batch-tag-option" />
+                  <span class="wtl-chat-manager-tag-option-text">${escapeHtml(tag)}</span>
+                </label>
+              `).join('')}
+              ${state.tags.length === 0 ? '<div class="wtl-chat-manager-empty">当前没有可用标签，请先在设置里创建。</div>' : ''}
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <label>新增标签（多个标签用逗号分隔）</label>
+              <input class="wtl-chat-manager-modal-input" type="text" data-role="batch-new-tags" placeholder="例如：高甜,虐心,R18" />
+            </div>
+          </div>
+        `,
+        actions: `
+          <button type="button" class="menu_button primary" data-action="batch-tag-add-confirm">添加标签</button>
+        `
       });
+      return;
     }
+    
     if (mode === 'tag-remove') {
-      const value = promptText(`为 ${state.selectedChats.size} 条聊天移除标签`, '');
-      if (value === null) return;
-      const clean = String(value).trim();
-      if (!clean) return;
+      const allTags = new Set();
       state.selectedChats.forEach((key) => {
-        state.chatTags[key] = (state.chatTags[key] || []).filter((item) => item !== clean);
+        const tags = state.chatTags[key] || [];
+        tags.forEach(tag => allTags.add(tag));
       });
+      const tagsArray = Array.from(allTags);
+      
+      openModal({
+        title: `为 ${count} 条聊天移除标签`,
+        body: `
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div style="margin-bottom: 8px;">请选择要移除的标签：</div>
+            <div class="wtl-chat-manager-tag-grid">
+              ${tagsArray.map(tag => `
+                <label class="wtl-chat-manager-tag-option">
+                  <input type="checkbox" value="${escapeHtml(tag)}" data-role="batch-tag-option" />
+                  <span class="wtl-chat-manager-tag-option-text">${escapeHtml(tag)}</span>
+                </label>
+              `).join('')}
+              ${tagsArray.length === 0 ? '<div class="wtl-chat-manager-empty">选中的聊天没有标签。</div>' : ''}
+            </div>
+          </div>
+        `,
+        actions: `
+          <button type="button" class="menu_button primary" data-action="batch-tag-remove-confirm">移除标签</button>
+        `
+      });
+      return;
     }
-    state.isBatchMode = false;
-    state.selectedChats.clear();
-    saveAndRender();
+  };
+
+  const updateEdgePillsBackground = () => {
+    const container = rootEl?.querySelector('#wtl-edge-pills-container');
+    const background = rootEl?.querySelector('#wtl-edge-pill-background');
+    if (container && background) {
+      const activeTab = container.querySelector('.wtl-edge-pill.is-active');
+      if (activeTab) {
+        const rect = activeTab.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        background.style.left = `${rect.left - containerRect.left}px`;
+        background.style.width = `${rect.width}px`;
+        background.style.opacity = '1';
+      } else {
+        background.style.opacity = '0';
+      }
+    }
   };
 
   const handleAction = async (event) => {
@@ -1387,12 +1763,14 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       state.selectedChats.clear();
       state.isBatchMode = false;
       render();
+      setTimeout(updateEdgePillsBackground, 10);
       return;
     }
     if (action === 'filter') {
       state.activeFilter = actionEl.dataset.value || '全部';
       state.currentPage = 1;
       render();
+      setTimeout(updateEdgePillsBackground, 10);
       return;
     }
     if (action === 'create-filter') {
@@ -1403,23 +1781,23 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       openSettings();
       return;
     }
-    if (action === 'edit-title') {
-      await editTitle(actionEl.dataset.key || '');
-      return;
-    }
-    if (action === 'edit-summary') {
-      await editSummary(actionEl.dataset.key || '');
-      return;
-    }
+    
     if (action === 'edit-chat') {
+      await editChat(actionEl.dataset.key || '');
+      return;
+    }
+    if (action === 'save-chat-edit') {
       const key = actionEl.dataset.key || '';
       const chat = getChatByKey(key);
       if (!chat) return;
-      const currentTitle = state.chatTitleOverride[key] || String(chat.fileName || '').replace(/\.jsonl$/i, '');
-      const nextTitle = await requestInput({ title: '修改聊天标题（会同时重命名聊天文件）', value: currentTitle });
-      if (nextTitle === null) return;
-      const nextSummary = await requestInput({ title: '修改聊天简介（留空则清除）', value: state.chatSummary[key] || '', multiline: true });
-      if (nextSummary === null) return;
+      
+      const modal = ensureModal();
+      const titleInput = modal.querySelector('[data-role="chat-title"]');
+      const summaryInput = modal.querySelector('[data-role="chat-summary"]');
+      
+      const nextTitle = titleInput?.value || '';
+      const nextSummary = summaryInput?.value || '';
+      
       try {
         const oldKey = chat.globalKey;
         const renamed = await renameChatFile(chat, nextTitle);
@@ -1438,6 +1816,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
         }
         if (String(nextSummary).trim()) state.chatSummary[chat.globalKey] = String(nextSummary).trim();
         else delete state.chatSummary[chat.globalKey];
+        closeModal();
         saveAndRender();
         notifyStatus?.('success', '聊天记录已更新');
       } catch (err) {
@@ -1513,6 +1892,51 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     }
     if (action === 'batch-tag-remove') {
       handleBatch('tag-remove');
+      return;
+    }
+    if (action === 'batch-tag-add-confirm') {
+      const modal = ensureModal();
+      const selectedTags = Array.from(modal.querySelectorAll('[data-role="batch-tag-option"]:checked')).map(el => el.value.trim()).filter(Boolean);
+      const newTagsInput = modal.querySelector('[data-role="batch-new-tags"]');
+      const newTags = newTagsInput ? newTagsInput.value.trim().split(',').map(tag => tag.trim()).filter(Boolean) : [];
+      
+      const allTags = [...selectedTags, ...newTags];
+      allTags.forEach(tag => {
+        if (!state.tags.includes(tag)) state.tags.push(tag);
+      });
+      
+      state.selectedChats.forEach((key) => {
+        state.chatTags[key] = Array.isArray(state.chatTags[key]) ? state.chatTags[key] : [];
+        allTags.forEach(tag => {
+          if (!state.chatTags[key].includes(tag)) state.chatTags[key].push(tag);
+        });
+      });
+      
+      state.isBatchMode = false;
+      state.selectedChats.clear();
+      closeModal();
+      saveAndRender();
+      return;
+    }
+    if (action === 'batch-tag-remove-confirm') {
+      const modal = ensureModal();
+      const selectedTags = Array.from(modal.querySelectorAll('[data-role="batch-tag-option"]:checked')).map(el => el.value.trim()).filter(Boolean);
+      
+      if (selectedTags.length === 0) {
+        closeModal();
+        return;
+      }
+      
+      state.selectedChats.forEach((key) => {
+        state.chatTags[key] = (state.chatTags[key] || []).filter((item) => !selectedTags.includes(item));
+        if (state.chatTags[key].length === 0) delete state.chatTags[key];
+      });
+      
+      state.isBatchMode = false;
+      state.selectedChats.clear();
+      closeModal();
+      saveAndRender();
+      return;
     }
   };
 
@@ -1566,6 +1990,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       host.addEventListener('click', handleAction);
       host.addEventListener('input', handleInput);
       host.addEventListener('change', handleChange);
+      window.addEventListener('resize', updateEdgePillsBackground);
     }
     rootEl = host;
     if (renderAfter || created) render();
@@ -1576,6 +2001,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       rootEl.removeEventListener('click', handleAction);
       rootEl.removeEventListener('input', handleInput);
       rootEl.removeEventListener('change', handleChange);
+      window.removeEventListener('resize', updateEdgePillsBackground);
       rootEl.remove();
       rootEl = null;
     }
