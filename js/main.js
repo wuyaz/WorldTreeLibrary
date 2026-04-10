@@ -4,6 +4,7 @@ import { loadHtml } from './assets.js';
 import { getFeatureFlags } from './storage.js';
 import { registerTopTab } from './ui/registerTopTab.js';
 import { registerFeatureMenu } from './ui/registerFeatureMenu.js';
+import { registerFeatureSettingsPanel } from './ui/registerSettingsPanel.js';
 import { bindWorldTreeUi } from './ui/bindings.js';
 import { createChatManagerController } from './ui/chatManager.js';
 
@@ -50,7 +51,7 @@ import { createChatManagerController } from './ui/chatManager.js';
       }
 
       try {
-        await registerFeatureMenu({
+        await registerFeatureSettingsPanel({
           onChange: (flags) => {
             applyFeatureFlags(flags);
             const root = document.getElementById('wtl-root');
@@ -62,7 +63,23 @@ import { createChatManagerController } from './ui/chatManager.js';
           }
         });
       } catch (err) {
-        console.warn('[WorldTreeLibrary] register feature menu failed', err);
+        console.warn('[WorldTreeLibrary] register feature settings panel failed', err);
+        // 回退到魔法棒栏注册
+        try {
+          await registerFeatureMenu({
+            onChange: (flags) => {
+              applyFeatureFlags(flags);
+              const root = document.getElementById('wtl-root');
+              if (root) {
+                root.classList.toggle('wtl-memory-disabled', flags.memoryTable === false);
+                const disabledEl = document.getElementById('wtl-memory-feature-disabled');
+                if (disabledEl) disabledEl.style.display = flags.memoryTable === false ? 'block' : 'none';
+              }
+            }
+          });
+        } catch (fallbackErr) {
+          console.warn('[WorldTreeLibrary] register feature menu fallback failed', fallbackErr);
+        }
       }
 
       if (!topTabRegistered) {

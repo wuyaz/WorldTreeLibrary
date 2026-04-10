@@ -624,7 +624,9 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     display: flex; opacity: 1;
   }
   .wtl-chat-manager-modal-card {
-    width: 100%; max-width: 480px;
+    width: fit-content;
+    min-width: min(420px, calc(100vw - 32px));
+    max-width: min(480px, calc(100vw - 32px));
     max-height: 85vh; display: flex; flex-direction: column;
     border: 1px solid var(--SmartThemeBorderColor); border-radius: 16px;
     background: var(--SmartThemeBlurTintColor, #21252b);
@@ -658,6 +660,9 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   }
   .wtl-chat-manager-modal-body {
     display: flex; flex-direction: column; gap: 16px;
+  }
+  .wtl-chat-manager-modal-body > * {
+    min-width: 0;
   }
   .wtl-chat-manager-modal-input {
     width: 100%; box-sizing: border-box;
@@ -833,7 +838,6 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     margin-right: -6px;
     border-radius: 8px 8px 0 0;
   }
-}
   .wtl-chat-manager-card { padding: 12px; gap: 8px; }
   .wtl-chat-card-grid { grid-template-columns: 32px 32px; grid-template-rows: 32px 32px; }
   .wtl-chat-card-title-row,
@@ -846,14 +850,15 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     margin-left: 0;
   }
   .wtl-chat-manager-modal-card { 
-    max-width: 100%; 
+    width: min(100%, 420px);
+    min-width: 0;
+    max-width: calc(100vw - 24px);
     max-height: 90vh; 
     border-radius: 12px; 
     margin: 0;
-    width: calc(100% - 32px);
   }
   .wtl-chat-manager-modal {
-    padding: 16px;
+    padding: 12px;
     align-items: center;
     justify-content: center;
   }
