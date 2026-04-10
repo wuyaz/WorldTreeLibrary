@@ -207,301 +207,294 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     const style = document.createElement('style');
     style.id = CHAT_MANAGER_STYLE_ID;
     style.textContent = `
+/* 整体外壳 */
 .wtl-chat-manager-shell {
-  margin-top: 12px;
+  margin-top: 15px;
   border: 1px solid var(--SmartThemeBorderColor);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 86%, transparent);
+  border-radius: 10px;
+  background: var(--SmartThemeBlurTintColor);
+  backdrop-filter: blur(10px);
   overflow: hidden;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--SmartThemeBgColor) 24%, transparent);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
-.wtl-chat-manager-toggle {
-  width: 100%;
-  border: none;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--SmartThemeUnderlineColor) 18%, transparent), color-mix(in srgb, var(--SmartThemeQuoteColor) 12%, transparent));
-  color: var(--SmartThemeBodyColor);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  cursor: pointer;
-  min-width: 0;
-}
-.wtl-chat-manager-toggle:hover {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--SmartThemeUnderlineColor) 24%, transparent), color-mix(in srgb, var(--SmartThemeQuoteColor) 16%, transparent));
-}
-.wtl-chat-manager-toggle-main {
+
+/* 顶部核心控制行 */
+.wtl-chat-manager-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  min-width: 0;
-  overflow: hidden;
-}
-.wtl-chat-manager-toggle-tools {
-  display: flex;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
   gap: 8px;
-  align-items: center;
-  flex: 0 0 auto;
 }
-.wtl-chat-manager-toggle-copy {
+.wtl-chat-manager-header:hover {
+  border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+.wtl-chat-manager-header-main {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
   min-width: 0;
-  text-align: left;
-  overflow: hidden;
+  cursor: pointer;
 }
-.wtl-chat-manager-toggle-title {
+.wtl-chat-manager-title {
   font-weight: 700;
+  color: var(--SmartThemeBodyColor);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.wtl-chat-manager-toggle-subtitle {
+.wtl-chat-manager-subtitle {
   font-size: 12px;
-  opacity: 0.75;
+  opacity: 0.6;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.wtl-chat-manager-toggle-count {
+
+.wtl-chat-manager-header-tools {
   display: flex;
   align-items: center;
-  flex: 0 0 auto;
+  gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
-.wtl-chat-manager-toggle-chevron {
-  display: inline-flex;
+.wtl-chat-manager-count {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+.wtl-chat-manager-icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--SmartThemeBodyColor);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  flex: 0 0 auto;
+  cursor: pointer;
+  transition: 0.2s;
+  opacity: 0.7;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  white-space: nowrap;
 }
+.wtl-chat-manager-icon-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--SmartThemeBorderColor);
+}
+.wtl-chat-manager-icon-btn.is-active {
+  color: var(--SmartThemeEmColor, #61afef);
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .wtl-chat-manager-panel {
   display: none;
   padding: 12px;
-  background: color-mix(in srgb, var(--SmartThemeBgColor) 88%, transparent);
 }
 .wtl-chat-manager-panel.is-open {
   display: block;
 }
-.wtl-chat-manager-toolbar,
-.wtl-chat-manager-filters,
-.wtl-chat-manager-tabs,
-.wtl-chat-manager-batchbar,
-.wtl-chat-manager-summary-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
+
+.wtl-chat-manager-toolbar, .wtl-chat-manager-filters, .wtl-chat-manager-tabs, .wtl-chat-manager-batchbar {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
 }
-.wtl-chat-manager-toolbar,
-.wtl-chat-manager-filters,
-.wtl-chat-manager-summary-row {
-  margin-bottom: 10px;
-}
-.wtl-chat-manager-toolbar {
-  align-items: center;
-  justify-content: space-between;
-}
-.wtl-chat-manager-search,
-.wtl-chat-manager-input,
-.wtl-chat-manager-textarea,
-.wtl-chat-manager-select {
+.wtl-chat-manager-toolbar { margin-bottom: 10px; justify-content: space-between; }
+.wtl-chat-manager-filters { margin-bottom: 10px; }
+
+.wtl-chat-manager-search, .wtl-chat-manager-input, .wtl-chat-manager-textarea, .wtl-chat-manager-select {
   width: 100%;
-  background: var(--SmartThemeBlurTintColor);
+  background: rgba(0,0,0,0.3);
   color: var(--SmartThemeBodyColor);
   border: 1px solid var(--SmartThemeBorderColor);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: 8px;
+  padding: 6px 10px;
   box-sizing: border-box;
 }
-.wtl-chat-manager-search {
-  flex: 1 1 360px;
-  min-width: 180px;
-}
-.wtl-chat-manager-toolbar-main {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  justify-content: space-between;
-}
-.wtl-chat-manager-toolbar-tools {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  flex: 0 0 auto;
-}
-.wtl-chat-manager-tabs {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-.wtl-chat-manager-btn,
-.wtl-chat-manager-pill,
-.wtl-chat-manager-mini {
+.wtl-chat-manager-search { flex: 1 1 200px; min-width: 120px; }
+
+.wtl-chat-manager-btn, .wtl-chat-manager-pill, .wtl-chat-manager-mini {
   border: 1px solid var(--SmartThemeBorderColor);
-  background: color-mix(in srgb, var(--SmartThemeBodyColor) 8%, transparent);
+  background: rgba(255,255,255,0.05);
   color: var(--SmartThemeBodyColor);
-  border-radius: 10px;
-  padding: 7px 10px;
+  border-radius: 8px;
+  padding: 5px 10px;
   cursor: pointer;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
 }
-.wtl-chat-manager-btn:hover,
-.wtl-chat-manager-pill:hover,
-.wtl-chat-manager-mini:hover {
-  border-color: var(--SmartThemeUnderlineColor);
-  color: var(--SmartThemeUnderlineColor);
+.wtl-chat-manager-btn:hover, .wtl-chat-manager-pill:hover { background: rgba(255,255,255,0.1); }
+.wtl-chat-manager-pill.is-active, .wtl-chat-manager-btn.is-active {
+  background: var(--SmartThemeBorderColor);
+  font-weight: bold;
 }
-.wtl-chat-manager-pill.is-active,
-.wtl-chat-manager-btn.is-active {
-  background: color-mix(in srgb, var(--SmartThemeUnderlineColor) 20%, transparent);
-  border-color: color-mix(in srgb, var(--SmartThemeUnderlineColor) 58%, transparent);
-  color: var(--SmartThemeUnderlineColor);
-}
-.wtl-chat-manager-toggle .wtl-chat-manager-btn,
-.wtl-chat-manager-toggle .wtl-chat-manager-pill,
-.wtl-chat-manager-toggle .wtl-chat-manager-mini {
-  padding: 6px 9px;
-}
-.wtl-chat-manager-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+
+/* === 聊天卡片终极布局 === */
 .wtl-chat-manager-card {
+  position: relative;
   border: 1px solid var(--SmartThemeBorderColor);
   border-radius: 12px;
   background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 74%, transparent);
-  padding: 12px;
-  display: grid;
-  grid-template-columns: auto 1fr;
+  padding: 10px 12px;
+  display: flex;
   gap: 10px;
+  align-items: flex-start;
+  transition: 0.2s;
 }
 .wtl-chat-manager-card.is-pinned {
   border-color: color-mix(in srgb, var(--SmartThemeQuoteColor) 56%, transparent);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--SmartThemeQuoteColor) 14%, transparent), color-mix(in srgb, var(--SmartThemeBlurTintColor) 78%, transparent));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--SmartThemeQuoteColor) 10%, transparent), color-mix(in srgb, var(--SmartThemeBlurTintColor) 78%, transparent));
 }
-.wtl-chat-manager-check {
-  display: none;
-  align-items: flex-start;
-  padding-top: 4px;
-}
-.wtl-chat-manager-panel.is-batch .wtl-chat-manager-check {
+.wtl-chat-manager-check { display: none; align-items: center; }
+.wtl-chat-manager-panel.is-batch .wtl-chat-manager-check { display: flex; }
+
+.wtl-chat-title-tools {
   display: flex;
-}
-.wtl-chat-manager-card-main {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 132px;
-  gap: 14px;
-  align-items: stretch;
-}
-.wtl-chat-manager-card-main-body,
-.wtl-chat-manager-actions {
-  display: flex;
+  align-items: center;
   gap: 8px;
-  align-items: flex-start;
+  margin-left: auto;
+  flex: 0 0 auto;
 }
-.wtl-chat-manager-card-main-body {
+.wtl-chat-title-tools button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--SmartThemeBodyColor);
+  opacity: 0.4;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.2s;
+}
+.wtl-chat-title-tools button:hover { opacity: 1; transform: scale(1.1); }
+.wtl-chat-title-tools button.is-active { color: var(--SmartThemeQuoteColor, #e5c07b); opacity: 1; }
+
+.wtl-chat-card-content {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 3px;
 }
-.wtl-chat-manager-card-top {
+.wtl-chat-card-title-row {
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
-.wtl-chat-manager-title-btn {
-  border: none;
-  background: transparent;
-  color: var(--SmartThemeEmColor, var(--SmartThemeUnderlineColor));
+.wtl-chat-card-title {
+  flex: 1;
+  min-width: 0;
   font-size: 15px;
-  font-weight: 700;
-  padding: 0;
+  font-weight: bold;
+  color: var(--SmartThemeEmColor, #61afef);
   cursor: pointer;
-  text-align: left;
-}
-.wtl-chat-manager-title-btn:hover {
-  opacity: 0.82;
-}
-.wtl-chat-manager-meta,
-.wtl-chat-manager-preview,
-.wtl-chat-manager-empty,
-.wtl-chat-manager-count,
-.wtl-chat-manager-card-time {
-  font-size: 12px;
-  opacity: 0.72;
-}
-.wtl-chat-manager-summary {
-  margin: 8px 0;
-  color: var(--SmartThemeQuoteColor);
-  font-size: 13px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-}
-.wtl-chat-manager-summary.is-empty {
-  opacity: 0.6;
-  font-style: italic;
-}
-.wtl-chat-manager-preview {
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding-right: 0;
+}
+.wtl-chat-card-title:hover { text-decoration: underline; }
+.wtl-chat-card-time {
+  text-align: right;
+  flex: 0 0 auto;
+  font-size: 11px;
+  opacity: 0.5;
+}
+.wtl-chat-card-summary {
+  font-size: 12px;
+  color: var(--SmartThemeQuoteColor, #e5c07b);
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 1px 0;
+}
+.wtl-chat-card-preview { font-size: 11px; opacity: 0.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wtl-chat-card-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; opacity: 0.75; }
+.wtl-chat-card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  min-width: 0;
+}
+.wtl-chat-card-badges {
+  flex: 1;
+  min-width: 0;
+}
+.wtl-chat-card-filename {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 10px;
+  opacity: 0.35;
+  text-align: right;
+  font-family: monospace;
   white-space: nowrap;
 }
-.wtl-chat-manager-meta-row {
-  margin-top: 8px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+
 .wtl-chat-manager-meta-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  font-size: 12px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--SmartThemeBodyColor) 8%, transparent);
+  padding: 1px 6px;
+  font-size: 10px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.1);
   border: 1px solid var(--SmartThemeBorderColor);
 }
-.wtl-chat-manager-actions {
-  justify-content: center;
+
+.wtl-chat-card-grid {
   display: grid;
-  grid-template-columns: repeat(3, 38px);
-  gap: 8px;
-  align-content: center;
-  justify-content: end;
-  align-self: stretch;
-  min-width: 132px;
-  padding-left: 8px;
-  border-left: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor) 70%, transparent);
+  grid-template-columns: 36px 36px;
+  grid-template-rows: 36px 36px;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
-.wtl-chat-manager-mini {
-  width: 38px;
-  height: 38px;
-  display: inline-flex;
+.wtl-chat-card-grid button {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--SmartThemeBodyColor) 5%, transparent);
+  color: var(--SmartThemeBodyColor);
+  cursor: pointer;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  font-size: 13px;
+  transition: 0.2s;
+  writing-mode: horizontal-tb;
+  white-space: nowrap;
 }
+.wtl-chat-card-grid button:hover { background: color-mix(in srgb, var(--SmartThemeBodyColor) 15%, transparent); }
+.wtl-chat-btn-danger { border-color: rgba(224, 108, 117, 0.6) !important; color: #e06c75 !important; }
+.wtl-chat-btn-danger:hover { background: rgba(224, 108, 117, 0.15) !important; border-color: #e06c75 !important; }
+
 .wtl-chat-manager-batchbar {
   justify-content: space-between;
-  padding: 10px 12px;
-  margin-top: 12px;
+  padding: 8px 10px;
+  margin-top: 10px;
   border: 1px solid var(--SmartThemeBorderColor);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 90%, transparent);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.3);
 }
 .wtl-chat-manager-empty {
   text-align: center;
-  padding: 22px 16px;
-  border: 1px dashed var(--SmartThemeBorderColor);
-  border-radius: 12px;
+  padding: 20px;
+  opacity: 0.6;
+  font-style: italic;
 }
+
 .wtl-chat-manager-modal {
   position: fixed;
   inset: 0;
@@ -514,9 +507,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   padding: 16px;
   box-sizing: border-box;
 }
-.wtl-chat-manager-modal.is-open {
-  display: flex;
-}
+.wtl-chat-manager-modal.is-open { display: flex; }
 .wtl-chat-manager-modal-card {
   width: min(720px, 94vw);
   max-height: 86vh;
@@ -526,7 +517,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   background: var(--SmartThemeBlurTintColor);
   color: var(--SmartThemeBodyColor);
   padding: 14px;
-  box-shadow: 0 20px 40px color-mix(in srgb, var(--SmartThemeBgColor) 32%, transparent);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.35);
 }
 .wtl-chat-manager-modal-input {
   width: 100%;
@@ -539,8 +530,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   border-radius: 10px;
   padding: 10px 12px;
 }
-.wtl-chat-manager-modal-head,
-.wtl-chat-manager-modal-actions {
+.wtl-chat-manager-modal-head, .wtl-chat-manager-modal-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -564,116 +554,69 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   padding: 10px 12px;
   border: 1px solid var(--SmartThemeBorderColor);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 78%, transparent);
+  background: rgba(255,255,255,0.05);
   cursor: pointer;
 }
-.wtl-chat-manager-tag-option:hover {
-  border-color: var(--SmartThemeUnderlineColor);
-}
-.wtl-chat-manager-tag-option input {
-  margin: 0;
-}
+.wtl-chat-manager-tag-option:hover { border-color: var(--SmartThemeUnderlineColor); }
+.wtl-chat-manager-tag-option input { margin: 0; }
 .wtl-chat-manager-tag-option-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.wtl-chat-manager-modal-actions {
-  justify-content: flex-end;
-  margin-top: 12px;
-}
+.wtl-chat-manager-modal-actions { justify-content: flex-end; margin-top: 12px; }
+
 .wtl-chat-manager-pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--SmartThemeBorderColor);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 90%, transparent);
-}
-.wtl-chat-manager-pagination-main {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+  border: 1px solid var(--SmartThemeBorderColor);
 }
+.wtl-chat-manager-pagination-main { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
 .wtl-chat-manager-message {
   max-width: 88%;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid var(--SmartThemeBorderColor);
-  background: color-mix(in srgb, var(--SmartThemeBodyColor) 6%, transparent);
+  background: rgba(255,255,255,0.06);
   white-space: pre-wrap;
   line-height: 1.55;
 }
 .wtl-chat-manager-message.is-user {
   margin-left: auto;
-  background: color-mix(in srgb, var(--SmartThemeUnderlineColor) 12%, transparent);
+  background: rgba(97, 174, 239, 0.12);
 }
-.wtl-chat-manager-message-name {
-  font-size: 12px;
-  opacity: 0.72;
-  margin-bottom: 4px;
-}
+.wtl-chat-manager-message-name { font-size: 12px; opacity: 0.72; margin-bottom: 4px; }
+
 @media (max-width: 768px) {
-  .wtl-chat-manager-toolbar,
-  .wtl-chat-manager-filters,
-  .wtl-chat-manager-summary-row,
-  .wtl-chat-manager-card-top,
-  .wtl-chat-manager-batchbar {
-    align-items: stretch;
+  .wtl-chat-manager-subtitle { display: none; }
+  .wtl-chat-manager-toolbar { flex-direction: column; align-items: stretch; }
+  .wtl-chat-manager-search { width: 100%; }
+  .wtl-chat-manager-card { padding: 12px; gap: 8px; }
+  .wtl-chat-card-grid { grid-template-columns: 32px 32px; grid-template-rows: 32px 32px; }
+  .wtl-chat-title-tools {
+    margin-left: 0;
   }
-  .wtl-chat-manager-toolbar-main {
+  .wtl-chat-card-title-row,
+  .wtl-chat-card-meta-row {
+    align-items: flex-start;
     flex-wrap: wrap;
-    justify-content: flex-start;
   }
-  .wtl-chat-manager-toggle {
-    grid-template-columns: 1fr;
-    justify-items: stretch;
+  .wtl-chat-card-time,
+  .wtl-chat-card-filename {
+    margin-left: 0;
   }
-  .wtl-chat-manager-toggle-tools,
-  .wtl-chat-manager-toggle-count,
-  .wtl-chat-manager-toggle-chevron {
-    justify-content: flex-start;
-  }
-  .wtl-chat-manager-card {
-    grid-template-columns: 1fr;
-  }
-  .wtl-chat-manager-card-main {
-    grid-template-columns: 1fr;
-  }
-  .wtl-chat-manager-actions {
-    grid-template-columns: repeat(3, 38px);
-    min-width: 0;
-    justify-content: start;
-    padding-left: 0;
-    border-left: none;
-    border-top: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor) 70%, transparent);
-    padding-top: 10px;
-  }
-  .wtl-chat-manager-tag-grid {
-    grid-template-columns: 1fr;
-  }
-  .wtl-chat-manager-modal {
-    padding: 12px;
-  }
-  .wtl-chat-manager-modal-card {
-    width: min(720px, 100%);
-    margin: auto;
-  }
-  .wtl-chat-manager-pagination {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .wtl-chat-manager-check {
-    padding-top: 0;
-  }
-  .wtl-chat-manager-message {
-    max-width: 100%;
-  }
+  .wtl-chat-manager-modal { padding: 12px; }
+  .wtl-chat-manager-modal-card { width: min(720px, 100%); margin: auto; }
+  .wtl-chat-manager-pagination { flex-direction: column; align-items: stretch; }
 }
 `;
     document.head.appendChild(style);
@@ -956,33 +899,35 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       const isPinned = state.pinnedChats.includes(key);
       const checked = state.selectedChats.has(key) ? 'checked' : '';
       const metaChips = [
-        `<span class="wtl-chat-manager-meta-chip"><i class="fa-regular fa-folder"></i>${escapeHtml(folder)}</span>`,
-        ...tags.map((tag) => `<span class="wtl-chat-manager-meta-chip"><i class="fa-solid fa-tag"></i>${escapeHtml(tag)}</span>`)
+        `<span class="wtl-chat-manager-meta-chip"><i class="fa-regular fa-folder"></i> ${escapeHtml(folder)}</span>`,
+        ...tags.map((tag) => `<span class="wtl-chat-manager-meta-chip"><i class="fa-solid fa-tag"></i> ${escapeHtml(tag)}</span>`)
       ].join('');
       return `
         <article class="wtl-chat-manager-card ${isPinned ? 'is-pinned' : ''}" data-key="${escapeHtml(key)}">
           <label class="wtl-chat-manager-check"><input type="checkbox" data-action="select" data-key="${escapeHtml(key)}" ${checked} /></label>
-          <div class="wtl-chat-manager-card-main">
-            <div class="wtl-chat-manager-card-main-body">
-              <div class="wtl-chat-manager-card-top">
-                <div>
-                  <button type="button" class="wtl-chat-manager-title-btn" data-action="open-chat" data-char="${escapeHtml(chat.charId)}" data-file="${escapeHtml(chat.fileName)}">${escapeHtml(title)}</button>
-                  <div class="wtl-chat-manager-meta">@${escapeHtml(chat.character)} · ${escapeHtml(chat.fileName)}</div>
-                </div>
-                <div class="wtl-chat-manager-card-time">${escapeHtml(formatTime(chat.timestamp))}</div>
+
+          <div class="wtl-chat-card-content">
+            <div class="wtl-chat-card-title-row">
+              <div class="wtl-chat-card-title" data-action="open-chat" data-char="${escapeHtml(chat.charId)}" data-file="${escapeHtml(chat.fileName)}" title="点击加载该聊天">${escapeHtml(title)}</div>
+              <div class="wtl-chat-card-time">${escapeHtml(formatTime(chat.timestamp))}</div>
+              <div class="wtl-chat-title-tools">
+                <button type="button" title="预览最近对话" data-action="preview" data-char="${escapeHtml(chat.charId)}" data-file="${escapeHtml(chat.fileName)}"><i class="fa-solid fa-eye"></i></button>
+                <button type="button" title="置顶" data-action="toggle-pin" data-key="${escapeHtml(key)}" class="${isPinned ? 'is-active' : ''}"><i class="fa-solid fa-thumbtack"></i></button>
               </div>
-              ${summary ? `<div class="wtl-chat-manager-summary">${escapeHtml(summary)}</div>` : ''}
-              <div class="wtl-chat-manager-preview">${escapeHtml(chat.preview || '暂无预览')}</div>
-              <div class="wtl-chat-manager-meta-row">${metaChips}</div>
             </div>
-            <div class="wtl-chat-manager-actions">
-              <button type="button" class="wtl-chat-manager-mini" title="预览" data-action="preview" data-char="${escapeHtml(chat.charId)}" data-file="${escapeHtml(chat.fileName)}"><i class="fa-solid fa-eye"></i></button>
-              <button type="button" class="wtl-chat-manager-mini" title="设置标签" data-action="set-tag" data-key="${escapeHtml(key)}"><i class="fa-solid fa-tag"></i></button>
-              <button type="button" class="wtl-chat-manager-mini" title="设置分组" data-action="set-folder" data-key="${escapeHtml(key)}"><i class="fa-regular fa-folder"></i></button>
-              <button type="button" class="wtl-chat-manager-mini" title="编辑标题和简介" data-action="edit-chat" data-key="${escapeHtml(key)}"><i class="fa-solid fa-pen"></i></button>
-              <button type="button" class="wtl-chat-manager-mini ${isPinned ? 'is-active' : ''}" title="置顶" data-action="toggle-pin" data-key="${escapeHtml(key)}"><i class="fa-solid fa-thumbtack"></i></button>
-              <button type="button" class="wtl-chat-manager-mini" title="删除聊天" data-action="delete-chat" data-key="${escapeHtml(key)}"><i class="fa-solid fa-trash"></i></button>
+            ${summary ? `<div class="wtl-chat-card-summary">${escapeHtml(summary)}</div>` : ''}
+            <div class="wtl-chat-card-preview">${escapeHtml(chat.preview || '暂无预览...')}</div>
+            <div class="wtl-chat-card-meta-row">
+              <div class="wtl-chat-card-badges">${metaChips}</div>
+              <div class="wtl-chat-card-filename">@${escapeHtml(chat.fileName)}</div>
             </div>
+          </div>
+
+          <div class="wtl-chat-card-grid">
+            <button type="button" title="分配分组" data-action="set-folder" data-key="${escapeHtml(key)}"><i class="fa-regular fa-folder"></i></button>
+            <button type="button" title="打标签" data-action="set-tag" data-key="${escapeHtml(key)}"><i class="fa-solid fa-tag"></i></button>
+            <button type="button" title="编辑标题和简介" data-action="edit-chat" data-key="${escapeHtml(key)}"><i class="fa-solid fa-pen"></i></button>
+            <button type="button" title="永久删除该聊天" class="wtl-chat-btn-danger" data-action="delete-chat" data-key="${escapeHtml(key)}"><i class="fa-solid fa-trash"></i></button>
           </div>
         </article>
       `;
@@ -1015,10 +960,8 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     panel.classList.toggle('is-batch', state.isBatchMode);
     panel.innerHTML = `
       <div class="wtl-chat-manager-toolbar">
-        <div class="wtl-chat-manager-toolbar-main">
-          <div class="wtl-chat-manager-tabs">${tabHtml}</div>
-          <input type="search" class="wtl-chat-manager-search" placeholder="搜索标题、角色、简介或预览..." value="${escapeHtml(state.searchQuery || '')}" data-action="search" />
-        </div>
+        <div class="wtl-chat-manager-tabs">${tabHtml}</div>
+        <input type="search" class="wtl-chat-manager-search" placeholder="搜索标题、角色、简介或预览..." value="${escapeHtml(state.searchQuery || '')}" data-action="search" />
       </div>
       ${filterItems.length ? `<div class="wtl-chat-manager-filters">${filterHtml}</div>` : ''}
       <div class="wtl-chat-manager-summary-row">
@@ -1573,23 +1516,20 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       host.id = CHAT_MANAGER_ROOT_ID;
       host.className = 'wtl-chat-manager-shell';
       host.innerHTML = `
-        <button type="button" class="wtl-chat-manager-toggle" data-action="toggle-panel">
-          <span class="wtl-chat-manager-toggle-main">
-            <span class="wtl-chat-manager-toggle-copy">
-              <span class="wtl-chat-manager-toggle-title">聊天管理</span>
-              <span class="wtl-chat-manager-toggle-subtitle" data-role="subtitle">点击载入欢迎页聊天记录</span>
-            </span>
-          </span>
-          <span class="wtl-chat-manager-toggle-tools">
-            <button type="button" class="wtl-chat-manager-mini ${state.isBatchMode ? 'is-active' : ''}" title="批量" data-action="toggle-batch"><i class="fa-solid fa-check-double"></i></button>
-            <button type="button" class="wtl-chat-manager-mini" title="刷新" data-action="refresh"><i class="fa-solid fa-rotate-right"></i></button>
-            <button type="button" class="wtl-chat-manager-mini" title="设置" data-action="settings"><i class="fa-solid fa-gear"></i></button>
-          </span>
-          <span class="wtl-chat-manager-toggle-count">
+        <div class="wtl-chat-manager-header">
+          <div class="wtl-chat-manager-header-main" data-action="toggle-panel" title="点击展开/折叠聊天管理">
+            <i class="fa-solid fa-folder-tree"></i>
+            <span class="wtl-chat-manager-title">聊天管理</span>
+            <span class="wtl-chat-manager-subtitle" data-role="subtitle">（载入中...）</span>
+          </div>
+          <div class="wtl-chat-manager-header-tools">
             <span class="wtl-chat-manager-count" data-role="count">0 条</span>
-          </span>
-          <span class="wtl-chat-manager-toggle-chevron"><i class="fa-solid fa-chevron-down" data-role="chevron"></i></span>
-        </button>
+            <button type="button" class="wtl-chat-manager-icon-btn ${state.isBatchMode ? 'is-active' : ''}" title="批量操作" data-action="toggle-batch"><i class="fa-solid fa-check-double"></i></button>
+            <button type="button" class="wtl-chat-manager-icon-btn" title="刷新数据" data-action="refresh"><i class="fa-solid fa-rotate-right"></i></button>
+            <button type="button" class="wtl-chat-manager-icon-btn" title="设置" data-action="settings"><i class="fa-solid fa-gear"></i></button>
+            <button type="button" class="wtl-chat-manager-icon-btn" data-action="toggle-panel" title="展开或折叠"><i class="fa-solid fa-chevron-down" data-role="chevron"></i></button>
+          </div>
+        </div>
         <div class="wtl-chat-manager-panel"></div>
       `;
       recentWrap.appendChild(host);
