@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+:root {
+  --SmartThemeBorderColor: #555;
+  --SmartThemeBodyColor: #fff;
+  --SmartThemeBlurTintColor: rgba(100, 150, 255, 0.2);
+  --SmartThemeEmColor: #61afef;
+  --SmartThemeQuoteColor: #e5c07b;
+}
+
+body {
+  background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+  color: #fff;
+  font-family: Arial, sans-serif;
+  padding: 40px;
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+/* 模拟SillyTavern的背景 */
+.sillytavern-background {
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.8), rgba(22, 33, 62, 0.8), rgba(15, 52, 96, 0.8));
+  border-radius: 16px;
+  padding: 30px;
+  margin: 20px 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.demo-title {
+  font-size: 20px;
+  margin-bottom: 25px;
+  color: var(--SmartThemeEmColor);
+  text-align: center;
+}
+
+/* 整体外壳 - 透明背景只有描边，融入SillyTavern背景 */
+.wtl-chat-manager-shell {
+  margin-top: 15px;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 10px;
+  background: transparent;
+  backdrop-filter: none;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+/* 顶部核心控制行 */
+.wtl-chat-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+  gap: 8px;
+}
+
+.wtl-chat-manager-header:hover {
+  border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+.wtl-chat-manager-header-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.wtl-chat-manager-title {
+  font-weight: 700;
+  color: var(--SmartThemeBodyColor);
+  white-space: nowrap;
+}
+
+.wtl-chat-manager-subtitle {
+  font-size: 12px;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wtl-chat-manager-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.wtl-chat-manager-count {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+/* 传统按钮样式 */
+.wtl-chat-manager-btn, .wtl-chat-manager-pill, .wtl-chat-manager-mini {
+  border: 1px solid var(--SmartThemeBorderColor);
+  background: rgba(255,255,255,0.03);
+  color: var(--SmartThemeBodyColor);
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+}
+.wtl-chat-manager-btn:hover, .wtl-chat-manager-pill:hover { background: rgba(255,255,255,0.08); }
+.wtl-chat-manager-pill.is-active, .wtl-chat-manager-btn.is-active {
+  background: rgba(255,255,255,0.12);
+  font-weight: bold;
+}
+
+/* Edge风格标签页样式 - 用于二级菜单，与聊天记录模块融合 */
+.wtl-chat-manager-filters {
+  position: relative;
+  margin-bottom: 0;
+  z-index: 1;
+  border-radius: 12px 12px 0 0;
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-bottom: none;
+}
+
+.wtl-chat-manager-filters .wtl-edge-pills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 4px 4px 0 4px;
+  position: relative;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.wtl-chat-manager-filters .wtl-edge-pill {
+  border: none;
+  background: transparent;
+  color: var(--SmartThemeBodyColor);
+  padding: 8px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  position: relative;
+  z-index: 1;
+  border-radius: 8px 8px 0 0;
+  margin: 0 2px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.wtl-chat-manager-filters .wtl-edge-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.wtl-chat-manager-filters .wtl-edge-pill.is-active {
+  color: var(--SmartThemeBodyColor);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 40%, transparent);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  border-bottom: none;
+  position: relative;
+  z-index: 2;
+}
+
+.wtl-chat-manager-filters .wtl-edge-pill.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--SmartThemeBlurTintColor);
+  z-index: 3;
+}
+
+/* Edge风格选项卡背景（融合效果） */
+.wtl-chat-manager-filters .wtl-edge-pill-background {
+  position: absolute;
+  top: 4px;
+  bottom: 0;
+  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 40%, transparent);
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  z-index: 0;
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+/* 聊天记录模块与标签页融合 */
+.wtl-chat-manager-list {
+  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 20%, transparent);
+  border-radius: 0 0 12px 12px;
+  margin-top: -1px; /* 与标签页重叠1像素 */
+  padding: 16px;
+  position: relative;
+  z-index: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid transparent;
+  border-top: none;
+}
+
+/* 聊天卡片样式 */
+.wtl-chat-manager-card {
+  position: relative;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 30%, transparent);
+  padding: 12px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transition: 0.2s;
+}
+
+.wtl-chat-manager-card.is-pinned {
+  border-color: color-mix(in srgb, var(--SmartThemeQuoteColor) 56%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--SmartThemeQuoteColor) 5%, transparent), color-mix(in srgb, var(--SmartThemeBlurTintColor) 30%, transparent));
+}
+
+.wtl-chat-card-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wtl-chat-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wtl-chat-card-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--SmartThemeEmColor);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wtl-chat-card-time {
+  text-align: right;
+  flex: 0 0 auto;
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+.wtl-chat-card-summary {
+  font-size: 13px;
+  color: var(--SmartThemeQuoteColor);
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 2px 0;
+}
+
+.wtl-chat-card-preview {
+  font-size: 12px;
+  opacity: 0.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wtl-chat-card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.wtl-chat-manager-meta-chip {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid var(--SmartThemeBorderColor);
+}
+
+.wtl-chat-card-filename {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 11px;
+  opacity: 0.35;
+  text-align: right;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+/* 工具栏和搜索框 */
+.wtl-chat-manager-toolbar, .wtl-chat-manager-filters, .wtl-chat-manager-tabs, .wtl-chat-manager-batchbar {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.wtl-chat-manager-toolbar { margin-bottom: 10px; justify-content: space-between; }
+.wtl-chat-manager-filters { margin-bottom: 10px; }
+
+.wtl-chat-manager-search, .wtl-chat-manager-input, .wtl-chat-manager-textarea, .wtl-chat-manager-select {
+  width: 100%;
+  background: rgba(0,0,0,0.15);
+  color: var(--SmartThemeBodyColor);
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+}
+.wtl-chat-manager-search { flex: 1 1 200px; min-width: 120px; }
+
+/* 批量操作栏 */
+.wtl-chat-manager-batchbar {
+  justify-content: space-between;
+  padding: 8px 10px;
+  margin-top: 10px;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.15);
+}
+</style>
+</head>
+<body>
+<div class="sillytavern-background">
+  <h2 class="demo-title">聊天管理器透明背景效果演示</h2>
+  <p style="text-align: center; opacity: 0.8; margin-bottom: 30px;">整个界面只有描边（边框），背景透明以融入SillyTavern的背景</p>
+
+  <!-- 聊天管理器外壳 -->
+  <div class="wtl-chat-manager-shell">
+    <!-- 顶部控制行 -->
+    <div class="wtl-chat-manager-header">
+      <div class="wtl-chat-manager-header-main">
+        <div class="wtl-chat-manager-title">聊天管理器</div>
+        <div class="wtl-chat-manager-subtitle">管理 3 条聊天记录</div>
+      </div>
+      <div class="wtl-chat-manager-header-tools">
+        <span class="wtl-chat-manager-count">3 条</span>
+        <button class="wtl-chat-manager-btn" style="font-size: 12px;">批量操作</button>
+        <button class="wtl-chat-manager-btn" style="font-size: 12px;">刷新</button>
+      </div>
+    </div>
+
+    <!-- 展开的内容面板 -->
+    <div class="wtl-chat-manager-panel" style="display: block; padding: 12px;">
+      <!-- 工具栏 -->
+      <div class="wtl-chat-manager-toolbar">
+        <div class="wtl-chat-manager-tabs">
+          <button class="wtl-chat-manager-btn is-active">最近</button>
+          <button class="wtl-chat-manager-btn">角色</button>
+          <button class="wtl-chat-manager-btn">分组</button>
+          <button class="wtl-chat-manager-btn">标签</button>
+        </div>
+        <input type="search" class="wtl-chat-manager-search" placeholder="搜索标题、角色、简介或预览..." />
+      </div>
+
+      <!-- Edge风格标签页容器 -->
+      <div class="wtl-chat-manager-filters">
+        <div class="wtl-edge-pills-container" id="wtl-edge-pills-container">
+          <button type="button" class="wtl-edge-pill is-active" data-value="全部" data-index="0">全部</button>
+          <button type="button" class="wtl-edge-pill" data-value="主线" data-index="1">主线</button>
+          <button type="button" class="wtl-edge-pill" data-value="支线" data-index="2">支线</button>
+          <button type="button" class="wtl-edge-pill" data-value="日常" data-index="3">日常</button>
+          <button type="button" class="wtl-edge-pill" data-value="废案" data-index="4">废案</button>
+          <div class="wtl-edge-pill-background" id="wtl-edge-pill-background" style="left: 0px; width: 56px; opacity: 1;"></div>
+        </div>
+      </div>
+
+      <!-- 聊天记录模块 -->
+      <div class="wtl-chat-manager-list">
+        <!-- 聊天卡片 1 -->
+        <div class="wtl-chat-manager-card is-pinned">
+          <div class="wtl-chat-card-content">
+            <div class="wtl-chat-card-title-row">
+              <div class="wtl-chat-card-title" title="点击加载该聊天">主线故事：魔法学院的入学考试</div>
+              <div class="wtl-chat-card-time">2024-03-15 14:30</div>
+            </div>
+            <div class="wtl-chat-card-summary">主人公通过魔法学院入学考试的冒险故事</div>
+            <div class="wtl-chat-card-preview">"欢迎来到阿尔法魔法学院！你的第一个测试是..."</div>
+            <div class="wtl-chat-card-meta-row">
+              <span class="wtl-chat-manager-meta-chip"><i class="fa-regular fa-folder"></i> 主线</span>
+              <span class="wtl-chat-manager-meta-chip"><i class="fa-solid fa-tag"></i> 冒险</span>
+              <div class="wtl-chat-card-filename">@魔法学院_入学考试.jsonl</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 聊天卡片 2 -->
+        <div class="wtl-chat-manager-card">
+          <div class="wtl-chat-card-content">
+            <div class="wtl-chat-card-title-row">
+              <div class="wtl-chat-card-title" title="点击加载该聊天">支线任务：寻找失落的魔法书</div>
+              <div class="wtl-chat-card-time">2024-03-14 10:15</div>
+            </div>
+            <div class="wtl-chat-card-summary">帮助图书馆管理员寻找失落的古代魔法书</div>
+            <div class="wtl-chat-card-preview">"这本魔法书据说藏在学院最古老的图书馆深处..."</div>
+            <div class="wtl-chat-card-meta-row">
+              <span class="wtl-chat-manager-meta-chip"><i class="fa-regular fa-folder"></i> 支线</span>
+              <span class="wtl-chat-manager-meta-chip"><i class="fa-solid fa-tag"></i> 解谜</span>
+              <div class="wtl-chat-card-filename">@失落的魔法书.jsonl</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 聊天卡片 3 -->
+        <div class="wtl-chat-manager-card">
+          <div class="wtl-chat-card-content">
+            <div class="wtl-chat-card-title-row">
+              <div class="wtl-chat-card-title" title="点击加载该聊天">日常：魔法药剂制作课</div>
+              <div class="wtl-chat-card-time">2024-03-13 09:45</div>
+            </div>
+            <div class="wtl-chat-card-summary">学习制作基础治疗药水的日常课程</div>
+            <div class="wtl-chat-card-preview">"今天我们来学习如何制作基础治疗药水，首先需要..."</div>
+            <div class="wtl-chat-card-meta-row">
+              <span class="wtl-chat-manager-meta-chip"><i class="fa-regular fa-folder"></i> 日常</span>
+              <span class="wtl-chat-manager-meta-chip"><i class="fa-solid fa-tag"></i> 学习</span>
+              <div class="wtl-chat-card-filename">@药剂制作课.jsonl</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 批量操作栏 -->
+      <div class="wtl-chat-manager-batchbar">
+        <div class="wtl-chat-manager-count">已选择 0 条聊天</div>
+        <div class="wtl-chat-manager-summary-row">
+          <button type="button" class="wtl-chat-manager-btn">设分组</button>
+          <button type="button" class="wtl-chat-manager-btn">加标签</button>
+          <button type="button" class="wtl-chat-manager-btn">删标签</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 30px; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px solid var(--SmartThemeBorderColor);">
+    <h3>透明背景设计特点：</h3>
+    <ul>
+      <li><strong>整体外壳透明</strong>: 移除了背景色和阴影，只保留边框</li>
+      <li><strong>头部半透明</strong>: 背景使用rgba(0, 0, 0, 0.1)轻微暗化</li>
+      <li><strong>按钮和输入框透明</strong>: 背景透明度从5%调整到3%</li>
+      <li><strong>Edge标签页透明</strong>: 背景使用rgba(255, 255, 255, 0.03)</li>
+      <li><strong>聊天列表透明</strong>: 背景透明度从var(--SmartThemeBlurTintColor)调整为20%透明</li>
+      <li><strong>聊天卡片透明</strong>: 背景透明度从74%调整为30%</li>
+      <li><strong>批量操作栏透明</strong>: 背景从rgba(0,0,0,0.3)调整为rgba(0,0,0,0.15)</li>
+      <li><strong>置顶卡片透明</strong>: 渐变背景透明度降低，从78%/10%调整为30%/5%</li>
+    </ul>
+    <p>这样的设计让聊天管理器更好地融入SillyTavern的背景，减少视觉干扰，同时保持清晰的边框和层次结构。</p>
+  </div>
+</div>
+
+<script>
+function updateEdgePillsBackground() {
+  const container = document.querySelector('#wtl-edge-pills-container');
+  const background = document.querySelector('#wtl-edge-pill-background');
+  if (container && background) {
+    const activeTab = container.querySelector('.wtl-edge-pill.is-active');
+    if (activeTab) {
+      const rect = activeTab.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      background.style.left = `${rect.left - containerRect.left}px`;
+      background.style.width = `${rect.width}px`;
+      background.style.opacity = '1';
+    } else {
+      background.style.opacity = '0';
+    }
+  }
+}
+
+// 添加点击事件
+document.querySelectorAll('.wtl-edge-pill').forEach(pill => {
+  pill.addEventListener('click', function() {
+    document.querySelectorAll('.wtl-edge-pill').forEach(p => p.classList.remove('is-active'));
+    this.classList.add('is-active');
+    updateEdgePillsBackground();
+    
+    // 模拟切换内容
+    const folder = this.dataset.value;
+    document.querySelectorAll('.wtl-chat-manager-card').forEach(card => {
+      const folderChip = card.querySelector('.wtl-chat-manager-meta-chip:nth-child(1)');
+      if (folder === '全部' || folderChip.textContent.includes(folder)) {
+        card.style.display = 'flex';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  });
+});
+
+// 添加顶部标签点击事件
+document.querySelectorAll('.wtl-chat-manager-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    if (this.textContent === '分组') {
+      // 切换到分组模式时显示Edge标签页
+      document.querySelector('.wtl-chat-manager-filters').style.display = 'block';
+    } else if (this.textContent === '最近' || this.textContent === '角色' || this.textContent === '标签') {
+      // 其他模式隐藏Edge标签页
+      document.querySelector('.wtl-chat-manager-filters').style.display = 'none';
+    }
+  });
+});
+
+// 初始化
+updateEdgePillsBackground();
+</script>
+</body>
+</html>

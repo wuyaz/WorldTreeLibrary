@@ -207,15 +207,15 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     const style = document.createElement('style');
     style.id = CHAT_MANAGER_STYLE_ID;
     style.textContent = `
-/* 整体外壳 */
+/* 整体外壳 - 完全透明背景，只有描边 */
 .wtl-chat-manager-shell {
   margin-top: 15px;
   border: 1px solid var(--SmartThemeBorderColor);
   border-radius: 10px;
-  background: var(--SmartThemeBlurTintColor);
-  backdrop-filter: blur(10px);
+  background: transparent;
+  backdrop-filter: none;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  box-shadow: none;
 }
 
 /* 顶部核心控制行 */
@@ -224,7 +224,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.2);
+  background: transparent;
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s;
   gap: 8px;
@@ -308,10 +308,20 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
 }
 .wtl-chat-manager-toolbar { margin-bottom: 10px; justify-content: space-between; }
 .wtl-chat-manager-filters { margin-bottom: 10px; }
+.wtl-chat-manager-summary-row {
+  margin-top: 10px;
+  padding: 8px;
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.7;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.1);
+  border: 1px solid var(--SmartThemeBorderColor);
+}
 
 .wtl-chat-manager-search, .wtl-chat-manager-input, .wtl-chat-manager-textarea, .wtl-chat-manager-select {
   width: 100%;
-  background: rgba(0,0,0,0.3);
+  background: rgba(0,0,0,0.15);
   color: var(--SmartThemeBodyColor);
   border: 1px solid var(--SmartThemeBorderColor);
   border-radius: 8px;
@@ -324,54 +334,72 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
 
 
 
-/* Edge风格标签页样式 - 用于二级菜单，与聊天记录模块融合 */
+/* 简洁标签页样式 - 全透明背景，选中与内容同色 */
 .wtl-chat-manager-filters {
   position: relative;
   margin-bottom: 0;
   z-index: 1;
-  border-radius: 12px 12px 0 0;
-  background: rgba(255, 255, 255, 0.05);
   overflow: hidden;
 }
 
+/* 标签页容器 - 全透明背景 */
 .wtl-chat-manager-filters .wtl-edge-pills-container {
   display: flex;
   flex-wrap: wrap;
   gap: 0;
-  padding: 4px 4px 0 4px;
+  padding: 0;
   position: relative;
+  background: transparent;
+  border-radius: 12px 12px 0 0;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-bottom: none;
+  overflow: hidden;
 }
 
+/* 标签项基础样式 - 全透明，未选中状态较暗 */
 .wtl-chat-manager-filters .wtl-edge-pill {
   border: none;
   background: transparent;
-  color: var(--SmartThemeBodyColor);
-  padding: 8px 16px;
+  color: rgba(255, 255, 255, 0.4); /* 未选中标签颜色更暗 */
+  padding: 10px 20px;
   cursor: pointer;
   white-space: nowrap;
   writing-mode: horizontal-tb;
   text-orientation: mixed;
   position: relative;
   z-index: 1;
-  border-radius: 8px 8px 0 0;
-  margin: 0 2px;
-  transition: color 0.2s ease, background 0.2s ease;
+  border-radius: 0;
+  margin: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 14px;
 }
 
-.wtl-chat-manager-filters .wtl-edge-pill:hover {
-  background: rgba(255, 255, 255, 0.1);
+/* 移除最后一个标签的右边框 */
+.wtl-chat-manager-filters .wtl-edge-pill:last-child {
+  border-right: none;
 }
 
+/* 未选中标签的悬停效果 */
+.wtl-chat-manager-filters .wtl-edge-pill:hover:not(.is-active) {
+  color: rgba(255, 255, 255, 0.7); /* 悬停时稍微变亮 */
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* 选中标签 - 与内容区域同色，无背景 */
 .wtl-chat-manager-filters .wtl-edge-pill.is-active {
-  color: var(--SmartThemeBodyColor);
+  color: var(--SmartThemeBodyColor); /* 选中标签使用主题文字颜色 */
   font-weight: 600;
-  background: var(--SmartThemeBlurTintColor);
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-  border-bottom: none;
+  background: transparent;
   position: relative;
   z-index: 2;
 }
 
+/* 选中标签 - 突出显示，与内容区域连接 */
+.wtl-chat-manager-filters .wtl-edge-pill.is-active {
+  position: relative;
+}
+
+/* 选中标签的底部边框 - 延伸到内容区域，形成连接 */
 .wtl-chat-manager-filters .wtl-edge-pill.is-active::after {
   content: '';
   position: absolute;
@@ -379,41 +407,41 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--SmartThemeBlurTintColor);
-  z-index: 3;
+  background: var(--SmartThemeBorderColor);
+  z-index: 2;
 }
 
-/* Edge风格选项卡背景（融合效果） */
+/* 滑动背景指示器 - 移除动画，与内容区域完全同色 */
 .wtl-chat-manager-filters .wtl-edge-pill-background {
   position: absolute;
-  top: 4px;
-  bottom: 0;
-  background: var(--SmartThemeBlurTintColor);
-  border-radius: 8px 8px 0 0;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  top: 0;
+  bottom: -1px; /* 延伸到内容区域 */
+  background: transparent; /* 全透明背景 */
+  border-radius: 0;
   z-index: 0;
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
+  border: none; /* 移除边框 */
 }
 
-/* 聊天记录模块与标签页融合 */
+/* 聊天记录模块 - 全透明背景，与标签页共享边框 */
 .wtl-chat-manager-list {
-  background: var(--SmartThemeBlurTintColor);
+  background: transparent; /* 全透明背景 */
   border-radius: 0 0 12px 12px;
-  margin-top: -1px; /* 与标签页重叠1像素 */
-  padding: 16px;
+  margin-top: 0;
+  padding: 20px;
   position: relative;
   z-index: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-top: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 /* 传统按钮样式 */
 .wtl-chat-manager-btn, .wtl-chat-manager-pill, .wtl-chat-manager-mini {
   border: 1px solid var(--SmartThemeBorderColor);
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.03);
   color: var(--SmartThemeBodyColor);
   border-radius: 8px;
   padding: 5px 10px;
@@ -422,9 +450,9 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   writing-mode: horizontal-tb;
   text-orientation: mixed;
 }
-.wtl-chat-manager-btn:hover, .wtl-chat-manager-pill:hover { background: rgba(255,255,255,0.1); }
+.wtl-chat-manager-btn:hover, .wtl-chat-manager-pill:hover { background: rgba(255,255,255,0.08); }
 .wtl-chat-manager-pill.is-active, .wtl-chat-manager-btn.is-active {
-  background: var(--SmartThemeBorderColor);
+  background: rgba(255,255,255,0.12);
   font-weight: bold;
 }
 
@@ -433,16 +461,15 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   position: relative;
   border: 1px solid var(--SmartThemeBorderColor);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 74%, transparent);
+  background: transparent;
   padding: 10px 12px;
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  transition: 0.2s;
 }
 .wtl-chat-manager-card.is-pinned {
   border-color: color-mix(in srgb, var(--SmartThemeQuoteColor) 56%, transparent);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--SmartThemeQuoteColor) 10%, transparent), color-mix(in srgb, var(--SmartThemeBlurTintColor) 78%, transparent));
+  background: transparent;
 }
 .wtl-chat-manager-check { display: none; align-items: center; }
 .wtl-chat-manager-panel.is-batch .wtl-chat-manager-check { display: flex; }
@@ -577,7 +604,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   margin-top: 10px;
   border: 1px solid var(--SmartThemeBorderColor);
   border-radius: 8px;
-  background: rgba(0,0,0,0.3);
+  background: rgba(0,0,0,0.15);
 }
 .wtl-chat-manager-empty {
   text-align: center;
@@ -1188,7 +1215,6 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
             ${escapeHtml(item)}
           </button>
         `).join('')}
-        <div class="wtl-edge-pill-background" id="wtl-edge-pill-background"></div>
       </div>
     ` : '';
 
@@ -1266,16 +1292,15 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
         <input type="search" class="wtl-chat-manager-search" placeholder="搜索标题、角色、简介或预览..." value="${escapeHtml(state.searchQuery || '')}" data-action="search" />
       </div>
       ${filterItems.length ? `<div class="wtl-chat-manager-filters">${filterHtml}</div>` : ''}
+      <div class="wtl-chat-manager-list">${listHtml}</div>
+      ${paginationHtml}
       <div class="wtl-chat-manager-summary-row">
         <div class="wtl-chat-manager-count">当前显示 ${pagedChats.length} / ${filteredChats.length}（总计 ${chats.length}）</div>
       </div>
-      <div class="wtl-chat-manager-list">${listHtml}</div>
-      ${paginationHtml}
       ${batchHtml}
     `;
     
-    // 更新Edge风格标签页背景位置
-    setTimeout(updateEdgePillsBackground, 10);
+    
   };
 
   const getChatByKey = (key) => chats.find((item) => item.globalKey === key);
@@ -1717,22 +1742,7 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     }
   };
 
-  const updateEdgePillsBackground = () => {
-    const container = rootEl?.querySelector('#wtl-edge-pills-container');
-    const background = rootEl?.querySelector('#wtl-edge-pill-background');
-    if (container && background) {
-      const activeTab = container.querySelector('.wtl-edge-pill.is-active');
-      if (activeTab) {
-        const rect = activeTab.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        background.style.left = `${rect.left - containerRect.left}px`;
-        background.style.width = `${rect.width}px`;
-        background.style.opacity = '1';
-      } else {
-        background.style.opacity = '0';
-      }
-    }
-  };
+  
 
   const handleAction = async (event) => {
     const actionEl = event.target.closest('[data-action]');
@@ -1763,14 +1773,12 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       state.selectedChats.clear();
       state.isBatchMode = false;
       render();
-      setTimeout(updateEdgePillsBackground, 10);
       return;
     }
     if (action === 'filter') {
       state.activeFilter = actionEl.dataset.value || '全部';
       state.currentPage = 1;
       render();
-      setTimeout(updateEdgePillsBackground, 10);
       return;
     }
     if (action === 'create-filter') {
@@ -1990,7 +1998,6 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       host.addEventListener('click', handleAction);
       host.addEventListener('input', handleInput);
       host.addEventListener('change', handleChange);
-      window.addEventListener('resize', updateEdgePillsBackground);
     }
     rootEl = host;
     if (renderAfter || created) render();
@@ -2001,7 +2008,6 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       rootEl.removeEventListener('click', handleAction);
       rootEl.removeEventListener('input', handleInput);
       rootEl.removeEventListener('change', handleChange);
-      window.removeEventListener('resize', updateEdgePillsBackground);
       rootEl.remove();
       rootEl = null;
     }
