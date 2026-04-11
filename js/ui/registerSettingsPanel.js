@@ -301,7 +301,6 @@ export async function registerFeatureSettingsPanel(options = {}) {
   ensureFeatureModal();
 
   const syncUi = () => {
-    const { getFeatureFlags, setFeatureFlags } = require('../storage.js');
     const flags = getFeatureFlags();
     const memoryToggleEl = document.querySelector('#wtl-feature-memory-toggle');
     const chatToggleEl = document.querySelector('#wtl-feature-chat-toggle');
@@ -330,7 +329,6 @@ export async function registerFeatureSettingsPanel(options = {}) {
         root.addEventListener('change', (event) => {
           const target = event.target;
           if (!(target instanceof HTMLInputElement)) return;
-          const { getFeatureFlags, setFeatureFlags } = require('../storage.js');
           const current = getFeatureFlags();
           let next = current;
           if (target.id === 'wtl-feature-memory-toggle') {

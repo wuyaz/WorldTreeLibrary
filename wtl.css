@@ -232,7 +232,16 @@
   background: linear-gradient(135deg, color-mix(in srgb, var(--wtl-bg-elev) 88%, transparent), color-mix(in srgb, var(--wtl-accent) 8%, transparent));
 }
 #wtl-root.wtl-memory-disabled .wtl-memory-feature {
-  display: none !important;
+  /* 按钮应该始终可见和工作 */
+  /* display: none !important; */
+}
+
+/* 确保按钮始终可见 */
+#wtl-root.wtl-memory-disabled .wtl-actions .menu_button {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 #wtl-root .wtl-tab-list {

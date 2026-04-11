@@ -1,6 +1,14 @@
 // UI 元素引用集中管理
-export function getUiRefs() {
-  const byId = (id) => document.getElementById(id);
+export function getUiRefs(root) {
+  const byId = (id) => {
+    // 如果提供了root参数，先在root内部查找
+    if (root) {
+      const el = root.querySelector(`#${id}`);
+      if (el) return el;
+    }
+    // 回退到全局查找
+    return document.getElementById(id);
+  };
 
   return {
     statusEl: byId('wtl-status'),
@@ -9,6 +17,8 @@ export function getUiRefs() {
     openConfigBtn: byId('wtl-open-config'),
     backMainBtn: byId('wtl-back-main'),
     memoryFeatureDisabledEl: byId('wtl-memory-feature-disabled'),
+    
+    runBtn: byId('wtl-run'),
     batchBtn: byId('wtl-batch'),
     batchStartEl: byId('wtl-batch-start'),
     batchEndEl: byId('wtl-batch-end'),

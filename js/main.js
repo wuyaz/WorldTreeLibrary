@@ -12,7 +12,7 @@ import { createChatManagerController } from './ui/chatManager.js';
   let attempts = 0;
   let registered = false;
   let chatManager = null;
-  const init = async () => {
+const init = async () => {
     const ctx = window.SillyTavern?.getContext?.();
     if (!ctx || !window.ST_API?.ui) {
       attempts += 1;
@@ -20,6 +20,17 @@ import { createChatManagerController } from './ui/chatManager.js';
         setTimeout(() => init().catch((err) => console.error('[WorldTreeLibrary] init failed:', err)), 300);
       }
       return;
+    }
+
+    // 确保记忆表格功能始终启用
+    try {
+      const currentFlags = JSON.parse(localStorage.getItem('wtl.featureFlags') || '{}');
+      if (currentFlags.memoryTable === false) {
+        console.log('[WorldTreeLibrary] 启用记忆表格功能');
+        localStorage.setItem('wtl.featureFlags', JSON.stringify({...currentFlags, memoryTable: true}));
+      }
+    } catch (e) {
+      console.warn('[WorldTreeLibrary] 无法检查功能标志', e);
     }
 
     const { defaults } = await initConfig();
@@ -60,6 +71,10 @@ import { createChatManagerController } from './ui/chatManager.js';
               const disabledEl = document.getElementById('wtl-memory-feature-disabled');
               if (disabledEl) disabledEl.style.display = flags.memoryTable === false ? 'block' : 'none';
             }
+            // 通知绑定层更新UI状态
+            if (window.__wtlApplyFeatureUi) {
+              window.__wtlApplyFeatureUi();
+            }
           }
         });
       } catch (err) {
@@ -74,6 +89,10 @@ import { createChatManagerController } from './ui/chatManager.js';
                 root.classList.toggle('wtl-memory-disabled', flags.memoryTable === false);
                 const disabledEl = document.getElementById('wtl-memory-feature-disabled');
                 if (disabledEl) disabledEl.style.display = flags.memoryTable === false ? 'block' : 'none';
+              }
+              // 通知绑定层更新UI状态
+              if (window.__wtlApplyFeatureUi) {
+                window.__wtlApplyFeatureUi();
               }
             }
           });
@@ -96,7 +115,16 @@ import { createChatManagerController } from './ui/chatManager.js';
   };
 
   const boot = () => {
-    init().catch((err) => console.error('[WorldTreeLibrary] init failed:', err));
+    try {
+      console.log('[WorldTreeLibrary] 开始初始化...');
+      init().catch((err) => {
+        console.error('[WorldTreeLibrary] init failed:', err);
+        console.error('[WorldTreeLibrary] 错误堆栈:', err.stack);
+      });
+    } catch (err) {
+      console.error('[WorldTreeLibrary] boot failed:', err);
+      console.error('[WorldTreeLibrary] 错误堆栈:', err.stack);
+    }
   };
 
   if (document.readyState === 'loading') {

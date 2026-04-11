@@ -171,7 +171,7 @@ export function bindTemplateEditingControls({
 
     if (nextMode) {
       renderPreview(tableMdEl?.value || '');
-      setStatus('编辑表格：可直接修改单元格');
+      setStatus('编辑表格：可直接修改单元格；拖拽表头以调整列顺序');
       return;
     }
 
@@ -184,11 +184,8 @@ export function bindTemplateEditingControls({
     setStatus('表格已保存');
   });
 
-  editTableBtn?.addEventListener('click', () => {
-    setStatus('拖拽表头以调整列顺序');
-  });
-
   editTemplateBtn?.addEventListener('click', async () => {
+    console.log('[WTL] editTemplateBtn 被点击');
     const nextMode = !getTemplateEditMode();
     setTemplateEditMode(nextMode);
     if (editTemplateBtn) {

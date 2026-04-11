@@ -26,7 +26,7 @@ export function createStateController({
   SCHEMA_PRESET_KEY,
   SCHEMA_PRESET_ACTIVE_KEY,
   safeParseJson,
-  refreshPromptPresetSelect,
+  refreshTextPresetSelect,
   refreshSchemaPresetSelect,
   refreshOpenAIPresetSelect,
   updateSchemaBindRadios,
@@ -238,8 +238,8 @@ export function createStateController({
 
     const prepromptPresets = getPromptPresets(PREPROMPT_PRESET_KEY);
     const instructionPresets = getPromptPresets(INSTRUCTION_PRESET_KEY);
-    refreshPromptPresetSelect(prepromptPresetEl, prepromptPresets);
-    refreshPromptPresetSelect(instructionPresetEl, instructionPresets);
+    refreshTextPresetSelect(prepromptPresetEl, prepromptPresets);
+    refreshTextPresetSelect(instructionPresetEl, instructionPresets);
     const prepromptActive = storage.getItem(PREPROMPT_PRESET_ACTIVE_KEY) || '';
     const instructionActive = storage.getItem(INSTRUCTION_PRESET_ACTIVE_KEY) || '';
     if (prepromptPresetEl && prepromptActive) prepromptPresetEl.value = prepromptActive;
@@ -507,8 +507,8 @@ export function createStateController({
     if (editPrepromptBtn) editPrepromptBtn.textContent = '编辑';
     if (editInstructionBtn) editInstructionBtn.textContent = '编辑';
 
-    refreshPromptPresetSelect(prepromptPresetEl, getPromptPresets(PREPROMPT_PRESET_KEY));
-    refreshPromptPresetSelect(instructionPresetEl, getPromptPresets(INSTRUCTION_PRESET_KEY));
+    refreshTextPresetSelect(prepromptPresetEl, getPromptPresets(PREPROMPT_PRESET_KEY));
+    refreshTextPresetSelect(instructionPresetEl, getPromptPresets(INSTRUCTION_PRESET_KEY));
     if (prepromptPresetEl) prepromptPresetEl.value = '默认';
     if (instructionPresetEl) instructionPresetEl.value = '默认';
     if (prepromptPresetNameEl) prepromptPresetNameEl.value = '默认';

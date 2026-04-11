@@ -160,7 +160,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   if (!root) return;
   const { eventSource, event_types } = ctx || {};
 
-  const ui = getUiRefs();
+  const ui = getUiRefs(root);
   const {
     statusEl,
     pageMainEl,
@@ -725,6 +725,29 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     }
   };
 
+  // 占位函数，后面会被真实实现替换
+  let renderBlockList = () => {};
+  let renderRefBlockList = () => {};
+  let renderPreview = () => {};
+  let syncTableInjection = async () => {};
+  let syncInstructionInjection = async () => {};
+  let syncSchemaInjection = async () => {};
+  let refreshPromptPreview = async () => {};
+  let renderManualWorldBookUI = () => {};
+  let removeStorageByPrefix = () => {};
+  let setPresetStore = () => {};
+  let appendHistory = () => {};
+  let setStatus = () => {};
+  let runFillOnce = async () => {};
+  let runBatchFill = async () => {};
+  let refreshModels = async () => {};
+
+  // 简单的getter函数，可以直接定义
+  const getManualConfig = () => readManualWorldBookConfig(wbManualEl?.value || '{"books": []}');
+  const setManualConfig = (cfg) => {
+    if (wbManualEl) wbManualEl.value = serializeManualWorldBookConfig(cfg);
+  };
+
   const {
     loadState,
     saveState,
@@ -758,7 +781,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     SCHEMA_PRESET_KEY,
     SCHEMA_PRESET_ACTIVE_KEY,
     safeParseJson,
-    refreshPromptPresetSelect,
+    refreshTextPresetSelect,
     refreshSchemaPresetSelect,
     refreshOpenAIPresetSelect,
     updateSchemaBindRadios,
@@ -800,7 +823,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     reloadChatState
   });
 
-  const removeStorageByPrefix = (prefix) => {
+  const removeStorageByPrefixImpl = (prefix) => {
     for (let i = localStorage.length - 1; i >= 0; i -= 1) {
       const key = localStorage.key(i);
       if (key && key.startsWith(prefix)) {
@@ -808,6 +831,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       }
     }
   };
+  removeStorageByPrefix = removeStorageByPrefixImpl;
 
   const ensurePresetStore = (key, payload) => {
     if (!payload) return;
@@ -825,15 +849,17 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     }
   };
 
-  const setPresetStore = (key, payload) => {
+  const setPresetStoreImpl = (key, payload) => {
     localStorage.setItem(key, JSON.stringify(payload || {}));
   };
+  setPresetStore = setPresetStoreImpl;
 
 
-  const setStatus = (msg) => {
+  const setStatusImpl = (msg) => {
     if (statusEl) statusEl.textContent = `状态：${msg}`;
     console.log('[WorldTreeLibrary]', msg);
   };
+  setStatus = setStatusImpl;
 
   const notifyStatus = (type, msg) => {
     const toast = window?.toastr;
@@ -851,8 +877,13 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     const memoryEnabled = featureFlags.memoryTable !== false;
     if (memoryFeatureDisabledEl) memoryFeatureDisabledEl.style.display = memoryEnabled ? 'none' : 'block';
 
-    root.classList.toggle('wtl-memory-disabled', !memoryEnabled);
-    if (openConfigBtn) openConfigBtn.disabled = !memoryEnabled;
+    // 即使记忆表格功能被禁用，按钮也应该工作
+    // root.classList.toggle('wtl-memory-disabled', !memoryEnabled);
+    root.classList.toggle('wtl-memory-disabled', false); // 始终不禁用按钮
+    
+    // 填表配置按钮应该始终可用
+    // if (openConfigBtn) openConfigBtn.disabled = !memoryEnabled;
+    if (openConfigBtn) openConfigBtn.disabled = false;
     if (!memoryEnabled && pageConfigEl && pageMainEl) {
       pageConfigEl.style.display = 'none';
       pageMainEl.style.display = 'flex';
@@ -932,10 +963,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     }
   });
 
-  const {
-    renderBlockList,
-    renderRefBlockList
-  } = createBlockEditorController({
+  const blockEditorResult = createBlockEditorController({
     blockListEl,
     refBlockListEl,
     getBlocksPreset,
@@ -948,6 +976,10 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     blockAddEl,
     refBlockAddEl
   });
+  
+  // 替换占位函数为真实实现
+  renderBlockList = blockEditorResult.renderBlockList;
+  renderRefBlockList = blockEditorResult.renderRefBlockList;
 
   const saveTemplateDialogChanges = () => {
     const templateDialogTarget = getTemplateDialogTarget();
@@ -1133,15 +1165,9 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
 
 
 
-  const getManualConfig = () => readManualWorldBookConfig(wbManualEl?.value || '{"books": []}');
-
-  const setManualConfig = (cfg) => {
-    if (wbManualEl) wbManualEl.value = serializeManualWorldBookConfig(cfg);
-  };
-
   let manualWorldBookEditor = null;
 
-  const renderManualWorldBookUI = (cfg) => {
+  const renderManualWorldBookUIImpl = (cfg) => {
     manualState = normalizeManualWorldBookConfig(cfg);
     if (!wbManualUiEl) return;
     manualWorldBookEditor = renderManualWorldBookEditor({
@@ -1156,6 +1182,9 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       refreshPromptPreview
     });
   };
+  
+  // 替换占位函数
+  renderManualWorldBookUI = renderManualWorldBookUIImpl;
 
   const enableTableInlineEditing = () => {
     const tableEl = document.getElementById('wtl-table-view');
@@ -1260,7 +1289,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     });
   };
 
-  const renderPreview = (md) => {
+  const renderPreviewImpl = (md) => {
     renderTablePreview({
       md,
       headEl,
@@ -1288,6 +1317,9 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       renderTabs
     });
   };
+  
+  // 替换占位函数
+  renderPreview = renderPreviewImpl;
 
   const reorderColumns = reorderColumnsInMarkdown;
 
@@ -1382,7 +1414,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   const {
     openHistoryModal,
     restoreHistoryByOffset,
-    appendHistory,
+    appendHistory: appendHistoryImpl,
     getHistoryKey,
     getHistoryIndexKey
   } = createHistoryModalController({
@@ -1405,20 +1437,25 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       hiddenRows = value || {};
     }
   });
+  
+  // 替换占位函数
+  appendHistory = appendHistoryImpl;
 
-  const { runBatchFill } = createBatchController({
+  const { runBatchFill: runBatchFillImpl } = createBatchController({
     batchStartEl,
     batchEndEl,
     batchStepEl,
     setStatus,
     runFillOnce
   });
+  runBatchFill = runBatchFillImpl;
 
-  const { refreshModels } = createOpenAiModelController({
+  const { refreshModels: refreshModelsImpl } = createOpenAiModelController({
     openaiUrlEl,
     openaiKeyEl,
     openaiModelEl
   });
+  refreshModels = refreshModelsImpl;
 
   const getManagedPromptInjectionItems = () => buildManagedPromptInjectionItems({
     defaults,
@@ -1466,18 +1503,23 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     restoreManagedPromptInput,
     applyManagedPromptInjection,
     syncManagedPromptInjections,
-    syncTableInjection,
-    syncInstructionInjection,
-    syncSchemaInjection
+    syncTableInjection: syncTableInjectionImpl,
+    syncInstructionInjection: syncInstructionInjectionImpl,
+    syncSchemaInjection: syncSchemaInjectionImpl
   } = createManagedPromptInjectionController({
     getSendModeFlags,
     getManagedPromptInjectionItems,
     runtimeInjectedInputRef
   });
+  
+  // 替换占位函数
+  syncTableInjection = syncTableInjectionImpl;
+  syncInstructionInjection = syncInstructionInjectionImpl;
+  syncSchemaInjection = syncSchemaInjectionImpl;
 
   const bindDrag = bindGenericDrag;
 
-  const { refreshPromptPreview } = createPromptPreviewController({
+  const { refreshPromptPreview: refreshPromptPreviewImpl } = createPromptPreviewController({
     logContentEl,
     logPromptBtn,
     buildReferenceBundle,
@@ -1502,6 +1544,9 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       lastRef = value;
     }
   });
+  
+  // 替换占位函数
+  refreshPromptPreview = refreshPromptPreviewImpl;
 
   const { ensureHooks } = createHookController({
     getSendModeFlags,
@@ -1590,7 +1635,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     wbManualRefreshEl,
     buildManualWorldBookTemplate,
     getManualConfig,
-    mergeManualConfig,
+    mergeManualConfig: mergeManualWorldBookConfig,
     setManualConfig,
     renderManualWorldBookUI,
     saveState,
@@ -1626,7 +1671,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
     }
   };
 
-  const { runFillOnce } = createFillController({
+  const { runFillOnce: runFillOnceImpl } = createFillController({
     buildReferenceBundle,
     formatReferenceText,
     getManualConfig,
@@ -1677,12 +1722,13 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       running = Boolean(value);
     }
   });
+  runFillOnce = runFillOnceImpl;
 
   bindCommonActionControls({
-    runBtn: document.getElementById('wtl-run'),
-    stopBtn: document.getElementById('wtl-stop'),
-    clearBtn: document.getElementById('wtl-clear'),
-    saveBtn: document.getElementById('wtl-save'),
+    runBtn: ui.runBtn,
+    stopBtn: null, // HTML中没有这个按钮
+    clearBtn: null, // HTML中没有这个按钮
+    saveBtn: null, // HTML中没有这个按钮
     resetGlobalBtn,
     clearTableBtn,
     makeModalSaveButton,
@@ -2015,4 +2061,7 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
       eventSource.on(event_types.CHAT_CHANGED_MANUALLY, () => reloadStateForCurrentChat());
     }
   }
+
+  // 暴露 applyFeatureUi 函数给全局作用域
+  window.__wtlApplyFeatureUi = applyFeatureUi;
 }

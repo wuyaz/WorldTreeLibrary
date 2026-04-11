@@ -403,24 +403,24 @@ export function bindCommonActionControls({
 
   resetGlobalBtn?.addEventListener('click', () => {
     const confirmBtn = makeModalSaveButton('确认恢复', async () => {
-      resetGlobalBtn.disabled = true;
-      try {
-        await resetAllDefaults();
-      } finally {
-        resetGlobalBtn.disabled = false;
-      }
-    });
+        resetGlobalBtn.disabled = true;
+        try {
+          await resetAllDefaults();
+        } finally {
+          resetGlobalBtn.disabled = false;
+        }
+      });
     openConfirmModal('全局恢复默认', '该操作将重置所有 WTL 设置为默认（预设/模板/顺序/注入设置等），是否继续？', [confirmBtn]);
   });
 
   clearTableBtn?.addEventListener('click', () => {
     const confirmBtn = makeModalSaveButton('确认清空', async () => {
-      if (tableMdEl) tableMdEl.value = '';
-      renderPreview('');
-      await saveState();
-      refreshPromptPreview(true);
-      setStatus('表格已清空');
-    });
+        if (tableMdEl) tableMdEl.value = '';
+        renderPreview('');
+        await saveState();
+        refreshPromptPreview(true);
+        setStatus('表格已清空');
+      });
     openConfirmModal('清空表格', '该操作将清空当前聊天表格内容，是否继续？', [confirmBtn]);
   });
 }
