@@ -1,4 +1,4 @@
-import { safeParseJson } from '../storage.js';
+import { safeParseJson } from '../../../core/storage.js';
 
 export async function importPresetFile({
   file,

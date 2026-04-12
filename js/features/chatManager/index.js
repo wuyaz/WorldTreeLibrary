@@ -1,5 +1,5 @@
-import { createModalController } from './modal.js';
-import { getPastCharacterChats, deleteCharacterChatByName, renameGroupOrCharacterChat } from '../../../../../../script.js';
+import { createModalController } from '../../shared/modal.js';
+import { getPastCharacterChats, deleteCharacterChatByName, renameGroupOrCharacterChat } from '../../../../../../../script.js';
 
 const CHAT_MANAGER_STATE_KEY = 'wtl.chatManager.state';
 const CHAT_MANAGER_ROOT_ID = 'wtl-chat-manager-host';
@@ -910,20 +910,22 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
   const ensureModal = () => {
     let modal = document.getElementById(CHAT_MANAGER_MODAL_ID);
     if (modal) return modal;
-    modal = document.createElement('div');
+    modal = document.createElement('dialog');
     modal.id = CHAT_MANAGER_MODAL_ID;
-    modal.className = 'wtl-chat-manager-modal';
+    modal.className = 'popup wtl-chat-manager-modal';
     modal.innerHTML = `
-      <div class="wtl-chat-manager-modal-card">
-        <div class="wtl-chat-manager-modal-head">
-          <strong data-role="title">聊天管理</strong>
-          <button type="button" data-action="close-modal" title="关闭">×</button>
+      <div class="popup-body">
+        <div class="popup-content">
+          <div class="wtl-chat-manager-modal-head">
+            <strong data-role="title">聊天管理</strong>
+            <button type="button" data-action="close-modal" title="关闭" class="menu_button"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="wtl-chat-manager-modal-body-wrap">
+          <textarea class="wtl-chat-manager-modal-input text_pole" data-role="content" style="display:none;"></textarea>
+          <div class="wtl-chat-manager-modal-body" data-role="custom"></div>
+          </div>
+          <div class="wtl-chat-manager-modal-actions popup-controls" data-role="actions"></div>
         </div>
-        <div class="wtl-chat-manager-modal-body-wrap">
-        <textarea class="wtl-chat-manager-modal-input" data-role="content" style="display:none;"></textarea>
-        <div class="wtl-chat-manager-modal-body" data-role="custom"></div>
-        </div>
-        <div class="wtl-chat-manager-modal-actions" data-role="actions"></div>
       </div>
     `;
     modalController = createModalController({
@@ -933,20 +935,30 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       modalCustomEl: modal.querySelector('[data-role="custom"]'),
       modalActionsEl: modal.querySelector('[data-role="actions"]')
     });
-    modal.addEventListener('click', (event) => {
-      if (event.target === modal || event.target.closest('[data-action="close-modal"]')) {
+    
+    modal.addEventListener('click', (e) => {
+      const actionEl = e.target.closest('[data-action]');
+      if (!actionEl) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const action = actionEl.dataset.action;
+      if (action === 'close-modal') {
         closeModal();
+        return;
       }
+      handleAction(e);
     });
-    modal.addEventListener('click', handleAction);
+    
+    modal.addEventListener('close', () => {
+      modal.classList.remove('is-open');
+    });
+    
     document.body.appendChild(modal);
     return modal;
   };
 
   const closeModal = () => {
     modalController?.closeModal();
-    const modal = document.getElementById(CHAT_MANAGER_MODAL_ID);
-    if (modal) modal.classList.remove('is-open');
   };
 
   const openModal = ({ title, body, actions = '' }) => {
@@ -957,7 +969,6 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     modalController?.openModal(title || '聊天管理', '', actionNodes, (wrap) => {
       wrap.innerHTML = body || '';
     }, { hideContent: true, readOnly: true });
-    modal.classList.add('is-open');
   };
 
   const getFilteredChats = () => {
@@ -1010,13 +1021,17 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
         okBtn.removeEventListener('click', onOk);
         cancelBtn.removeEventListener('click', onCancel);
       };
-      const onOk = () => {
+      const onOk = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const input = modal.querySelector('[data-role="dialog-input"]');
         cleanup();
         closeModal();
         resolve(input?.value ?? '');
       };
-      const onCancel = () => {
+      const onCancel = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         cleanup();
         closeModal();
         resolve(null);
@@ -1041,7 +1056,6 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
           wrap.appendChild(input);
         }
       }, { hideContent: true, readOnly: true });
-      modal.classList.add('is-open');
     });
   };
 
@@ -1058,12 +1072,16 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
         okBtn.removeEventListener('click', onOk);
         cancelBtn.removeEventListener('click', onCancel);
       };
-      const onOk = () => {
+      const onOk = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         cleanup();
         closeModal();
         resolve(true);
       };
-      const onCancel = () => {
+      const onCancel = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         cleanup();
         closeModal();
         resolve(false);
@@ -1071,7 +1089,6 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
       okBtn.addEventListener('click', onOk);
       cancelBtn.addEventListener('click', onCancel);
       modalController?.openConfirmModal(title, message, [cancelBtn, okBtn]);
-      modal.classList.add('is-open');
     });
   };
 
@@ -1755,10 +1772,6 @@ export function createChatManagerController({ notifyStatus, setStatus } = {}) {
     const action = actionEl.dataset.action;
     if (action === 'toggle-panel') {
       await toggleOpen();
-      return;
-    }
-    if (action === 'close-modal') {
-      closeModal();
       return;
     }
     if (action === 'refresh') {

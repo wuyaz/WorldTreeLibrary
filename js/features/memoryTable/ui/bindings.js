@@ -44,7 +44,8 @@ import {
   getManagedPromptInjectionEntryName
 } from '../logic/injection.js';
 import { getBlockEls, getRefBlockEls, serializeBlockOrder } from './blocks.js';
-import { createModalController } from './modal.js';
+import { createModalController } from '../../../shared/modal.js';
+
 import {
   updateTableRows as updatePreviewTableRows,
   moveTableRow,
@@ -127,7 +128,7 @@ import {
 import { createBlockEditorController } from './blockEditor.js';
 import { createBlockModalController } from './blockModalController.js';
 import { getUiRefs } from './refs.js';
-import { createChatManagerController } from './chatManager.js';
+import { createChatManagerController } from '../../chatManager/index.js';
 import {
   PREPROMPT_PRESET_KEY,
   PREPROMPT_PRESET_ACTIVE_KEY,
@@ -154,7 +155,7 @@ import {
   getRefBlocksPreset,
   getOrderPreset,
   getRefOrderPreset
-} from '../storage.js';
+} from '../../../core/storage.js';
 
 export function bindWorldTreeUi({ root, ctx, defaults }) {
   if (!root) return;
@@ -1155,15 +1156,12 @@ export function bindWorldTreeUi({ root, ctx, defaults }) {
   };
 
   if (modalCloseEl) {
-    modalCloseEl.addEventListener('click', closeModal);
-  }
-  if (modalEl) {
-    modalEl.addEventListener('click', (e) => {
-      if (e.target === modalEl) closeModal();
+    modalCloseEl.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal();
     });
   }
-
-
 
   let manualWorldBookEditor = null;
 

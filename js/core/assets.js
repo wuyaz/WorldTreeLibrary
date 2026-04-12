@@ -2,7 +2,9 @@ const resolveExtRoot = () => {
   try {
     if (typeof import.meta !== "undefined" && import.meta.url) {
       const url = new URL(".", import.meta.url);
-      if (url.pathname.endsWith("/js/")) {
+      if (url.pathname.endsWith("/js/core/")) {
+        url.pathname = url.pathname.replace(/\/js\/core\/$/, "/");
+      } else if (url.pathname.endsWith("/js/")) {
         url.pathname = url.pathname.replace(/\/js\/$/, "/");
       }
       return url.href.replace(/\/$/, "");

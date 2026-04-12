@@ -454,15 +454,18 @@
   </div>
 
   <textarea id="wtl-table-md" class="text_pole" style="display:none;"></textarea>
-  <div id="wtl-modal" class="wtl-modal" style="display:none;">
-    <div class="wtl-modal-card">
-      <div class="wtl-row" style="justify-content: space-between;">
+</div>
+
+<dialog id="wtl-modal" class="popup">
+  <div class="popup-body">
+    <div class="popup-content">
+      <div class="wtl-row" style="justify-content: space-between; margin-bottom: 10px;">
         <strong id="wtl-modal-title"></strong>
         <button id="wtl-modal-close" class="menu_button"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div id="wtl-modal-custom" style="display:none; margin-top:6px;"></div>
       <textarea id="wtl-modal-content" class="text_pole" rows="12" style="width: 100%;"></textarea>
-      <div id="wtl-modal-actions" class="wtl-row" style="justify-content: flex-end; margin-top: 6px;"></div>
+      <div id="wtl-modal-actions" class="popup-controls" style="margin-top: 6px;"></div>
     </div>
   </div>
-</div>
+</dialog>

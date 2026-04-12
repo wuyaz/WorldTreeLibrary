@@ -1,4 +1,4 @@
-import { getFeatureFlags, setFeatureFlags } from '../storage.js';
+import { getFeatureFlags, setFeatureFlags } from '../core/storage.js';
 
 const FEATURE_MENU_ID = 'WorldTreeLibrary.features';
 const FEATURE_MODAL_ID = 'wtl-feature-menu-modal';

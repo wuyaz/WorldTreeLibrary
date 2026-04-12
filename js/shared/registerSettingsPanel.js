@@ -1,5 +1,5 @@
 // 注册扩展栏设置面板
-import { getFeatureFlags, setFeatureFlags } from '../storage.js';
+import { getFeatureFlags, setFeatureFlags } from '../core/storage.js';
 
 const FEATURE_SETTINGS_PANEL_ID = 'WorldTreeLibrary.features';
 const FEATURE_MODAL_ID = 'wtl-feature-menu-modal';

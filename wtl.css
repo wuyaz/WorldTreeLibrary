@@ -622,8 +622,7 @@
   min-height: 240px;
 }
 
-#wtl-root .wtl-editor-overlay,
-#wtl-root .wtl-modal {
+#wtl-root .wtl-editor-overlay {
   position: fixed;
   inset: 0;
   display: none;
@@ -633,8 +632,7 @@
   backdrop-filter: blur(4px);
   z-index: 9999;
 }
-#wtl-root .wtl-editor-dialog,
-#wtl-root .wtl-modal-card {
+#wtl-root .wtl-editor-dialog {
   width: min(420px, 92%);
   background: var(--wtl-bg-elev);
   border: 1px solid var(--wtl-border);
@@ -649,7 +647,10 @@
   background: var(--wtl-bg-elev) !important;
   color: var(--wtl-text);
 }
-#wtl-root .wtl-modal-message {
+#wtl-modal {
+  width: min(500px, 92%);
+}
+#wtl-modal .wtl-modal-message {
   white-space: pre-wrap;
   line-height: 1.5;
 }

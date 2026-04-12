@@ -8,6 +8,7 @@ export function createModalController({
   const openModal = (title, content, actions = [], customBuilder = null, options = {}) => {
     if (!modalEl || !modalTitleEl || !modalContentEl || !modalActionsEl) return;
     const { hideContent = false, readOnly = false } = options || {};
+    
     modalTitleEl.textContent = title || '';
     modalContentEl.value = content || '';
     modalContentEl.readOnly = readOnly === true;
@@ -31,7 +32,16 @@ export function createModalController({
 
     modalActionsEl.innerHTML = '';
     actions.forEach((btn) => modalActionsEl.appendChild(btn));
-    modalEl.style.display = 'flex';
+    
+    if (modalEl.showModal) {
+      if (modalEl.open) {
+        modalEl.close();
+      }
+      modalEl.showModal();
+    } else {
+      modalEl.classList.add('is-open');
+    }
+    
     if (!hideContent) modalContentEl.focus();
   };
 
@@ -46,14 +56,23 @@ export function createModalController({
   };
 
   const closeModal = () => {
-    if (modalEl) modalEl.style.display = 'none';
+    if (!modalEl) return;
+    modalEl.classList.remove('is-open');
+    if (modalEl.open && modalEl.close) {
+      modalEl.close();
+    }
+    if (modalActionsEl) {
+      modalActionsEl.innerHTML = '';
+    }
   };
 
   const makeModalSaveButton = (label, onSave) => {
     const btn = document.createElement('button');
     btn.className = 'menu_button';
     btn.textContent = label || '保存';
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       const next = modalContentEl?.value || '';
       if (onSave) onSave(next);
       closeModal();

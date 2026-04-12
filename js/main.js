@@ -1,12 +1,12 @@
 // @ts-nocheck
-import { initConfig } from './config.js';
-import { loadHtml } from './assets.js';
-import { getFeatureFlags } from './storage.js';
-import { registerTopTab } from './ui/registerTopTab.js';
-import { registerFeatureMenu } from './ui/registerFeatureMenu.js';
-import { registerFeatureSettingsPanel } from './ui/registerSettingsPanel.js';
-import { bindWorldTreeUi } from './ui/bindings.js';
-import { createChatManagerController } from './ui/chatManager.js';
+import { initConfig } from './core/config.js';
+import { loadHtml } from './core/assets.js';
+import { getFeatureFlags } from './core/storage.js';
+import { registerTopTab } from './shared/registerTopTab.js';
+import { registerFeatureMenu } from './shared/registerFeatureMenu.js';
+import { registerFeatureSettingsPanel } from './shared/registerSettingsPanel.js';
+import { bindWorldTreeUi } from './features/memoryTable/ui/bindings.js';
+import { createChatManagerController } from './features/chatManager/index.js';
 
 (function () {
   let attempts = 0;
@@ -22,7 +22,6 @@ const init = async () => {
       return;
     }
 
-    // 确保记忆表格功能始终启用
     try {
       const currentFlags = JSON.parse(localStorage.getItem('wtl.featureFlags') || '{}');
       if (currentFlags.memoryTable === false) {
@@ -71,7 +70,6 @@ const init = async () => {
               const disabledEl = document.getElementById('wtl-memory-feature-disabled');
               if (disabledEl) disabledEl.style.display = flags.memoryTable === false ? 'block' : 'none';
             }
-            // 通知绑定层更新UI状态
             if (window.__wtlApplyFeatureUi) {
               window.__wtlApplyFeatureUi();
             }
@@ -79,7 +77,6 @@ const init = async () => {
         });
       } catch (err) {
         console.warn('[WorldTreeLibrary] register feature settings panel failed', err);
-        // 回退到魔法棒栏注册
         try {
           await registerFeatureMenu({
             onChange: (flags) => {
@@ -90,7 +87,6 @@ const init = async () => {
                 const disabledEl = document.getElementById('wtl-memory-feature-disabled');
                 if (disabledEl) disabledEl.style.display = flags.memoryTable === false ? 'block' : 'none';
               }
-              // 通知绑定层更新UI状态
               if (window.__wtlApplyFeatureUi) {
                 window.__wtlApplyFeatureUi();
               }
