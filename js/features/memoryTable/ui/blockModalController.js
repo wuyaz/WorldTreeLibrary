@@ -1,7 +1,7 @@
-import { buildTemplatePrompt, parseSchemaToTemplate } from '../table/template.js';
-import { ensureEditWrapper } from '../table/commands.js';
-import { ensureTableWrapper } from '../table/markdown.js';
-import { getRefBlockEls } from './blocks.js';
+import { buildTemplatePrompt, parseSchemaToTemplate } from '../data/template.js';
+import { ensureEditWrapper } from '../data/commands.js';
+import { ensureTableWrapper } from '../data/markdown.js';
+import { getRefBlockEls } from './blockEditor.js';
 import { buildBlockLabel } from './blockEditor.js';
 
 export function createBlockModalController({

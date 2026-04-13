@@ -1,4 +1,4 @@
-import { stripTableWrapper, wrapTable } from '../table/markdown.js';
+import { stripTableWrapper, wrapTable } from '../data/markdown.js';
 
 export function createPromptMacroController({
   defaults,

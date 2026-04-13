@@ -4,7 +4,7 @@ import {
   findSendTextarea,
   restoreRuntimeInjectedInput,
   applyRuntimeManagedPromptInjection
-} from '../logic/injection.js';
+} from '../services/injectionService.js';
 
 export function createBatchController({
   batchStartEl,

@@ -1,4 +1,8 @@
 // 本地存储/预设工具
+import { safeParseJson } from '../shared/utils/index.js';
+
+// Re-export safeParseJson for other modules
+export { safeParseJson };
 
 export const PREPROMPT_PRESET_KEY = 'wtl.preprompt.presets';
 export const PREPROMPT_PRESET_ACTIVE_KEY = 'wtl.preprompt.presetActive';
@@ -13,15 +17,6 @@ export const DEFAULT_FEATURE_FLAGS = {
   memoryTable: true,
   chatManager: true
 };
-
-export function safeParseJson(value) {
-  if (!value) return null;
-  if (typeof value === 'object') return value;
-  if (typeof value === 'string') {
-    try { return JSON.parse(value); } catch (e) { return null; }
-  }
-  return null;
-}
 
 export function getOpenAIPresets() {
   return safeParseJson(localStorage.getItem('wtl.openai.presets')) || {};

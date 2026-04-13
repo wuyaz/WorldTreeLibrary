@@ -1,4 +1,4 @@
-import { getBlockEls, getRefBlockEls } from './blocks.js';
+import { getBlockEls, getRefBlockEls } from './blockEditor.js';
 
 export async function refreshPromptPreviewView({
   force = false,

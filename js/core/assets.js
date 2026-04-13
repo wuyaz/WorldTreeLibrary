@@ -23,7 +23,7 @@ const resolveExtRoot = () => {
 };
 const ensureWtlStyle = async (extRoot = resolveExtRoot()) => {
   try {
-    const url = `${extRoot}/wtl.css`;
+    const url = `${extRoot}/assets/css/wtl-global.css`;
     const res = await fetch(url);
     if (!res.ok) return;
     const css = await res.text();

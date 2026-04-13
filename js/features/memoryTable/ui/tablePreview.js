@@ -1,4 +1,4 @@
-import { parseSections, parseMarkdownTableToJson, renderJsonToMarkdown } from '../table/markdown.js';
+import { parseSections, parseMarkdownTableToJson, renderJsonToMarkdown } from '../data/markdown.js';
 
 export function clearHiddenForSection(hiddenRows, sectionIndex) {
   const sk = String(sectionIndex);
