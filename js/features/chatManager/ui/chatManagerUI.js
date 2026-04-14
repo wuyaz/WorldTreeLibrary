@@ -59,7 +59,13 @@ export class ChatManagerUI {
             <span class="wtl-chat-manager-subtitle" data-role="subtitle">（载入中...）</span>
           </div>
           <div class="wtl-chat-manager-header-tools">
+            <button type="button" class="wtl-chat-manager-icon-btn" title="上一页" data-action="page" data-page="prev">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
             <span class="wtl-chat-manager-count" data-role="count">0 条</span>
+            <button type="button" class="wtl-chat-manager-icon-btn" title="下一页" data-action="page" data-page="next">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
             <button type="button" class="wtl-chat-manager-icon-btn" title="批量操作" data-action="toggle-batch">
               <i class="fa-solid fa-check-double"></i>
             </button>
@@ -132,6 +138,15 @@ export class ChatManagerUI {
       batchBtn.classList.toggle('is-active', isBatchMode);
     }
     
+    const prevBtn = this.rootEl?.querySelector('[data-page="prev"]');
+    const nextBtn = this.rootEl?.querySelector('[data-page="next"]');
+    if (prevBtn) {
+      prevBtn.disabled = (currentPage || 1) <= 1;
+    }
+    if (nextBtn) {
+      nextBtn.disabled = (currentPage || 1) >= (totalPages || 1);
+    }
+    
     this.ui.panel?.classList.toggle('is-batch', isBatchMode);
   }
 
@@ -157,15 +172,6 @@ export class ChatManagerUI {
         <div class="wtl-chat-manager-toolbar-main">
           <div class="wtl-chat-manager-tabs">${tabsHtml}</div>
           <input type="text" class="wtl-chat-manager-search" placeholder="搜索..." value="${this.escapeHtml(state.searchQuery || '')}" data-action="search">
-          <div class="wtl-chat-manager-toolbar-pager">
-            <button class="wtl-chat-manager-mini" data-action="page" data-page="prev" ${currentPage <= 1 ? 'disabled' : ''} title="上一页">
-              <i class="fa-solid fa-chevron-left"></i>
-            </button>
-            <span class="wtl-chat-manager-toolbar-page-text">${currentPage}/${totalPages}</span>
-            <button class="wtl-chat-manager-mini" data-action="page" data-page="next" ${currentPage >= totalPages ? 'disabled' : ''} title="下一页">
-              <i class="fa-solid fa-chevron-right"></i>
-            </button>
-          </div>
         </div>
       </div>
     `;

@@ -66,6 +66,7 @@ export class ChatManagerSettings {
     this.refreshInterval = 30000;
     this.previewLayers = 4;
     this.previewLines = 2;
+    this.renameFileWithTitle = true;
     this._defaultsLoaded = false;
     this.folderPresets = {};
     this.tagPresets = {};
@@ -122,6 +123,7 @@ export class ChatManagerSettings {
         this.refreshInterval = defaults.refreshInterval ?? this.refreshInterval;
         this.previewLayers = defaults.previewLayers ?? this.previewLayers;
         this.previewLines = defaults.previewLines ?? this.previewLines;
+        this.renameFileWithTitle = defaults.renameFileWithTitle ?? this.renameFileWithTitle;
       }
       this._defaultsLoaded = true;
     }
@@ -148,6 +150,7 @@ export class ChatManagerSettings {
         this.refreshInterval = data.refreshInterval ?? this.refreshInterval;
         this.previewLayers = this.clampNumber(data.previewLayers, 1, 12, this.previewLayers);
         this.previewLines = this.clampNumber(data.previewLines, 1, 6, this.previewLines);
+        this.renameFileWithTitle = data.renameFileWithTitle ?? this.renameFileWithTitle;
       }
     } catch (e) {
       console.error('[WTL ChatManager] Failed to load settings:', e);
@@ -174,6 +177,7 @@ export class ChatManagerSettings {
         refreshInterval: this.refreshInterval,
         previewLayers: this.previewLayers,
         previewLines: this.previewLines,
+        renameFileWithTitle: this.renameFileWithTitle,
       };
       
       saveSettingsDebounced();

@@ -527,6 +527,11 @@ export class ChatManagerController {
       this.renderSettingsPanel();
       this.renderPanel();
     }
+
+    if (target.matches('[data-settings-input="renameFileWithTitle"]')) {
+      this.settings.renameFileWithTitle = target.checked;
+      this.settings.save();
+    }
   }
 
   async togglePanel() {
@@ -709,6 +714,9 @@ export class ChatManagerController {
         case 'color-next-create':
           this.handleColorNextCreate(actionEl.dataset.type);
           break;
+        case 'clear-color':
+          this.handleClearColor(actionEl.dataset.type, actionEl.dataset.value);
+          break;
         case 'remove-item':
           await this.handleSettingsRemoveItem(actionEl.dataset.type, actionEl.dataset.value);
           break;
@@ -807,6 +815,26 @@ export class ChatManagerController {
     slider.dataset.currentIndex = currentIndex;
     const display = slider.querySelector('.wtl-chat-settings-color-display');
     if (display) display.style.backgroundColor = newColor;
+  }
+
+  handleClearColor(type, value) {
+    const defaultColor = '#808080';
+    
+    const slider = this.settingsPanel?.querySelector(`.wtl-chat-settings-color-slider[data-type="${type}"][data-value="${value}"]`);
+    if (slider) {
+      slider.dataset.currentIndex = 0;
+      const display = slider.querySelector('.wtl-chat-settings-color-display');
+      if (display) display.style.backgroundColor = defaultColor;
+    }
+    
+    if (type === 'folder') {
+      this.settings.setFolderColor(value, defaultColor);
+    } else {
+      this.settings.setTagColor(value, defaultColor);
+    }
+    
+    this.syncColorsToState();
+    this.renderPanel();
   }
 
   openNativeColorPicker(actionEl) {
@@ -920,9 +948,7 @@ export class ChatManagerController {
     const inputKey = type === 'folder' ? 'folderName' : 'tagName';
     const value = String(this.getSettingsInputValue(inputKey)).trim();
     
-    const slider = this.settingsPanel?.querySelector(`.wtl-chat-settings-color-slider.is-create[data-type="${type}"]`);
-    const currentIndex = parseInt(slider?.dataset.currentIndex) || 0;
-    const color = MORANDI_COLORS[currentIndex];
+    const color = '#808080';
     
     if (!value) return;
 
@@ -1136,6 +1162,74 @@ export class ChatManagerController {
     const current = this.dataService.getChatTitle(globalKey);
     const val = await this.prompt('修改自定义标题 (留空恢复原文件名):', current);
     if (val !== null) {
+      if (this.settings.renameFileWithTitle && val.trim()) {
+        const chat = this.dataService.chats.find(c => c.globalKey === globalKey);
+        if (chat) {
+          try {
+            let oldFileName = chat.fileName;
+            while (oldFileName.endsWith('.jsonl')) {
+              oldFileName = oldFileName.slice(0, -6);
+            }
+            oldFileName += '.jsonl';
+            
+            const newFileName = `${val.trim()}.jsonl`;
+            
+            let charId = chat.charId;
+            if (charId.endsWith('.png')) {
+              charId = charId.slice(0, -4);
+            }
+            
+            if (oldFileName !== newFileName) {
+              const chatApi = await import('../../../shared/api/chatApi.js');
+              const headers = await chatApi.getRequestHeaders();
+              
+              const requestBody = {
+                avatar_url: charId + '.png',
+                original_file: oldFileName,
+                renamed_file: newFileName,
+                is_group: false,
+              };
+              
+              console.log('[WTL ChatManager] Rename request:', requestBody);
+              
+              const response = await fetch('/api/chats/rename', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(requestBody),
+              });
+              
+              const responseText = await response.text();
+              console.log('[WTL ChatManager] Rename response:', response.status, responseText);
+              
+              if (!response.ok) {
+                let errorData;
+                try {
+                  errorData = JSON.parse(responseText);
+                } catch {
+                  errorData = { error: responseText };
+                }
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+              }
+              
+              this.dataService.setChatTitle(globalKey, val);
+              
+              this.dataService.isDataLoaded = false;
+              this.dataService.chats = [];
+              
+              this.globalChats = await this.dataService.loadAllChats();
+              
+              this.toast('success', `已重命名文件: ${oldFileName.replace('.jsonl', '')} → ${val.trim()}`);
+              
+              this.renderPanel();
+              return;
+            }
+          } catch (error) {
+            console.error('[WTL ChatManager] Failed to rename chat file:', error);
+            this.toast('error', '重命名文件失败: ' + error.message);
+          }
+        }
+      }
+      
       this.dataService.setChatTitle(globalKey, val);
       this.renderPanel();
     }

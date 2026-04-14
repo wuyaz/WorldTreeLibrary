@@ -62,11 +62,20 @@ export class ChatSettingsUI {
         </div>
         <div class="wtl-chat-settings-color-row">
           ${renderColorPicker(type, value, (type === 'folder' ? this.settings.getFolderColor(value) : this.settings.getTagColor(value)) || MORANDI_COLORS[0])}
+          <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="clear-color" data-type="${type}" data-value="${this.escapeHtml(value)}" title="清除颜色">
+            <i class="fa-solid fa-eraser"></i>
+          </button>
         </div>
         <div class="wtl-chat-settings-actions">
-          <button type="button" class="wtl-chat-settings-btn" data-settings-action="move-item" data-type="${type}" data-value="${this.escapeHtml(value)}" data-direction="up" ${index === 0 ? 'disabled' : ''}>上移</button>
-          <button type="button" class="wtl-chat-settings-btn" data-settings-action="move-item" data-type="${type}" data-value="${this.escapeHtml(value)}" data-direction="down" ${index === total - 1 ? 'disabled' : ''}>下移</button>
-          <button type="button" class="wtl-chat-settings-btn is-danger" data-settings-action="remove-item" data-type="${type}" data-value="${this.escapeHtml(value)}">删除</button>
+          <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="move-item" data-type="${type}" data-value="${this.escapeHtml(value)}" data-direction="up" ${index === 0 ? 'disabled' : ''} title="上移">
+            <i class="fa-solid fa-arrow-up"></i>
+          </button>
+          <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="move-item" data-type="${type}" data-value="${this.escapeHtml(value)}" data-direction="down" ${index === total - 1 ? 'disabled' : ''} title="下移">
+            <i class="fa-solid fa-arrow-down"></i>
+          </button>
+          <button type="button" class="wtl-chat-settings-btn is-icon is-danger" data-settings-action="remove-item" data-type="${type}" data-value="${this.escapeHtml(value)}" title="删除">
+            <i class="fa-solid fa-trash"></i>
+          </button>
         </div>
       </div>
     `;
@@ -106,13 +115,16 @@ export class ChatSettingsUI {
                 ${presetButtons}
                 <button type="button" class="wtl-chat-settings-preset-btn" data-settings-action="add-preset" data-type="${type}" title="添加预设">+</button>
               </div>
-              <button type="button" class="wtl-chat-settings-btn" data-settings-action="save-preset" data-type="${type}" title="保存为预设" ${isDefaultSelected ? 'disabled' : ''}>保存</button>
-              <button type="button" class="wtl-chat-settings-btn" data-settings-action="delete-preset" data-type="${type}" title="删除预设" ${isDefaultSelected ? 'disabled' : ''}>删除</button>
+              <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="save-preset" data-type="${type}" title="保存预设" ${isDefaultSelected ? 'disabled' : ''}>
+                <i class="fa-solid fa-floppy-disk"></i>
+              </button>
+              <button type="button" class="wtl-chat-settings-btn is-icon is-danger" data-settings-action="delete-preset" data-type="${type}" title="删除预设" ${isDefaultSelected ? 'disabled' : ''}>
+                <i class="fa-solid fa-trash"></i>
+              </button>
             </div>
             <div class="wtl-chat-settings-list">${itemsHtml}</div>
             <div class="wtl-chat-settings-create-row">
               <input class="wtl-chat-settings-input text_pole" type="text" placeholder="${inputPlaceholder}" data-settings-input="${type}Name" style="flex:1;">
-              ${renderCreateColorPicker(type, MORANDI_COLORS[0])}
               <button type="button" class="wtl-chat-settings-btn" data-settings-action="add-item" data-type="${type}">添加</button>
             </div>
           </div>
@@ -139,6 +151,10 @@ export class ChatSettingsUI {
             <label class="wtl-chat-settings-row">
               <span>预览弹窗显示层数</span>
               <input class="wtl-chat-settings-input text_pole" type="number" min="1" max="12" value="${this.settings.previewLayers}" data-settings-input="previewLayers">
+            </label>
+            <label class="wtl-chat-settings-row">
+              <span>修改标题同步重命名文件</span>
+              <input type="checkbox" ${this.settings.renameFileWithTitle ? 'checked' : ''} data-settings-input="renameFileWithTitle">
             </label>
             <label class="wtl-chat-settings-row">
               <span>默认视图</span>

@@ -47,7 +47,7 @@ async function getToken() {
   return token;
 }
 
-async function getRequestHeaders() {
+export async function getRequestHeaders() {
   const headers = {
     'Content-Type': 'application/json',
   };
