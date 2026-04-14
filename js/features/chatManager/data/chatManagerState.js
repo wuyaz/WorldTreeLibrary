@@ -12,12 +12,15 @@ export class ChatManagerState {
 
     this.folders = ['主线', '支线', '日常', '废案'];
     this.tags = ['高甜', '虐心', '战斗', 'R18'];
+    this.folderColors = {};
+    this.tagColors = {};
 
     this.chatFolder = {};
     this.chatTags = {};
     this.chatSummary = {};
     this.chatTitleOverride = {};
     this.pinnedChats = [];
+    this.favoriteChats = [];
 
     this.currentPage = 1;
     this.itemsPerPage = 20;
@@ -33,11 +36,14 @@ export class ChatManagerState {
       const data = JSON.parse(raw);
       this.folders = data.folders || this.folders;
       this.tags = data.tags || this.tags;
+      this.folderColors = data.folderColors || {};
+      this.tagColors = data.tagColors || {};
       this.chatFolder = data.chatFolder || {};
       this.chatTags = data.chatTags || {};
       this.chatSummary = data.chatSummary || {};
       this.chatTitleOverride = data.chatTitleOverride || {};
       this.pinnedChats = data.pinnedChats || [];
+      this.favoriteChats = data.favoriteChats || [];
       this.currentPage = data.currentPage || 1;
       this.itemsPerPage = data.itemsPerPage || 20;
       this.isExpanded = data.isExpanded || false;
@@ -53,11 +59,14 @@ export class ChatManagerState {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         folders: this.folders,
         tags: this.tags,
+        folderColors: this.folderColors,
+        tagColors: this.tagColors,
         chatFolder: this.chatFolder,
         chatTags: this.chatTags,
         chatSummary: this.chatSummary,
         chatTitleOverride: this.chatTitleOverride,
         pinnedChats: this.pinnedChats,
+        favoriteChats: this.favoriteChats,
         currentPage: this.currentPage,
         itemsPerPage: this.itemsPerPage,
         isExpanded: this.isExpanded,
@@ -221,6 +230,35 @@ export class ChatManagerState {
     }
   }
 
+  isFavorite(globalKey) {
+    return this.favoriteChats.includes(globalKey);
+  }
+
+  toggleFavorite(globalKey) {
+    const index = this.favoriteChats.indexOf(globalKey);
+    if (index === -1) {
+      this.favoriteChats.push(globalKey);
+    } else {
+      this.favoriteChats.splice(index, 1);
+    }
+    this.save();
+  }
+
+  favoriteChat(globalKey) {
+    if (!this.favoriteChats.includes(globalKey)) {
+      this.favoriteChats.push(globalKey);
+      this.save();
+    }
+  }
+
+  unfavoriteChat(globalKey) {
+    const index = this.favoriteChats.indexOf(globalKey);
+    if (index !== -1) {
+      this.favoriteChats.splice(index, 1);
+      this.save();
+    }
+  }
+
   addFolder(name) {
     if (!this.folders.includes(name)) {
       this.folders.push(name);
@@ -268,6 +306,8 @@ export class ChatManagerState {
     return JSON.stringify({
       folders: this.folders,
       tags: this.tags,
+      folderColors: this.folderColors,
+      tagColors: this.tagColors,
       chatFolder: this.chatFolder,
       chatTags: this.chatTags,
       chatSummary: this.chatSummary,
@@ -281,11 +321,14 @@ export class ChatManagerState {
       const data = JSON.parse(jsonStr);
       if (data.folders) this.folders = data.folders;
       if (data.tags) this.tags = data.tags;
+      if (data.folderColors) this.folderColors = data.folderColors;
+      if (data.tagColors) this.tagColors = data.tagColors;
       if (data.chatFolder) this.chatFolder = data.chatFolder;
       if (data.chatTags) this.chatTags = data.chatTags;
       if (data.chatSummary) this.chatSummary = data.chatSummary;
       if (data.chatTitleOverride) this.chatTitleOverride = data.chatTitleOverride;
       if (data.pinnedChats) this.pinnedChats = data.pinnedChats;
+      if (data.favoriteChats) this.favoriteChats = data.favoriteChats;
       this.save();
       return true;
     } catch (e) {
@@ -297,11 +340,14 @@ export class ChatManagerState {
   reset() {
     this.folders = ['主线', '支线', '日常', '废案'];
     this.tags = ['高甜', '虐心', '战斗', 'R18'];
+    this.folderColors = {};
+    this.tagColors = {};
     this.chatFolder = {};
     this.chatTags = {};
     this.chatSummary = {};
     this.chatTitleOverride = {};
     this.pinnedChats = [];
+    this.favoriteChats = [];
     this.save();
   }
 }

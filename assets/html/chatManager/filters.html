@@ -1,0 +1,9 @@
+<div class="wtl-chat-manager-filters">
+  <button class="wtl-chat-manager-pill {{#if (eq activeFilter '全部')}}is-active{{/if}}" data-action="filter" data-val="全部">全部</button>
+  {{#each items}}
+  <button class="wtl-chat-manager-pill {{#if (eq ../activeFilter this)}}is-active{{/if}}" data-action="filter" data-val="{{this}}">{{this}}</button>
+  {{/each}}
+  {{#if showAdd}}
+  <button class="wtl-chat-manager-pill" data-action="add-item" data-type="{{viewMode}}">+ 新建</button>
+  {{/if}}
+</div>

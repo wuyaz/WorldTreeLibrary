@@ -1,27 +1,59 @@
 // @ts-nocheck
 
+import { loadPreset } from '../../../core/assets.js';
+
 const TAGS_KEY = 'wtl_chat_manager_tags';
 
-const DEFAULT_TAGS = [
-    { id: 'sweet', name: '高甜', color: '#E91E63', order: 0 },
-    { id: 'angst', name: '虐心', color: '#673AB7', order: 1 },
-    { id: 'battle', name: '战斗', color: '#F44336', order: 2 },
-    { id: 'r18', name: 'R18', color: '#FF5722', order: 3 },
-];
+let DEFAULT_TAGS = null;
+
+async function loadDefaultTags() {
+  if (DEFAULT_TAGS) return DEFAULT_TAGS;
+  try {
+    const preset = await loadPreset('tags');
+    if (preset && Array.isArray(preset)) {
+      DEFAULT_TAGS = preset;
+    } else {
+      DEFAULT_TAGS = [
+        { id: 'sweet', name: '高甜', color: '#b76e79', order: 0 },
+        { id: 'angst', name: '虐心', color: '#6f8fa8', order: 1 },
+        { id: 'battle', name: '战斗', color: '#7d9b76', order: 2 },
+        { id: 'r18', name: 'R18', color: '#c7a86d', order: 3 },
+      ];
+    }
+  } catch (e) {
+    console.warn('[WTL ChatManager] Failed to load default tags:', e);
+    DEFAULT_TAGS = [
+      { id: 'sweet', name: '高甜', color: '#b76e79', order: 0 },
+      { id: 'angst', name: '虐心', color: '#6f8fa8', order: 1 },
+      { id: 'battle', name: '战斗', color: '#7d9b76', order: 2 },
+      { id: 'r18', name: 'R18', color: '#c7a86d', order: 3 },
+    ];
+  }
+  return DEFAULT_TAGS;
+}
 
 export class TagService {
     constructor() {
-        this.tags = [...DEFAULT_TAGS];
+        this.tags = [];
         this.chatTags = {};
         this.listeners = new Set();
+        this._defaultsLoaded = false;
     }
 
-    load() {
+    async load() {
+        if (!this._defaultsLoaded) {
+            const defaults = await loadDefaultTags();
+            this.tags = [...defaults];
+            this._defaultsLoaded = true;
+        }
+
         try {
             const raw = localStorage.getItem(TAGS_KEY);
             if (raw) {
                 const saved = JSON.parse(raw);
-                this.tags = saved.tags || [...DEFAULT_TAGS];
+                if (saved.tags && saved.tags.length > 0) {
+                    this.tags = saved.tags;
+                }
                 this.chatTags = saved.chatTags || {};
             }
         } catch (e) {
@@ -50,7 +82,7 @@ export class TagService {
         return this.tags.find(t => t.id === tagId);
     }
 
-    create(name, color = '#4CAF50') {
+    create(name, color = '#b76e79') {
         const id = `tag_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
         const order = this.tags.length;
         const tag = { id, name, color, order };
@@ -146,6 +178,13 @@ export class TagService {
             }
         }
     }
+
+    async reset() {
+        const defaults = await loadDefaultTags();
+        this.tags = [...defaults];
+        this.chatTags = {};
+        this.save();
+    }
 }
 
-export { TAGS_KEY, DEFAULT_TAGS };
+export { TAGS_KEY };

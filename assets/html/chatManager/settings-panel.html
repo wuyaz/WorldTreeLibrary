@@ -1,0 +1,33 @@
+<div class="wtl-chat-settings-shell">
+  <section class="wtl-chat-settings-card is-display">
+    <div class="wtl-chat-settings-card-head">
+      <h3>显示设置</h3>
+      <button type="button" class="wtl-chat-settings-btn" data-settings-action="reset">恢复默认</button>
+    </div>
+    <div class="wtl-chat-settings-controls">
+      <label class="wtl-chat-settings-row">
+        <span>预览行数</span>
+        <input class="wtl-chat-settings-input text_pole" type="number" min="1" max="6" value="{{previewLines}}" data-settings-input="previewLines">
+      </label>
+      <label class="wtl-chat-settings-row">
+        <span>每页显示行数</span>
+        <input class="wtl-chat-settings-input text_pole" type="number" min="5" max="100" step="5" value="{{pageSize}}" data-settings-input="pageSize">
+      </label>
+      <label class="wtl-chat-settings-row">
+        <span>预览弹窗显示层数</span>
+        <input class="wtl-chat-settings-input text_pole" type="number" min="1" max="12" value="{{previewLayers}}" data-settings-input="previewLayers">
+      </label>
+      <label class="wtl-chat-settings-row">
+        <span>默认视图</span>
+        <select class="wtl-chat-settings-input text_pole" data-settings-input="defaultView">
+          <option value="time" {{#if (eq defaultView 'time')}}selected{{/if}}>时间</option>
+          <option value="character" {{#if (eq defaultView 'character')}}selected{{/if}}>角色</option>
+          <option value="folder" {{#if (eq defaultView 'folder')}}selected{{/if}}>分组</option>
+          <option value="tag" {{#if (eq defaultView 'tag')}}selected{{/if}}>标签</option>
+        </select>
+      </label>
+    </div>
+  </section>
+  {{> settings-folder-section}}
+  {{> settings-tag-section}}
+</div>

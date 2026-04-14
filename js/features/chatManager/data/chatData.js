@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import { ChatManagerState } from './chatManagerState.js';
-import { fetchAllChats } from '../services/chatManagerApi.js';
+import { fetchAllChats } from '../../../shared/api/chatApi.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
 
 export class ChatDataService {
@@ -54,6 +54,14 @@ export class ChatDataService {
   togglePin(globalKey) {
     this.state.togglePin(globalKey);
     this.sortChats();
+  }
+
+  toggleFavorite(globalKey) {
+    this.state.toggleFavorite(globalKey);
+  }
+
+  isFavorite(globalKey) {
+    return this.state.isFavorite(globalKey);
   }
 
   getChatTitle(globalKey) {

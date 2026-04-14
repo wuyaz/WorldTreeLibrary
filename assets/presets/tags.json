@@ -1,0 +1,6 @@
+[
+  { "id": "sweet", "name": "甜文", "color": "#b76e79", "order": 0 },
+  { "id": "angst", "name": "虐文", "color": "#6f8fa8", "order": 1 },
+  { "id": "serious", "name": "正剧", "color": "#7d9b76", "order": 2 },
+  { "id": "r18", "name": "官能", "color": "#c7a86d", "order": 3 }
+]

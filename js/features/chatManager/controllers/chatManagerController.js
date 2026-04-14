@@ -3,6 +3,9 @@
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
 import { ChatDataService } from '../data/chatData.js';
 import { ChatManagerUI } from '../ui/chatManagerUI.js';
+import { ChatManagerSettings, MORANDI_COLORS } from '../data/chatManagerSettings.js';
+import { ChatSettingsUI } from '../ui/chatSettingsUI.js';
+import { ChatPreviewUI } from '../ui/chatPreviewUI.js';
 
 export class ChatManagerController {
   constructor(options = {}) {
@@ -10,10 +13,20 @@ export class ChatManagerController {
     this.uiRefs = {};
     
     this.dataService = new ChatDataService();
+    this.settings = new ChatManagerSettings();
     this.ui = null;
     
     this.observer = null;
     this.observerTimer = null;
+    this.settingsPopup = null;
+    this.settingsPanel = null;
+    this.settingsUI = null;
+    this.settingsPanelClickHandler = null;
+    this.settingsPanelChangeHandler = null;
+    this.settingsSections = {
+      folder: false,
+      tag: false,
+    };
     this.isDataLoaded = false;
     this.globalChats = [];
   }
@@ -65,6 +78,34 @@ export class ChatManagerController {
       .replace(/'/g, '&#39;');
   }
 
+  moveArrayItem(arr, from, to) {
+    if (!Array.isArray(arr)) return;
+    if (from < 0 || to < 0 || from >= arr.length || to >= arr.length) return;
+    const [item] = arr.splice(from, 1);
+    arr.splice(to, 0, item);
+  }
+
+  clampNumber(value, min, max, fallback) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return fallback;
+    return Math.max(min, Math.min(max, num));
+  }
+
+  getPresetColorButtons(type, value, selectedColor = '') {
+    return MORANDI_COLORS.map(color => `
+      <button
+        type="button"
+        class="wtl-chat-settings-swatch ${selectedColor === color ? 'is-active' : ''}"
+        data-settings-action="pick-preset-color"
+        data-type="${type}"
+        data-value="${this.escapeHtml(value)}"
+        data-color="${color}"
+        style="--wtl-swatch:${color};"
+        title="${color}"
+      ></button>
+    `).join('');
+  }
+
   async showOptionPicker({
     title,
     subtitle,
@@ -87,8 +128,9 @@ export class ChatManagerController {
         return `
           <button
             type="button"
-            class="wtl-picker-option menu_button ${isSelected ? 'menu_button_default' : ''}"
+            class="wtl-picker-option ${isSelected ? 'is-selected' : ''}"
             data-value="${this.escapeHtml(option)}"
+            style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--SmartThemeBorderColor);background:${isSelected ? 'var(--SmartThemeUnderlineColor)' : 'rgba(255,255,255,0.06)'};color:var(--SmartThemeBodyColor);cursor:pointer;white-space:nowrap;font-size:13px;"
           >${this.escapeHtml(option)}</button>
         `;
       }).join('');
@@ -96,8 +138,7 @@ export class ChatManagerController {
       container.innerHTML = `
         <div class="wtl-picker-wrap" style="display:flex;flex-direction:column;gap:10px;min-width:320px;">
           <div style="font-size:12px;opacity:0.75;">${this.escapeHtml(subtitle || '')}</div>
-          ${allowEmpty ? `<button type="button" class="wtl-picker-empty menu_button ${selectedValue ? '' : 'menu_button_default'}" data-empty="1">${this.escapeHtml(emptyLabel)}</button>` : ''}
-          <div class="wtl-picker-options" style="display:flex;flex-wrap:wrap;gap:8px;max-height:220px;overflow:auto;">${optionHtml}</div>
+          <div class="wtl-picker-options" style="display:flex;flex-wrap:wrap;gap:8px;max-height:220px;overflow:auto;">${allowEmpty ? `<button type="button" class="wtl-picker-empty ${selectedValue ? '' : 'is-selected'}" data-empty="1" style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--SmartThemeBorderColor);background:${selectedValue ? 'rgba(255,255,255,0.06)' : 'var(--SmartThemeUnderlineColor)'};color:var(--SmartThemeBodyColor);cursor:pointer;white-space:nowrap;font-size:13px;">${this.escapeHtml(emptyLabel)}</button>` : ''}${optionHtml}</div>
           <label style="display:flex;flex-direction:column;gap:6px;">
             <span style="font-size:12px;opacity:0.8;">${this.escapeHtml(createLabel)}</span>
             <input class="text_pole wtl-picker-input" type="text" placeholder="${this.escapeHtml(createPlaceholder)}" value="" />
@@ -118,15 +159,21 @@ export class ChatManagerController {
           const emptyButton = container.querySelector('.wtl-picker-empty');
           const input = container.querySelector('.wtl-picker-input');
 
+          const setSelectedVisual = (button, selected) => {
+            if (!button) return;
+            button.classList.toggle('is-selected', selected);
+            button.style.background = selected ? 'var(--SmartThemeUnderlineColor)' : 'rgba(255,255,255,0.06)';
+          };
+
           const clearSelectedButtons = () => {
-            optionButtons.forEach(btn => btn.classList.remove('menu_button_default'));
-            emptyButton?.classList.remove('menu_button_default');
+            optionButtons.forEach(btn => setSelectedVisual(btn, false));
+            setSelectedVisual(emptyButton, false);
           };
 
           optionButtons.forEach(button => {
             button.addEventListener('click', () => {
               clearSelectedButtons();
-              button.classList.add('menu_button_default');
+              setSelectedVisual(button, true);
               resolvedValue = button.dataset.value || '';
               if (input) input.value = '';
             });
@@ -135,7 +182,7 @@ export class ChatManagerController {
           if (emptyButton) {
             emptyButton.addEventListener('click', () => {
               clearSelectedButtons();
-              emptyButton.classList.add('menu_button_default');
+              setSelectedVisual(emptyButton, true);
               resolvedValue = '';
               if (input) input.value = '';
             });
@@ -156,6 +203,8 @@ export class ChatManagerController {
             resolvedValue = selectedValue;
           } else if (!selectedValue && allowEmpty) {
             resolvedValue = '';
+          } else if (!selectedValue && !allowEmpty) {
+            resolvedValue = '';
           }
         },
         onClosing: () => {
@@ -163,11 +212,6 @@ export class ChatManagerController {
           const customValue = input?.value?.trim?.() || '';
           if (customValue) {
             resolvedValue = customValue;
-          }
-
-          if (resolvedValue === null || resolvedValue === undefined) {
-            this.toast('warning', '请选择一个选项或输入新名称');
-            return false;
           }
 
           return true;
@@ -186,8 +230,106 @@ export class ChatManagerController {
     }
   }
 
+  async showMultiOptionPicker({
+    subtitle,
+    options,
+    selectedValues = [],
+    createLabel,
+    createPlaceholder,
+  }) {
+    try {
+      const popupModule = await import('/scripts/popup.js');
+      const Popup = window.Popup || popupModule.Popup;
+
+      const container = document.createElement('div');
+      const selectedSet = new Set((selectedValues || []).map(value => String(value)));
+
+      container.innerHTML = `
+        <div class="wtl-picker-wrap" style="display:flex;flex-direction:column;gap:10px;min-width:340px;">
+          <div style="font-size:12px;opacity:0.75;">${this.escapeHtml(subtitle || '')}</div>
+          <div class="wtl-picker-options" style="display:flex;flex-wrap:wrap;gap:8px;max-height:220px;overflow:auto;">
+            ${options.map(option => {
+              const selected = selectedSet.has(option);
+              return `<button type="button" class="wtl-picker-option ${selected ? 'is-selected' : ''}" data-value="${this.escapeHtml(option)}" style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--SmartThemeBorderColor);background:${selected ? 'var(--SmartThemeUnderlineColor)' : 'rgba(255,255,255,0.06)'};color:var(--SmartThemeBodyColor);cursor:pointer;white-space:nowrap;font-size:13px;">${this.escapeHtml(option)}</button>`;
+            }).join('')}
+          </div>
+          <label style="display:flex;flex-direction:column;gap:6px;">
+            <span style="font-size:12px;opacity:0.8;">${this.escapeHtml(createLabel)}</span>
+            <input class="text_pole wtl-picker-input" type="text" placeholder="${this.escapeHtml(createPlaceholder)}" value="" />
+          </label>
+        </div>
+      `;
+
+      const popup = new Popup(container, popupModule.POPUP_TYPE.CONFIRM, '', {
+        okButton: '应用',
+        cancelButton: '取消',
+        wide: false,
+        large: false,
+        allowVerticalScrolling: true,
+        onOpen: () => {
+          const optionButtons = Array.from(container.querySelectorAll('.wtl-picker-option'));
+          optionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+              const value = button.dataset.value || '';
+              if (!value) return;
+              if (selectedSet.has(value)) {
+                selectedSet.delete(value);
+                button.classList.remove('is-selected');
+                button.style.background = 'rgba(255,255,255,0.06)';
+              } else {
+                selectedSet.add(value);
+                button.classList.add('is-selected');
+                button.style.background = 'var(--SmartThemeUnderlineColor)';
+              }
+            });
+          });
+        },
+      });
+
+      const result = await popup.show();
+      if (!(result === 1 || result === popupModule.POPUP_RESULT.AFFIRMATIVE)) {
+        return null;
+      }
+
+      const customValue = String(container.querySelector('.wtl-picker-input')?.value || '');
+      customValue.split(',').map(part => part.trim()).filter(Boolean).forEach(value => selectedSet.add(value));
+      return Array.from(selectedSet);
+    } catch (error) {
+      console.warn('[WTL ChatManager] showMultiOptionPicker failed:', error);
+      return null;
+    }
+  }
+
+  sortTagsBySettings(tags = []) {
+    const order = this.settings.tags || [];
+    return [...new Set(tags)].sort((a, b) => {
+      const aIndex = order.indexOf(a);
+      const bIndex = order.indexOf(b);
+      const safeA = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+      const safeB = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+      if (safeA !== safeB) return safeA - safeB;
+      return String(a).localeCompare(String(b), 'zh-CN');
+    });
+  }
+
+  getItemColorStyle(type, value) {
+    const color = type === 'folder'
+      ? this.settings.getFolderColor(value)
+      : this.settings.getTagColor(value);
+    return color
+      ? `style="--wtl-accent:${color};--wtl-accent-bg:${color}22;--wtl-accent-border:${color}66;"`
+      : '';
+  }
+
+  syncColorsToState() {
+    this.dataService.state.folderColors = { ...this.settings.folderColors };
+    this.dataService.state.tagColors = { ...this.settings.tagColors };
+    this.dataService.state.save();
+  }
+
   async initialize() {
     this.dataService.state.load();
+    await this.settings.load();
     
     this.ui = new ChatManagerUI({
       dataService: this.dataService,
@@ -273,6 +415,9 @@ export class ChatManagerController {
       case 'filter':
         this.handleFilter(actionEl.dataset.val);
         break;
+      case 'page':
+        this.handlePageChange(actionEl.dataset.page);
+        break;
       case 'add-item':
         this.handleAddItem(actionEl.dataset.type);
         break;
@@ -303,6 +448,10 @@ export class ChatManagerController {
       case 'toggle-pin':
         e.stopPropagation();
         await this.handleTogglePin(actionEl.dataset.key);
+        break;
+      case 'toggle-favorite':
+        e.stopPropagation();
+        await this.handleToggleFavorite(actionEl.dataset.key);
         break;
       case 'delete-chat':
         e.stopPropagation();
@@ -349,6 +498,35 @@ export class ChatManagerController {
         this.renderPanel();
       }
     }
+
+    if (target.matches('[data-settings-input="pageSize"]')) {
+      const value = Math.max(5, Math.min(100, Number(target.value) || this.settings.pageSize));
+      target.value = value;
+    }
+
+    if (target.matches('[data-settings-input="previewLines"]')) {
+      const value = Math.max(1, Math.min(6, Number(target.value) || this.settings.previewLines));
+      target.value = value;
+    }
+
+    if (target.matches('[data-settings-input="previewLayers"]')) {
+      const value = Math.max(1, Math.min(12, Number(target.value) || this.settings.previewLayers));
+      target.value = value;
+    }
+
+    if (target.matches('[data-settings-input="folderColor"]')) {
+      this.settings.setFolderColor(target.dataset.value, target.value);
+      this.syncColorsToState();
+      this.renderSettingsPanel();
+      this.renderPanel();
+    }
+
+    if (target.matches('[data-settings-input="tagColor"]')) {
+      this.settings.setTagColor(target.dataset.value, target.value);
+      this.syncColorsToState();
+      this.renderSettingsPanel();
+      this.renderPanel();
+    }
   }
 
   async togglePanel() {
@@ -392,25 +570,493 @@ export class ChatManagerController {
   }
 
   async handleSettings() {
-    const raw = this.dataService.state.exportState();
-    const action = await this.prompt(
-      `当前备份数据：\n${raw.substring(0, 200)}...\n\n【输入 1 恢复出厂设置】\n【直接粘贴 JSON 数据点击确认可覆盖】`,
-      raw
-    );
+    await this.openGraphicalSettings();
+  }
+
+  async openGraphicalSettings() {
+    await this.settings.load();
+    const popupModule = await import('/scripts/popup.js');
+    const Popup = window.Popup || popupModule.Popup;
+
+    this.settingsUI = new ChatSettingsUI({
+      settings: this.settings,
+      callbacks: {
+        folderSectionOpen: this.settingsSections.folder,
+        tagSectionOpen: this.settingsSections.tag,
+      },
+    });
+
+    this.settingsPanel = document.createElement('div');
+    this.settingsPanel.className = 'wtl-chat-settings-panel';
+    this.settingsPanel.innerHTML = this.settingsUI.render(this.settings);
+
+    const popup = new Popup(this.settingsPanel, popupModule.POPUP_TYPE.CONFIRM, '', {
+      okButton: '保存设置',
+      cancelButton: '关闭',
+      wide: true,
+      large: false,
+      allowVerticalScrolling: true,
+      onOpen: () => {
+        this.bindSettingsPanelEvents();
+      },
+    });
+
+    this.settingsPopup = popup;
+    const result = await popup.show();
+    if (result === 1 || result === popupModule.POPUP_RESULT?.AFFIRMATIVE) {
+      const pageSize = Number(this.getSettingsInputValue('pageSize')) || this.settings.pageSize;
+      const previewLines = Number(this.getSettingsInputValue('previewLines')) || this.settings.previewLines;
+      const previewLayers = Number(this.getSettingsInputValue('previewLayers')) || this.settings.previewLayers;
+      const defaultView = this.getSettingsInputValue('defaultView') || this.settings.defaultView;
+      
+      this.handleSaveSettings({ pageSize, previewLines, previewLayers, defaultView });
+    }
     
-    if (action === '1') {
-      if (await this.confirm('彻底清空所有分组和标签？')) {
-        this.dataService.state.reset();
-        this.renderPanel();
+    this.settingsPanel = null;
+    this.settingsPopup = null;
+    this.settingsUI = null;
+  }
+
+  renderSettingsPanel() {
+    if (!this.settingsPanel || !this.settingsUI) return;
+    this.settingsUI.callbacks = {
+      folderSectionOpen: this.settingsSections.folder,
+      tagSectionOpen: this.settingsSections.tag,
+    };
+    this.settingsPanel.innerHTML = this.settingsUI.render(this.settings);
+  }
+
+  bindSettingsPanelEvents() {
+    if (!this.settingsPanel) return;
+
+    if (this.settingsPanelClickHandler) {
+      this.settingsPanel.removeEventListener('click', this.settingsPanelClickHandler);
+    }
+    if (this.settingsPanelChangeHandler) {
+      this.settingsPanel.removeEventListener('change', this.settingsPanelChangeHandler);
+    }
+
+    this.settingsPanelClickHandler = async (event) => {
+      const viewBtn = event.target.closest('.wtl-chat-settings-view-btn');
+      if (viewBtn) {
+        const container = viewBtn.closest('.wtl-chat-settings-view-toggle');
+        if (container) {
+          container.querySelectorAll('.wtl-chat-settings-view-btn').forEach(btn => {
+            btn.classList.remove('is-active');
+          });
+          viewBtn.classList.add('is-active');
+        }
+        return;
       }
-    } else if (action && action !== raw) {
-      try {
-        JSON.parse(action);
-        this.dataService.state.importState(action);
-        this.toast('success', '覆盖成功！');
+      
+      const presetBtn = event.target.closest('.wtl-chat-settings-preset-btn');
+      if (presetBtn) {
+        if (presetBtn.dataset.settingsAction === 'add-preset') {
+          const type = presetBtn.dataset.type;
+          await this.handleAddPreset(type);
+          return;
+        }
+        
+        const container = presetBtn.closest('.wtl-chat-settings-preset-buttons');
+        if (container) {
+          container.querySelectorAll('.wtl-chat-settings-preset-btn').forEach(btn => {
+            btn.classList.remove('is-active');
+          });
+          presetBtn.classList.add('is-active');
+          
+          const presetName = presetBtn.dataset.preset;
+          const isDefault = presetName === '默认';
+          
+          const section = container.closest('.wtl-chat-settings-section');
+          const saveBtn = section?.querySelector('[data-settings-action="save-preset"]');
+          const deleteBtn = section?.querySelector('[data-settings-action="delete-preset"]');
+          
+          if (saveBtn) saveBtn.disabled = isDefault;
+          if (deleteBtn) deleteBtn.disabled = isDefault;
+          
+          if (!isDefault) {
+            this.handleLoadPreset(container.closest('.wtl-chat-settings-section')?.dataset.type);
+          } else {
+            this.handleLoadDefaultPreset(container.closest('.wtl-chat-settings-section')?.dataset.type);
+          }
+        }
+        return;
+      }
+      
+      const actionEl = event.target.closest('[data-settings-action]');
+      if (!actionEl) return;
+
+      const action = actionEl.dataset.settingsAction;
+      switch (action) {
+        case 'toggle-section':
+          this.toggleSettingsSection(actionEl.dataset.type);
+          break;
+        case 'reset':
+          this.handleResetSettings();
+          break;
+        case 'add-item':
+          this.handleSettingsAddItem(actionEl.dataset.type);
+          break;
+        case 'color-prev':
+          this.handleColorPrev(actionEl.dataset.type, actionEl.dataset.value);
+          break;
+        case 'color-next':
+          this.handleColorNext(actionEl.dataset.type, actionEl.dataset.value);
+          break;
+        case 'color-prev-create':
+          this.handleColorPrevCreate(actionEl.dataset.type);
+          break;
+        case 'color-next-create':
+          this.handleColorNextCreate(actionEl.dataset.type);
+          break;
+        case 'remove-item':
+          await this.handleSettingsRemoveItem(actionEl.dataset.type, actionEl.dataset.value);
+          break;
+        case 'move-item':
+          this.handleSettingsMoveItem(actionEl.dataset.type, actionEl.dataset.value, actionEl.dataset.direction);
+          break;
+        case 'save-preset':
+          this.handleSavePreset(actionEl.dataset.type);
+          break;
+        case 'delete-preset':
+          this.handleDeletePreset(actionEl.dataset.type);
+          break;
+      }
+    };
+
+    this.settingsPanelChangeHandler = (event) => {
+      this.handleChange({ target: event.target });
+    };
+
+    this.settingsPanel.addEventListener('click', this.settingsPanelClickHandler);
+    this.settingsPanel.addEventListener('change', this.settingsPanelChangeHandler);
+  }
+
+
+
+  toggleSettingsSection(type) {
+    this.settingsSections[type] = !this.settingsSections[type];
+    this.renderSettingsPanel();
+  }
+
+  handleColorPrev(type, value) {
+    const slider = this.settingsPanel?.querySelector(`.wtl-chat-settings-color-slider[data-type="${type}"][data-value="${value}"]`);
+    if (!slider) return;
+    
+    let currentIndex = parseInt(slider.dataset.currentIndex) || 0;
+    currentIndex = (currentIndex - 1 + MORANDI_COLORS.length) % MORANDI_COLORS.length;
+    const newColor = MORANDI_COLORS[currentIndex];
+    
+    slider.dataset.currentIndex = currentIndex;
+    const display = slider.querySelector('.wtl-chat-settings-color-display');
+    if (display) display.style.backgroundColor = newColor;
+    
+    if (type === 'folder') {
+      this.settings.setFolderColor(value, newColor);
+    } else {
+      this.settings.setTagColor(value, newColor);
+    }
+    
+    this.syncColorsToState();
+    this.renderPanel();
+  }
+
+  handleColorNext(type, value) {
+    const slider = this.settingsPanel?.querySelector(`.wtl-chat-settings-color-slider[data-type="${type}"][data-value="${value}"]`);
+    if (!slider) return;
+    
+    let currentIndex = parseInt(slider.dataset.currentIndex) || 0;
+    currentIndex = (currentIndex + 1) % MORANDI_COLORS.length;
+    const newColor = MORANDI_COLORS[currentIndex];
+    
+    slider.dataset.currentIndex = currentIndex;
+    const display = slider.querySelector('.wtl-chat-settings-color-display');
+    if (display) display.style.backgroundColor = newColor;
+    
+    if (type === 'folder') {
+      this.settings.setFolderColor(value, newColor);
+    } else {
+      this.settings.setTagColor(value, newColor);
+    }
+    
+    this.syncColorsToState();
+    this.renderPanel();
+  }
+
+  handleColorPrevCreate(type) {
+    const slider = this.settingsPanel?.querySelector(`.wtl-chat-settings-color-slider.is-create[data-type="${type}"]`);
+    if (!slider) return;
+    
+    let currentIndex = parseInt(slider.dataset.currentIndex) || 0;
+    currentIndex = (currentIndex - 1 + MORANDI_COLORS.length) % MORANDI_COLORS.length;
+    const newColor = MORANDI_COLORS[currentIndex];
+    
+    slider.dataset.currentIndex = currentIndex;
+    const display = slider.querySelector('.wtl-chat-settings-color-display');
+    if (display) display.style.backgroundColor = newColor;
+  }
+
+  handleColorNextCreate(type) {
+    const slider = this.settingsPanel?.querySelector(`.wtl-chat-settings-color-slider.is-create[data-type="${type}"]`);
+    if (!slider) return;
+    
+    let currentIndex = parseInt(slider.dataset.currentIndex) || 0;
+    currentIndex = (currentIndex + 1) % MORANDI_COLORS.length;
+    const newColor = MORANDI_COLORS[currentIndex];
+    
+    slider.dataset.currentIndex = currentIndex;
+    const display = slider.querySelector('.wtl-chat-settings-color-display');
+    if (display) display.style.backgroundColor = newColor;
+  }
+
+  openNativeColorPicker(actionEl) {
+    const wrapper = actionEl.closest('.wtl-chat-settings-color-picker');
+    wrapper?.querySelector('.wtl-chat-settings-color-native')?.click();
+  }
+
+  openNativeCreateColorPicker(actionEl) {
+    const wrapper = actionEl.closest('.wtl-chat-settings-color-picker');
+    wrapper?.querySelector('.wtl-chat-settings-color-native')?.click();
+  }
+
+  handlePresetColorPick(type, value, color) {
+    if (type === 'folder-create') {
+      const input = this.settingsPanel?.querySelector('[data-settings-input="folderCreateColor"]');
+      if (input) input.value = color;
+      this.renderSettingsPanel();
+      return;
+    }
+
+    if (type === 'tag-create') {
+      const input = this.settingsPanel?.querySelector('[data-settings-input="tagCreateColor"]');
+      if (input) input.value = color;
+      this.renderSettingsPanel();
+      return;
+    }
+
+    if (type === 'folder') {
+      this.settings.setFolderColor(value, color);
+    } else if (type === 'tag') {
+      this.settings.setTagColor(value, color);
+    }
+
+    this.syncColorsToState();
+    this.renderSettingsPanel();
+    this.renderPanel();
+  }
+
+  syncSettingsToState() {
+    this.dataService.state.folders = [...this.settings.folders];
+    this.dataService.state.tags = [...this.settings.tags];
+    this.dataService.state.folderColors = { ...this.settings.folderColors };
+    this.dataService.state.tagColors = { ...this.settings.tagColors };
+    this.dataService.state.setItemsPerPage(this.settings.pageSize);
+
+    Object.keys(this.dataService.state.chatFolder).forEach((key) => {
+      if (!this.settings.folders.includes(this.dataService.state.chatFolder[key])) {
+        delete this.dataService.state.chatFolder[key];
+      }
+    });
+
+    Object.keys(this.dataService.state.chatTags).forEach((key) => {
+      const nextTags = this.sortTagsBySettings((this.dataService.state.chatTags[key] || []).filter(tag => this.settings.tags.includes(tag)));
+      if (nextTags.length > 0) {
+        this.dataService.state.chatTags[key] = nextTags;
+      } else {
+        delete this.dataService.state.chatTags[key];
+      }
+    });
+
+    this.dataService.state.save();
+  }
+
+  getSettingsInputValue(key) {
+    const input = this.settingsPanel?.querySelector(`[data-settings-input="${key}"]`);
+    if (!input) return '';
+    
+    if (input.classList.contains('wtl-chat-settings-view-toggle') || 
+        input.classList.contains('wtl-chat-settings-preset-buttons')) {
+      const activeBtn = input.querySelector('.is-active');
+      return activeBtn?.dataset?.value || activeBtn?.dataset?.preset || '';
+    }
+    
+    if (input.classList.contains('wtl-chat-settings-color-slider')) {
+      const currentIndex = parseInt(input.dataset.currentIndex) || 0;
+      return MORANDI_COLORS[currentIndex];
+    }
+    
+    return input?.value ?? '';
+  }
+
+  handleSaveSettings(values) {
+    const pageSize = values?.pageSize ?? this.settings.pageSize;
+    const previewLines = values?.previewLines ?? this.settings.previewLines;
+    const previewLayers = values?.previewLayers ?? this.settings.previewLayers;
+    const defaultView = values?.defaultView ?? this.settings.defaultView;
+    
+    this.settings.updateDisplaySettings({
+      pageSize,
+      previewLines,
+      previewLayers,
+      defaultView,
+    });
+    
+    this.syncSettingsToState();
+    this.syncColorsToState();
+    this.toast('success', '聊天管理设置已保存');
+    this.renderPanel();
+  }
+
+  async handleResetSettings() {
+    await this.settings.reset();
+    this.syncSettingsToState();
+    this.syncColorsToState();
+    this.renderSettingsPanel();
+    this.renderPanel();
+    this.toast('info', '已恢复默认设置');
+  }
+
+  handleSettingsAddItem(type) {
+    const inputKey = type === 'folder' ? 'folderName' : 'tagName';
+    const value = String(this.getSettingsInputValue(inputKey)).trim();
+    
+    const slider = this.settingsPanel?.querySelector(`.wtl-chat-settings-color-slider.is-create[data-type="${type}"]`);
+    const currentIndex = parseInt(slider?.dataset.currentIndex) || 0;
+    const color = MORANDI_COLORS[currentIndex];
+    
+    if (!value) return;
+
+    const added = type === 'folder'
+      ? this.settings.addFolder(value, color)
+      : this.settings.addTag(value, color);
+
+    if (!added) {
+      this.toast('warning', `${type === 'folder' ? '分组' : '标签'}已存在或名称无效`);
+      return;
+    }
+
+    this.syncSettingsToState();
+    this.syncColorsToState();
+    this.renderSettingsPanel();
+  }
+
+  handleSettingsClearColor(type, value) {
+    if (type === 'folder') {
+      this.settings.clearFolderColor(value);
+    } else {
+      this.settings.clearTagColor(value);
+    }
+    this.syncColorsToState();
+    this.renderSettingsPanel();
+    this.renderPanel();
+  }
+
+  async handleSettingsRemoveItem(type, value) {
+    const label = type === 'folder' ? '分组' : '标签';
+    const confirmed = await this.confirm(`确定删除${label} [${value}] 吗？`);
+    if (!confirmed) return;
+
+    if (type === 'folder') {
+      this.settings.removeFolder(value);
+      this.dataService.state.removeFolder(value);
+    } else {
+      this.settings.removeTag(value);
+      this.dataService.state.removeTag(value);
+    }
+
+    this.syncSettingsToState();
+    this.syncColorsToState();
+    this.renderSettingsPanel();
+    this.renderPanel();
+  }
+
+  handleSettingsMoveItem(type, value, direction) {
+    const moved = type === 'folder'
+      ? this.settings.moveFolder(value, direction)
+      : this.settings.moveTag(value, direction);
+
+    if (!moved) return;
+
+    this.syncSettingsToState();
+    this.syncColorsToState();
+    this.renderSettingsPanel();
+    this.renderPanel();
+  }
+
+  async handleAddPreset(type) {
+    const presetName = await this.prompt('请输入预设名称:');
+    if (!presetName || !presetName.trim()) return;
+
+    const trimmedName = presetName.trim();
+    if (trimmedName === '默认') {
+      this.toast('warning', '不能使用"默认"作为预设名称');
+      return;
+    }
+
+    if (this.settings.saveCurrentAsPreset(type, trimmedName)) {
+      this.renderSettingsPanel();
+      this.toast('success', `预设已保存: ${trimmedName}`);
+    } else {
+      this.toast('error', '保存预设失败');
+    }
+  }
+
+  handleLoadPreset(type) {
+    const presetName = this.getSettingsInputValue(`${type}Preset`);
+    if (!presetName || presetName === '默认') {
+      return;
+    }
+
+    if (this.settings.loadPreset(type, presetName)) {
+      this.syncSettingsToState();
+      this.syncColorsToState();
+      this.renderSettingsPanel();
+      this.renderPanel();
+      this.toast('success', `已加载预设: ${presetName}`);
+    } else {
+      this.toast('error', '加载预设失败');
+    }
+  }
+
+  async handleSavePreset(type) {
+    const presetName = await this.prompt('请输入预设名称:', this.getSettingsInputValue(`${type}Preset`) || '');
+    if (!presetName || !presetName.trim()) return;
+
+    if (this.settings.saveCurrentAsPreset(type, presetName.trim())) {
+      this.renderSettingsPanel();
+      this.toast('success', `预设已保存: ${presetName.trim()}`);
+    } else {
+      this.toast('error', '保存预设失败');
+    }
+  }
+
+  async handleDeletePreset(type) {
+    const presetName = this.getSettingsInputValue(`${type}Preset`);
+    if (!presetName || presetName === '默认') {
+      this.toast('warning', '无法删除默认预设');
+      return;
+    }
+
+    if (await this.confirm(`确定删除预设 [${presetName}] 吗？`)) {
+      if (this.settings.deletePreset(type, presetName)) {
+        this.renderSettingsPanel();
+        this.toast('success', `预设已删除: ${presetName}`);
+      } else {
+        this.toast('error', '删除预设失败');
+      }
+    }
+  }
+
+  async handleLoadDefaultPreset(type) {
+    if (await this.confirm('确定加载默认预设吗？当前设置将被覆盖。')) {
+      if (await this.settings.loadDefaultPreset(type)) {
+        this.syncSettingsToState();
+        this.syncColorsToState();
+        this.renderSettingsPanel();
         this.renderPanel();
-      } catch (e) {
-        this.toast('error', '格式错误！');
+        this.toast('success', '已加载默认预设');
+      } else {
+        this.toast('error', '加载默认预设失败');
       }
     }
   }
@@ -426,8 +1072,52 @@ export class ChatManagerController {
 
   handleFilter(filter) {
     this.dataService.state.activeFilter = filter;
+    this.dataService.state.currentPage = 1;
     this.dataService.state.save();
     this.renderPanel();
+  }
+
+  getPaginationState() {
+    const pageSize = Math.max(5, Math.min(100, Number(this.dataService.state.itemsPerPage || this.settings.pageSize || 20)));
+    const filteredCount = this.getFilteredChats().length;
+    const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
+    const currentPage = Math.max(1, Math.min(totalPages, Number(this.dataService.state.currentPage || 1)));
+    return { pageSize, filteredCount, totalPages, currentPage };
+  }
+
+  handlePageChange(direction) {
+    const { totalPages, currentPage } = this.getPaginationState();
+    const nextPage = direction === 'prev' ? currentPage - 1 : currentPage + 1;
+    this.dataService.state.currentPage = Math.max(1, Math.min(totalPages, nextPage));
+    this.dataService.state.save();
+    this.renderPanel();
+  }
+
+  getFilteredChats() {
+    const state = this.dataService.state;
+    const searchLower = state.searchQuery?.toLowerCase() || '';
+
+    return this.globalChats.filter(chat => {
+      const key = chat.globalKey;
+      const folder = state.chatFolder[key] || '未分类';
+      const tags = state.chatTags[key] || [];
+      const summary = state.chatSummary[key] || '';
+      const customTitle = state.chatTitleOverride[key] || chat.fileName.replace(/\.jsonl$/i, '');
+
+      if (state.activeFilter !== '全部') {
+        if (state.viewMode === 'folder' && folder !== state.activeFilter) return false;
+        if (state.viewMode === 'tag' && !tags.includes(state.activeFilter)) return false;
+        if (state.viewMode === 'character' && chat.character !== state.activeFilter) return false;
+      }
+
+      if (state.viewMode === 'favorite' && !state.favoriteChats.includes(key)) return false;
+
+      if (searchLower && !(`${customTitle} ${summary} ${chat.character}`.toLowerCase().includes(searchLower))) {
+        return false;
+      }
+
+      return true;
+    });
   }
 
   async handleAddItem(type) {
@@ -486,23 +1176,24 @@ export class ChatManagerController {
 
   async handleAddTag(globalKey) {
     const tags = this.dataService.getTags();
-    const selected = await this.showOptionPicker({
-      title: '聊天标签',
-      subtitle: '选择已有标签，或输入一个新标签',
+    const selected = await this.showMultiOptionPicker({
+      subtitle: '可多选已有标签，也可用逗号输入多个新标签',
       options: tags,
-      selectedValue: '',
       createLabel: '新建标签',
-      createPlaceholder: '输入新标签名称',
-      allowEmpty: false,
+      createPlaceholder: '输入新标签名称，多个请用逗号分隔',
     });
 
-    if (!selected) return;
+    if (!selected || selected.length === 0) return;
 
-    if (!tags.includes(selected)) {
-      this.dataService.addTag(selected);
-    }
+    selected.forEach((tag) => {
+      if (!tags.includes(tag)) {
+        this.dataService.addTag(tag);
+      }
+      this.dataService.addTagToChat(globalKey, tag);
+    });
 
-    this.dataService.addTagToChat(globalKey, selected);
+    this.dataService.state.chatTags[globalKey] = this.sortTagsBySettings(this.dataService.state.chatTags[globalKey] || []);
+    this.dataService.state.save();
     this.renderPanel();
   }
 
@@ -516,7 +1207,13 @@ export class ChatManagerController {
   async handlePreview(charId, fileName) {
     const { chatPreviewService } = await import('../services/chatPreviewService.js');
     const newPreviewService = new chatPreviewService.constructor();
+    this.previewUI = new ChatPreviewUI();
+    
     await newPreviewService.show(charId, fileName, {
+      onMessagesReady: (container, messagesData) => {
+        container.innerHTML = this.previewUI.renderMessages(messagesData, charId);
+        this.previewUI.bindMessageEvents(container);
+      },
       onJump: () => {
         this.ui.togglePanel(false);
       }
@@ -526,6 +1223,11 @@ export class ChatManagerController {
   async handleTogglePin(globalKey) {
     this.dataService.togglePin(globalKey);
     this.globalChats = await this.dataService.loadAllChats();
+    this.renderPanel();
+  }
+
+  async handleToggleFavorite(globalKey) {
+    this.dataService.toggleFavorite(globalKey);
     this.renderPanel();
   }
 
@@ -610,10 +1312,19 @@ export class ChatManagerController {
   }
 
   renderPanel() {
+    const filteredChats = this.getFilteredChats();
+    const pagination = this.getPaginationState();
     const state = {
       ...this.dataService.state,
+      previewLines: this.settings.previewLines,
+      pageSize: this.settings.pageSize,
+      defaultView: this.settings.defaultView,
+      folderColors: { ...this.settings.folderColors },
+      tagColors: { ...this.settings.tagColors },
+      totalPages: pagination.totalPages,
+      currentPage: pagination.currentPage,
       characters: this.dataService.getCharacters(),
-      filteredCount: this.globalChats.length
+      filteredCount: filteredChats.length
     };
     
     this.ui.renderPanel(this.globalChats, state);
@@ -657,6 +1368,9 @@ export class ChatManagerController {
       clearTimeout(this.observerTimer);
       this.observerTimer = null;
     }
+
+    this.settingsPanel = null;
+    this.settingsPopup = null;
     
     this.ui?.destroy();
     

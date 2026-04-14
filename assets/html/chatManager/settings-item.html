@@ -1,0 +1,23 @@
+<div class="wtl-chat-settings-item">
+  <div class="wtl-chat-settings-item-main">
+    <span class="wtl-chat-settings-order">{{add index 1}}</span>
+    <span class="wtl-chat-settings-name">{{value}}</span>
+  </div>
+  <div class="wtl-chat-settings-color-row">
+    {{> color-picker type=type value=value color=color}}
+    <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="clear-color" data-type="{{type}}" data-value="{{value}}" data-tooltip="清除颜色" title="清除颜色">
+      <i class="fa-solid fa-eraser"></i>
+    </button>
+  </div>
+  <div class="wtl-chat-settings-actions">
+    <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="move-item" data-type="{{type}}" data-value="{{value}}" data-direction="up" {{#if (eq index 0)}}disabled{{/if}} data-tooltip="上移" title="上移">
+      <i class="fa-solid fa-arrow-up"></i>
+    </button>
+    <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="move-item" data-type="{{type}}" data-value="{{value}}" data-direction="down" {{#if (eq index (sub total 1))}}disabled{{/if}} data-tooltip="下移" title="下移">
+      <i class="fa-solid fa-arrow-down"></i>
+    </button>
+    <button type="button" class="wtl-chat-settings-btn is-icon is-danger" data-settings-action="remove-item" data-type="{{type}}" data-value="{{value}}" data-tooltip="删除" title="删除">
+      <i class="fa-solid fa-trash"></i>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,6 @@
+[
+  { "id": "main", "name": "主线", "color": "#b76e79", "order": 0 },
+  { "id": "side", "name": "分支", "color": "#c7a86d", "order": 1 },
+  { "id": "daily", "name": "日常", "color": "#7d9b76", "order": 2 },
+  { "id": "test", "name": "调试", "color": "#9a84a6", "order": 3 }
+]

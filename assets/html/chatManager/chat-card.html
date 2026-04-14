@@ -1,0 +1,54 @@
+<div class="wtl-chat-manager-card {{#if isPinned}}is-pinned{{/if}}" data-key="{{globalKey}}">
+  <div class="wtl-chat-manager-check">
+    <input type="checkbox" class="wtl-chat-manager-checkbox" value="{{globalKey}}" {{#if isChecked}}checked{{/if}}>
+  </div>
+  <div class="wtl-chat-manager-card-main">
+    <div class="wtl-chat-manager-card-corner-actions">
+      <button class="wtl-chat-manager-mini wtl-chat-manager-mini-plain" title="预览" data-action="preview" data-char="{{charId}}" data-file="{{fileName}}">
+        <i class="fa-solid fa-eye"></i>
+      </button>
+      <button class="wtl-chat-manager-mini wtl-chat-manager-mini-plain {{#if isPinned}}is-active{{/if}}" title="置顶" data-action="toggle-pin" data-key="{{globalKey}}">
+        <i class="fa-solid fa-thumbtack"></i>
+      </button>
+      <button class="wtl-chat-manager-mini is-danger" title="删除" data-action="delete-chat" data-char="{{charId}}" data-file="{{fileName}}" data-key="{{globalKey}}">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>
+    <div class="wtl-chat-manager-card-top">
+      <div class="wtl-chat-manager-card-heading">
+        <div class="wtl-chat-manager-title-row">
+          <span class="wtl-chat-manager-title-text">{{customTitle}}</span>
+          <button class="wtl-chat-manager-inline-icon" title="改名" data-action="edit-title" data-key="{{globalKey}}">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    {{#if summary}}
+    <div class="wtl-chat-manager-summary">{{summary}}</div>
+    {{/if}}
+    <div class="wtl-chat-manager-preview-row">
+      <div class="wtl-chat-manager-preview wtl-chat-manager-preview-lines-{{previewLines}}">{{preview}}</div>
+      <button class="wtl-chat-manager-inline-icon" title="添加简介" data-action="edit-summary" data-key="{{globalKey}}">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    </div>
+    <div class="wtl-chat-manager-meta-row">
+      <span class="wtl-chat-manager-meta-chip wtl-chat-manager-character-chip">@{{character}}</span>
+      <span class="wtl-chat-manager-meta-chip" data-action="edit-folder" data-key="{{globalKey}}" {{#if folderColor}}style="--wtl-accent:{{folderColor}};--wtl-accent-bg:{{folderColor}}22;--wtl-accent-border:{{folderColor}}66;"{{/if}}>{{folder}}</span>
+      {{#each tags}}
+      <span class="wtl-chat-manager-meta-chip" data-action="remove-tag" data-key="{{../globalKey}}" data-tag="{{this}}" {{#if this.color}}style="--wtl-accent:{{this.color}};--wtl-accent-bg:{{this.color}}22;--wtl-accent-border:{{this.color}}66;"{{/if}}>{{this}}</span>
+      {{/each}}
+      <button class="wtl-chat-manager-inline-icon" title="添加标签" data-action="add-tag" data-key="{{globalKey}}">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    </div>
+    <div class="wtl-chat-manager-card-foot">
+      <span class="wtl-chat-manager-card-time">{{recentDate}}</span>
+      <span class="wtl-chat-manager-file-meta">
+        <span class="wtl-chat-manager-file-name">{{fileName}}</span>
+        <span class="wtl-chat-manager-file-extra">{{floorText}} · {{sizeText}}</span>
+      </span>
+    </div>
+  </div>
+</div>

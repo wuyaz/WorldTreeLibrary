@@ -1,0 +1,23 @@
+<section class="wtl-chat-settings-section {{#if folderSectionOpen}}is-open{{/if}}" data-type="folder">
+  <button type="button" class="wtl-chat-settings-section-head" data-settings-action="toggle-section" data-type="folder">
+    <span class="wtl-chat-settings-section-copy">
+      <strong>分组</strong>
+    </span>
+    <span class="wtl-chat-settings-section-arrow">{{#if folderSectionOpen}}收起{{else}}展开{{/if}}</span>
+  </button>
+  <div class="wtl-chat-settings-section-body">
+    <div class="wtl-chat-settings-create-row">
+      <input class="wtl-chat-settings-input text_pole" type="text" placeholder="输入新分组名称" data-settings-input="folderName">
+      {{> color-picker type="folder" isCreate=true}}
+      <button type="button" class="wtl-chat-settings-btn is-primary" data-settings-action="add-item" data-type="folder">新增分组</button>
+    </div>
+    <div class="wtl-chat-settings-list">
+      {{#each folders}}
+      {{> settings-item type="folder" value=this color=(lookup ../folderColors this) index=@index total=../folders.length}}
+      {{/each}}
+      {{#if (eq folders.length 0)}}
+      <div class="wtl-chat-settings-empty">暂无项目</div>
+      {{/if}}
+    </div>
+  </div>
+</section>

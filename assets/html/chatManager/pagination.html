@@ -1,0 +1,8 @@
+<div class="wtl-chat-manager-pagination">
+  <div class="wtl-chat-manager-pagination-main">
+    <button class="wtl-chat-manager-btn" data-action="page" data-page="prev" {{#if prevDisabled}}disabled{{/if}}>上一页</button>
+    <span class="wtl-chat-manager-page-status">第 {{currentPage}} / {{totalPages}} 页</span>
+    <button class="wtl-chat-manager-btn" data-action="page" data-page="next" {{#if nextDisabled}}disabled{{/if}}>下一页</button>
+  </div>
+  <div class="wtl-chat-manager-page-meta">显示 {{rangeStart}}-{{rangeEnd}} / {{totalItems}} 条，每页 {{pageSize}} 条</div>
+</div>

@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { resolveExtRoot } from '../../../core/assets.js';
+import { ChatFilterService } from '../services/chatFilterService.js';
 
 const CHAT_MANAGER_ROOT_ID = 'wtl-chat-manager-root';
 const CHAT_MANAGER_STYLE_ID = 'wtl-chat-manager-styles';
@@ -14,6 +15,7 @@ export class ChatManagerUI {
     this.ui = {};
     this.searchTimer = null;
     this.rootEl = null;
+    this.filterService = new ChatFilterService();
   }
 
   async ensureStyles() {
@@ -49,7 +51,6 @@ export class ChatManagerUI {
       host = document.createElement('section');
       host.id = CHAT_MANAGER_ROOT_ID;
       host.className = 'wtl-chat-manager-shell';
-      
       host.innerHTML = `
         <div class="wtl-chat-manager-header">
           <div class="wtl-chat-manager-header-main" data-action="toggle-panel" title="点击展开/折叠聊天管理">
@@ -108,10 +109,10 @@ export class ChatManagerUI {
   }
 
   updateHeader(state) {
-    const { totalChats, filteredCount, isBatchMode, isLoading, viewMode, activeFilter } = state;
+    const { totalChats, filteredCount, isBatchMode, isLoading, viewMode, activeFilter, currentPage, totalPages } = state;
     
     if (this.ui.count) {
-      this.ui.count.textContent = `${filteredCount || 0} 条`;
+      this.ui.count.textContent = `${filteredCount || 0} 条 · ${currentPage || 1}/${totalPages || 1}页`;
     }
     
     if (this.ui.subtitle) {
@@ -134,158 +135,219 @@ export class ChatManagerUI {
     this.ui.panel?.classList.toggle('is-batch', isBatchMode);
   }
 
-  renderToolbar(State) {
-    const { viewMode, searchQuery } = State;
+  renderToolbar(state) {
+    const totalPages = Math.max(1, Number(state.totalPages || 1));
+    const currentPage = Math.max(1, Number(state.currentPage || 1));
+    
+    const viewModes = [
+      { mode: 'time', icon: 'fa-solid fa-clock', label: '时间' },
+      { mode: 'favorite', icon: 'fa-solid fa-star', label: '收藏' },
+      { mode: 'character', icon: 'fa-solid fa-user', label: '角色' },
+      { mode: 'folder', icon: 'fa-solid fa-folder', label: '分组' },
+      { mode: 'tag', icon: 'fa-solid fa-tag', label: '标签' },
+    ];
+    
+    const tabsHtml = viewModes.map(({ mode, icon, label }) => {
+      const isActive = state.viewMode === mode;
+      return `<button class="wtl-chat-manager-pill ${isActive ? 'is-active' : ''}" data-action="view" data-view="${mode}"><i class="${icon}"></i> ${label}</button>`;
+    }).join('');
     
     return `
       <div class="wtl-chat-manager-toolbar">
         <div class="wtl-chat-manager-toolbar-main">
-          <div class="wtl-chat-manager-tabs">
-            <button class="wtl-chat-manager-pill ${viewMode === 'time' ? 'is-active' : ''}" data-action="view" data-view="time">🕐 时间</button>
-            <button class="wtl-chat-manager-pill ${viewMode === 'character' ? 'is-active' : ''}" data-action="view" data-view="character">👤 角色</button>
-            <button class="wtl-chat-manager-pill ${viewMode === 'folder' ? 'is-active' : ''}" data-action="view" data-view="folder">📁 分组</button>
-            <button class="wtl-chat-manager-pill ${viewMode === 'tag' ? 'is-active' : ''}" data-action="view" data-view="tag">🏷️ 标签</button>
+          <div class="wtl-chat-manager-tabs">${tabsHtml}</div>
+          <input type="text" class="wtl-chat-manager-search" placeholder="搜索..." value="${this.escapeHtml(state.searchQuery || '')}" data-action="search">
+          <div class="wtl-chat-manager-toolbar-pager">
+            <button class="wtl-chat-manager-mini" data-action="page" data-page="prev" ${currentPage <= 1 ? 'disabled' : ''} title="上一页">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <span class="wtl-chat-manager-toolbar-page-text">${currentPage}/${totalPages}</span>
+            <button class="wtl-chat-manager-mini" data-action="page" data-page="next" ${currentPage >= totalPages ? 'disabled' : ''} title="下一页">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
           </div>
-          <input type="text" class="wtl-chat-manager-search" placeholder="搜索..." value="${searchQuery || ''}" data-action="search">
         </div>
       </div>
     `;
   }
 
-  renderFilters(State) {
-    const { viewMode, activeFilter } = State;
+  renderFilters(state) {
+    const { viewMode, activeFilter } = state;
+    
+    let items = [];
+    let showAdd = false;
     
     if (viewMode === 'folder') {
-      const folders = State.folders || [];
-      let html = '<div class="wtl-chat-manager-filters">' +
-        `<button class="wtl-chat-manager-pill ${activeFilter === '全部' ? 'is-active' : ''}" data-action="filter" data-val="全部">全部</button>`;
-      folders.forEach(f => {
-        html += `<button class="wtl-chat-manager-pill ${activeFilter === f ? 'is-active' : ''}" data-action="filter" data-val="${f}">${f}</button>`;
-      });
-      html += `<button class="wtl-chat-manager-pill" data-action="add-item" data-type="folder">+ 新建</button>`;
-      html += '</div>';
-      return html;
+      items = state.folders || [];
+      showAdd = true;
+    } else if (viewMode === 'tag') {
+      items = state.tags || [];
+      showAdd = true;
+    } else if (viewMode === 'character') {
+      items = state.characters || [];
+      showAdd = false;
+    } else {
+      return '';
     }
     
-    if (viewMode === 'tag') {
-      const tags = State.tags || [];
-      let html = '<div class="wtl-chat-manager-filters">' +
-        `<button class="wtl-chat-manager-pill ${activeFilter === '全部' ? 'is-active' : ''}" data-action="filter" data-val="全部">全部</button>`;
-      tags.forEach(t => {
-        html += `<button class="wtl-chat-manager-pill ${activeFilter === t ? 'is-active' : ''}" data-action="filter" data-val="${t}">${t}</button>`;
-      });
-      html += `<button class="wtl-chat-manager-pill" data-action="add-item" data-type="tag">+ 新建</button>`;
-      html += '</div>';
-      return html;
-    }
+    const itemsHtml = items.map(item => {
+      const isActive = activeFilter === item;
+      return `<button class="wtl-chat-manager-pill ${isActive ? 'is-active' : ''}" data-action="filter" data-val="${this.escapeHtml(item)}">${this.escapeHtml(item)}</button>`;
+    }).join('');
     
-    if (viewMode === 'character') {
-      const characters = State.characters || [];
-      let html = '<div class="wtl-chat-manager-filters">' +
-        `<button class="wtl-chat-manager-pill ${activeFilter === '全部' ? 'is-active' : ''}" data-action="filter" data-val="全部">全部</button>`;
-      characters.forEach(c => {
-        html += `<button class="wtl-chat-manager-pill ${activeFilter === c ? 'is-active' : ''}" data-action="filter" data-val="${c}">${c}</button>`;
-      });
-      html += '</div>';
-      return html;
-    }
+    const addBtn = showAdd ? `<button class="wtl-chat-manager-pill" data-action="add-item" data-type="${viewMode}">+ 新建</button>` : '';
     
-    return '';
+    return `
+      <div class="wtl-chat-manager-filters">
+        <button class="wtl-chat-manager-pill ${activeFilter === '全部' ? 'is-active' : ''}" data-action="filter" data-val="全部">全部</button>
+        ${itemsHtml}
+        ${addBtn}
+      </div>
+    `;
   }
 
-  renderChatList(globalChats, State) {
+  renderChatList(globalChats, state) {
     if (!globalChats || globalChats.length === 0) {
       return '<div class="wtl-chat-manager-empty">暂无聊天记录</div>';
     }
 
-    const searchLower = State.searchQuery?.toLowerCase() || '';
-    let html = '<div class="wtl-chat-manager-list">';
+    const filterResult = this.filterService.filterChats(globalChats, state, state);
+    
+    if (filterResult.filteredChats.length === 0) {
+      return '<div class="wtl-chat-manager-empty">没有符合筛选条件的聊天</div>';
+    }
 
-    const rawSettings = localStorage.getItem('wtl_chat_manager_settings');
-    let previewLines = 2;
-    try {
-      const parsedSettings = rawSettings ? JSON.parse(rawSettings) : null;
-      previewLines = Math.max(1, Math.min(6, Number(parsedSettings?.previewLines ?? 2) || 2));
-    } catch {}
+    const paginationData = this.filterService.paginateChats(
+      filterResult.filteredChats,
+      filterResult.pageSize,
+      filterResult.currentPage
+    );
 
-    globalChats.forEach(chat => {
-      const key = chat.globalKey;
-      const folder = State.chatFolder[key] || '未分类';
-      const tags = State.chatTags[key] || [];
-      const summary = State.chatSummary[key] || '';
-      const customTitle = State.chatTitleOverride[key] || chat.fileName.replace(/\.jsonl$/i, '');
-      const isPinned = State.pinnedChats.includes(key);
+    const cardsHtml = paginationData.pageItems.map(({ chat, key, folder, folderColor, tags: chatTags, summary, customTitle, isPinned, isFavorite }) => {
+      const cardData = this.filterService.formatChatCardData(
+        chat, key, folder, folderColor, chatTags, summary, customTitle, isPinned, isFavorite,
+        state, state.previewLines
+      );
 
-      if (State.activeFilter !== '全部') {
-        if (State.viewMode === 'folder' && folder !== State.activeFilter) return;
-        if (State.viewMode === 'tag' && !tags.includes(State.activeFilter)) return;
-        if (State.viewMode === 'character' && chat.character !== State.activeFilter) return;
-      }
+      return this.renderChatCard(cardData);
+    }).join('');
 
-      if (searchLower && !(`${customTitle} ${summary} ${chat.character}`.toLowerCase().includes(searchLower))) return;
-
-      const isChecked = State.selectedChats.has(key) ? 'checked' : '';
-
-      html += `
-        <div class="wtl-chat-manager-card ${isPinned ? 'is-pinned' : ''}" data-key="${key}">
-          <div class="wtl-chat-manager-check">
-            <input type="checkbox" class="wtl-chat-manager-checkbox" value="${key}" ${isChecked}>
-          </div>
-          <div class="wtl-chat-manager-card-main">
-            <div class="wtl-chat-manager-card-corner-actions">
-              <button class="wtl-chat-manager-mini wtl-chat-manager-mini-plain" title="预览" data-action="preview" data-char="${chat.charId}" data-file="${chat.fileName}">
-                <i class="fa-solid fa-eye"></i>
-              </button>
-              <button class="wtl-chat-manager-mini wtl-chat-manager-mini-plain ${isPinned ? 'is-active' : ''}" title="置顶" data-action="toggle-pin" data-key="${key}">
-                <i class="fa-solid fa-thumbtack"></i>
-              </button>
-              <button class="wtl-chat-manager-mini is-danger" title="删除" data-action="delete-chat" data-char="${chat.charId}" data-file="${chat.fileName}" data-key="${key}">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </div>
-            <div class="wtl-chat-manager-card-top">
-              <div class="wtl-chat-manager-card-heading">
-                <div class="wtl-chat-manager-title-row">
-                  <span class="wtl-chat-manager-title-text">${customTitle}</span>
-                  <button class="wtl-chat-manager-inline-icon" title="改名" data-action="edit-title" data-key="${key}">
-                    <i class="fa-solid fa-pen"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-            ${summary ? `<div class="wtl-chat-manager-summary">${summary}</div>` : ''}
-            <div class="wtl-chat-manager-preview-row">
-              <div class="wtl-chat-manager-preview wtl-chat-manager-preview-lines-${previewLines}">${chat.preview}</div>
-              <button class="wtl-chat-manager-inline-icon" title="添加简介" data-action="edit-summary" data-key="${key}">
-                <i class="fa-solid fa-plus"></i>
-              </button>
-            </div>
-            <div class="wtl-chat-manager-meta-row">
-              <span class="wtl-chat-manager-meta-chip" data-action="edit-folder" data-key="${key}">${folder}</span>
-              ${tags.map(t => `<span class="wtl-chat-manager-meta-chip" data-action="remove-tag" data-key="${key}" data-tag="${t}">${t}</span>`).join('')}
-              <button class="wtl-chat-manager-inline-icon" title="添加标签" data-action="add-tag" data-key="${key}">
-                <i class="fa-solid fa-plus"></i>
-              </button>
-            </div>
-            <div class="wtl-chat-manager-card-foot">
-              <span class="wtl-chat-manager-card-time">@${chat.character}</span>
-              <span class="wtl-chat-manager-file-name">${chat.fileName}</span>
-            </div>
-          </div>
-        </div>
-      `;
+    const paginationHtml = this.renderPagination({
+      currentPage: paginationData.currentPage,
+      totalPages: paginationData.totalPages,
+      totalItems: paginationData.totalItems,
+      pageSize: filterResult.pageSize,
+      startIndex: paginationData.startIndex,
+      pageItemsCount: paginationData.pageItems.length,
     });
 
-    html += '</div>';
-    return html;
+    return `
+      <div class="wtl-chat-manager-list">${cardsHtml}</div>
+      ${paginationHtml}
+    `;
   }
 
-  renderBatchBar(State) {
-    const { isBatchMode, selectedChats } = State;
-    if (!isBatchMode) return '';
+  renderChatCard(card) {
+    const tagsHtml = card.tags.map(tag => {
+      const style = tag.color ? `style="--wtl-accent:${tag.color};--wtl-accent-bg:${tag.color}22;--wtl-accent-border:${tag.color}66;"` : '';
+      return `<span class="wtl-chat-manager-meta-chip" data-action="remove-tag" data-key="${card.globalKey}" data-tag="${this.escapeHtml(tag.name)}" ${style}>${this.escapeHtml(tag.name)}</span>`;
+    }).join('');
     
-    const folders = State.folders || [];
-    const folderOpts = folders.map((f, i) => `${i}. ${f}`).join('\n');
+    const folderStyle = card.folderColor ? `style="--wtl-accent:${card.folderColor};--wtl-accent-bg:${card.folderColor}22;--wtl-accent-border:${card.folderColor}66;"` : '';
+    
+    return `
+      <div class="wtl-chat-manager-card ${card.isPinned ? 'is-pinned' : ''}" data-key="${card.globalKey}">
+        <div class="wtl-chat-manager-check">
+          <input type="checkbox" class="wtl-chat-manager-checkbox" value="${card.globalKey}" ${card.isChecked ? 'checked' : ''}>
+        </div>
+        <div class="wtl-chat-manager-card-main">
+          <div class="wtl-chat-manager-card-corner-actions">
+            <button class="wtl-chat-manager-mini wtl-chat-manager-mini-plain" title="预览" data-action="preview" data-char="${card.charId}" data-file="${card.fileName}">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+            <button class="wtl-chat-manager-mini wtl-chat-manager-mini-plain ${card.isFavorite ? 'is-active' : ''}" title="收藏" data-action="toggle-favorite" data-key="${card.globalKey}">
+              <i class="fa-solid fa-star"></i>
+            </button>
+            <button class="wtl-chat-manager-mini wtl-chat-manager-mini-plain ${card.isPinned ? 'is-pinned' : ''}" title="置顶" data-action="toggle-pin" data-key="${card.globalKey}">
+              <i class="fa-solid fa-thumbtack"></i>
+            </button>
+            <button class="wtl-chat-manager-mini is-danger" title="删除" data-action="delete-chat" data-char="${card.charId}" data-file="${card.fileName}" data-key="${card.globalKey}">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+          <div class="wtl-chat-manager-card-top">
+            <div class="wtl-chat-manager-card-heading">
+              <div class="wtl-chat-manager-title-row">
+                <span class="wtl-chat-manager-title-text">${this.escapeHtml(card.customTitle)}</span>
+                <button class="wtl-chat-manager-inline-icon" title="改名" data-action="edit-title" data-key="${card.globalKey}">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          ${card.summary ? `<div class="wtl-chat-manager-summary">${this.escapeHtml(card.summary)}</div>` : ''}
+          <div class="wtl-chat-manager-preview-row">
+            <div class="wtl-chat-manager-preview wtl-chat-manager-preview-lines-${card.previewLines}">${this.escapeHtml(card.preview)}</div>
+            <button class="wtl-chat-manager-inline-icon" title="添加简介" data-action="edit-summary" data-key="${card.globalKey}">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </div>
+          <div class="wtl-chat-manager-meta-row">
+            <span class="wtl-chat-manager-meta-chip wtl-chat-manager-character-chip">@${this.escapeHtml(card.character)}</span>
+            <span class="wtl-chat-manager-meta-chip" data-action="edit-folder" data-key="${card.globalKey}" ${folderStyle}>${this.escapeHtml(card.folder)}</span>
+            ${tagsHtml}
+            <button class="wtl-chat-manager-inline-icon" title="添加标签" data-action="add-tag" data-key="${card.globalKey}">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </div>
+           <div class="wtl-chat-manager-card-foot">
+             <span class="wtl-chat-manager-card-time">${this.formatRecentDate(card.timestamp)}</span>
+             <span class="wtl-chat-manager-file-meta">
+               <span class="wtl-chat-manager-file-name">${this.escapeHtml(card.fileName)}</span>
+               <span class="wtl-chat-manager-file-extra">楼层 ${Number(card.messageCount || 0) || 0} · ${card.fileSize || '未知大小'}</span>
+             </span>
+           </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderPagination({ currentPage, totalPages, totalItems, pageSize, startIndex, pageItemsCount }) {
+    const rangeStart = totalItems === 0 ? 0 : startIndex + 1;
+    const rangeEnd = startIndex + pageItemsCount;
+
+    return `
+      <div class="wtl-chat-manager-pagination">
+        <div class="wtl-chat-manager-pagination-main">
+          <button class="wtl-chat-manager-mini" data-action="page" data-page="prev" ${currentPage <= 1 ? 'disabled' : ''} title="上一页">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <span class="wtl-chat-manager-page-status">第 ${currentPage} / ${totalPages} 页</span>
+          <button class="wtl-chat-manager-mini" data-action="page" data-page="next" ${currentPage >= totalPages ? 'disabled' : ''} title="下一页">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+        <div class="wtl-chat-manager-page-meta">显示 ${rangeStart}-${rangeEnd} / ${totalItems} 条，每页 ${pageSize} 条</div>
+      </div>
+    `;
+  }
+
+  formatRecentDate(timestamp) {
+    const numeric = Number(timestamp || 0);
+    if (!numeric) return '未知时间';
+    const date = new Date(numeric);
+    if (Number.isNaN(date.getTime())) return '未知时间';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hour}:${minute}`;
+  }
+
+  renderBatchBar(state) {
+    const { isBatchMode, selectedChats } = state;
+    if (!isBatchMode) return '';
     
     return `
       <div class="wtl-chat-manager-batchbar">
@@ -299,20 +361,20 @@ export class ChatManagerUI {
     `;
   }
 
-  renderPanel(globalChats, State) {
+  renderPanel(globalChats, state) {
     if (!this.ui.panel) return;
 
-    const toolbar = this.renderToolbar(State);
-    const filters = this.renderFilters(State);
-    const chatList = this.renderChatList(globalChats, State);
-    const batchBar = this.renderBatchBar(State);
+    const toolbar = this.renderToolbar(state);
+    const filters = this.renderFilters(state);
+    const chatList = this.renderChatList(globalChats, state);
+    const batchBar = this.renderBatchBar(state);
 
     this.ui.panel.innerHTML = toolbar + filters + chatList + batchBar;
     
     this.updateHeader({
-      ...State,
+      ...state,
       totalChats: globalChats?.length || 0,
-      filteredCount: State.filteredCount || globalChats?.length || 0
+      filteredCount: state.filteredCount || globalChats?.length || 0
     });
   }
 
@@ -324,6 +386,15 @@ export class ChatManagerUI {
       this.ui.panel.innerHTML = '<div class="wtl-chat-manager-empty"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>';
       this.ui.panel.classList.add('is-open');
     }
+  }
+
+  escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   getContainer() {

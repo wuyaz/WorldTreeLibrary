@@ -1,0 +1,16 @@
+<div class="wtl-chat-manager-toolbar">
+  <div class="wtl-chat-manager-toolbar-main">
+    <div class="wtl-chat-manager-tabs">
+      <button class="wtl-chat-manager-pill {{#if (eq viewMode 'time')}}is-active{{/if}}" data-action="view" data-view="time"><i class="fa-solid fa-clock"></i> 时间</button>
+      <button class="wtl-chat-manager-pill {{#if (eq viewMode 'character')}}is-active{{/if}}" data-action="view" data-view="character"><i class="fa-solid fa-user"></i> 角色</button>
+      <button class="wtl-chat-manager-pill {{#if (eq viewMode 'folder')}}is-active{{/if}}" data-action="view" data-view="folder"><i class="fa-solid fa-folder"></i> 分组</button>
+      <button class="wtl-chat-manager-pill {{#if (eq viewMode 'tag')}}is-active{{/if}}" data-action="view" data-view="tag"><i class="fa-solid fa-tag"></i> 标签</button>
+    </div>
+    <input type="text" class="wtl-chat-manager-search" placeholder="搜索..." value="{{searchQuery}}" data-action="search">
+    <div class="wtl-chat-manager-toolbar-pager">
+      <button class="wtl-chat-manager-btn" data-action="page" data-page="prev" {{#if prevDisabled}}disabled{{/if}}>上一页</button>
+      <span class="wtl-chat-manager-toolbar-page-text">{{currentPage}}/{{totalPages}}</span>
+      <button class="wtl-chat-manager-btn" data-action="page" data-page="next" {{#if nextDisabled}}disabled{{/if}}>下一页</button>
+    </div>
+  </div>
+</div>

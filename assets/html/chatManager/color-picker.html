@@ -1,0 +1,7 @@
+<div class="wtl-chat-settings-color-picker {{#if isCreate}}is-create{{/if}}" data-type="{{type}}" {{#if value}}data-value="{{value}}"{{/if}}>
+  <button type="button" class="wtl-chat-settings-color-trigger" data-settings-action="{{#if isCreate}}open-create-color-picker{{else}}open-color-picker{{/if}}" data-type="{{type}}" {{#if value}}data-value="{{value}}"{{/if}} style="--wtl-swatch:{{color}};" title="当前颜色 / 自定义"></button>
+  <input class="wtl-chat-settings-color-native" type="color" value="{{color}}" data-settings-input="{{type}}{{#if isCreate}}Create{{/if}}Color" {{#if value}}data-value="{{value}}"{{/if}}>
+  <div class="wtl-chat-settings-swatch-row">
+    {{> preset-colors type=type value=value selectedColor=color}}
+  </div>
+</div>

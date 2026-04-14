@@ -145,14 +145,24 @@ export async function fetchAllChats() {
         const fileName = chat.file_name || chat.name;
         if (!fileName) return;
         
+        const timestamp = chat.last_mes || chat.create_date || 0;
+        let normalizedTimestamp = 0;
+        if (typeof timestamp === 'string') {
+          const parsed = Date.parse(timestamp);
+          normalizedTimestamp = Number.isNaN(parsed) ? 0 : parsed;
+        } else if (typeof timestamp === 'number') {
+          normalizedTimestamp = timestamp;
+        }
+        
         allChats.push({
           character: char.name,
           charId: avatarUrl,
           fileName: fileName,
-          timestamp: chat.last_mes || chat.create_date || 0,
+          timestamp: normalizedTimestamp,
           preview: chat.mes || '暂无预览',
           globalKey: `${avatarUrl}|${fileName}`,
-          messageCount: chat.messages_count || 0
+          messageCount: chat.chat_items || chat.messages_count || chat.message_count || 0,
+          fileSize: chat.file_size || ''
         });
       });
     } catch (e) {

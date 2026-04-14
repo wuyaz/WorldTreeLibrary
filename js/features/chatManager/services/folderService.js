@@ -1,27 +1,59 @@
 // @ts-nocheck
 
+import { loadPreset } from '../../../core/assets.js';
+
 const FOLDERS_KEY = 'wtl_chat_manager_folders';
 
-const DEFAULT_FOLDERS = [
-    { id: 'main', name: '主线', color: '#4CAF50', order: 0 },
-    { id: 'side', name: '支线', color: '#2196F3', order: 1 },
-    { id: 'daily', name: '日常', color: '#FF9800', order: 2 },
-    { id: 'archived', name: '废案', color: '#9E9E9E', order: 3 },
-];
+let DEFAULT_FOLDERS = null;
+
+async function loadDefaultFolders() {
+  if (DEFAULT_FOLDERS) return DEFAULT_FOLDERS;
+  try {
+    const preset = await loadPreset('folders');
+    if (preset && Array.isArray(preset)) {
+      DEFAULT_FOLDERS = preset;
+    } else {
+      DEFAULT_FOLDERS = [
+        { id: 'main', name: '主线', color: '#b76e79', order: 0 },
+        { id: 'side', name: '支线', color: '#c7a86d', order: 1 },
+        { id: 'daily', name: '日常', color: '#7d9b76', order: 2 },
+        { id: 'archived', name: '废案', color: '#9a84a6', order: 3 },
+      ];
+    }
+  } catch (e) {
+    console.warn('[WTL ChatManager] Failed to load default folders:', e);
+    DEFAULT_FOLDERS = [
+      { id: 'main', name: '主线', color: '#b76e79', order: 0 },
+      { id: 'side', name: '支线', color: '#c7a86d', order: 1 },
+      { id: 'daily', name: '日常', color: '#7d9b76', order: 2 },
+      { id: 'archived', name: '废案', color: '#9a84a6', order: 3 },
+    ];
+  }
+  return DEFAULT_FOLDERS;
+}
 
 export class FolderService {
     constructor() {
-        this.folders = [...DEFAULT_FOLDERS];
+        this.folders = [];
         this.chatFolders = {};
         this.listeners = new Set();
+        this._defaultsLoaded = false;
     }
 
-    load() {
+    async load() {
+        if (!this._defaultsLoaded) {
+            const defaults = await loadDefaultFolders();
+            this.folders = [...defaults];
+            this._defaultsLoaded = true;
+        }
+
         try {
             const raw = localStorage.getItem(FOLDERS_KEY);
             if (raw) {
                 const saved = JSON.parse(raw);
-                this.folders = saved.folders || [...DEFAULT_FOLDERS];
+                if (saved.folders && saved.folders.length > 0) {
+                    this.folders = saved.folders;
+                }
                 this.chatFolders = saved.chatFolders || {};
             }
         } catch (e) {
@@ -50,7 +82,7 @@ export class FolderService {
         return this.folders.find(f => f.id === folderId);
     }
 
-    create(name, color = '#4CAF50') {
+    create(name, color = '#b76e79') {
         const id = `folder_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
         const order = this.folders.length;
         const folder = { id, name, color, order };
@@ -125,6 +157,13 @@ export class FolderService {
             }
         }
     }
+
+    async reset() {
+        const defaults = await loadDefaultFolders();
+        this.folders = [...defaults];
+        this.chatFolders = {};
+        this.save();
+    }
 }
 
-export { FOLDERS_KEY, DEFAULT_FOLDERS };
+export { FOLDERS_KEY };

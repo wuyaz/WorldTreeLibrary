@@ -1,0 +1,23 @@
+<section class="wtl-chat-settings-section {{#if tagSectionOpen}}is-open{{/if}}" data-type="tag">
+  <button type="button" class="wtl-chat-settings-section-head" data-settings-action="toggle-section" data-type="tag">
+    <span class="wtl-chat-settings-section-copy">
+      <strong>标签</strong>
+    </span>
+    <span class="wtl-chat-settings-section-arrow">{{#if tagSectionOpen}}收起{{else}}展开{{/if}}</span>
+  </button>
+  <div class="wtl-chat-settings-section-body">
+    <div class="wtl-chat-settings-create-row">
+      <input class="wtl-chat-settings-input text_pole" type="text" placeholder="输入新标签名称" data-settings-input="tagName">
+      {{> color-picker type="tag" isCreate=true}}
+      <button type="button" class="wtl-chat-settings-btn is-primary" data-settings-action="add-item" data-type="tag">新增标签</button>
+    </div>
+    <div class="wtl-chat-settings-list">
+      {{#each tags}}
+      {{> settings-item type="tag" value=this color=(lookup ../tagColors this) index=@index total=../tags.length}}
+      {{/each}}
+      {{#if (eq tags.length 0)}}
+      <div class="wtl-chat-settings-empty">暂无项目</div>
+      {{/if}}
+    </div>
+  </div>
+</section>

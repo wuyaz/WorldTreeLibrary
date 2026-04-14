@@ -1,0 +1,3 @@
+{{#each presetColors}}
+<button type="button" class="wtl-chat-settings-swatch {{#if (eq this ../selectedColor)}}is-active{{/if}}" data-settings-action="pick-preset-color" data-type="{{../type}}" {{#if ../value}}data-value="{{../value}}"{{/if}} data-color="{{this}}" style="--wtl-swatch:{{this}};" title="{{this}}"></button>
+{{/each}}
