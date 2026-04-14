@@ -11,7 +11,7 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* 顶部核心控制行：绝对保证一行 */
+/* 顶部核心控制行 */
 .wtl-chat-manager-header {
   display: flex;
   justify-content: space-between;
@@ -26,7 +26,7 @@
   border-bottom: 1px solid var(--SmartThemeBorderColor);
 }
 
-/* 左侧标题区（点击展开） */
+/* 左侧标题区 */
 .wtl-chat-manager-header-main {
   display: flex;
   align-items: center;
@@ -48,7 +48,7 @@
   text-overflow: ellipsis;
 }
 
-/* 右侧工具栏区（紧凑排列） */
+/* 右侧工具栏区 */
 .wtl-chat-manager-header-tools {
   display: flex;
   align-items: center;
@@ -153,6 +153,7 @@
   white-space: nowrap;
 }
 
+/* 按钮基础样式 */
 .wtl-chat-manager-btn,
 .wtl-chat-manager-pill,
 .wtl-chat-manager-mini {
@@ -187,16 +188,20 @@
   align-items: center;
 }
 
+/* Pill 按钮样式 */
 .wtl-chat-manager-pill {
   padding: 4px 8px;
   font-size: 12px;
   white-space: nowrap;
-  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .wtl-chat-manager-pill i {
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0.7;
+  line-height: 1;
 }
 
 .wtl-chat-manager-pill.is-active i {
@@ -339,24 +344,12 @@
   -webkit-box-orient: vertical;
   white-space: normal;
 }
-.wtl-chat-manager-preview-lines-1 {
-  -webkit-line-clamp: 1;
-}
-.wtl-chat-manager-preview-lines-2 {
-  -webkit-line-clamp: 2;
-}
-.wtl-chat-manager-preview-lines-3 {
-  -webkit-line-clamp: 3;
-}
-.wtl-chat-manager-preview-lines-4 {
-  -webkit-line-clamp: 4;
-}
-.wtl-chat-manager-preview-lines-5 {
-  -webkit-line-clamp: 5;
-}
-.wtl-chat-manager-preview-lines-6 {
-  -webkit-line-clamp: 6;
-}
+.wtl-chat-manager-preview-lines-1 { -webkit-line-clamp: 1; }
+.wtl-chat-manager-preview-lines-2 { -webkit-line-clamp: 2; }
+.wtl-chat-manager-preview-lines-3 { -webkit-line-clamp: 3; }
+.wtl-chat-manager-preview-lines-4 { -webkit-line-clamp: 4; }
+.wtl-chat-manager-preview-lines-5 { -webkit-line-clamp: 5; }
+.wtl-chat-manager-preview-lines-6 { -webkit-line-clamp: 6; }
 .wtl-chat-manager-preview-row {
   display: flex;
   align-items: center;
@@ -516,25 +509,25 @@
 }
 
 /* ============================================
-   设置面板样式 - 极简现代布局
+   设置面板样式 - 紧凑现代布局
    ============================================ */
 
 .wtl-chat-settings-shell {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 500px;
+  gap: 8px;
+  max-width: 480px;
   margin: 0 auto;
   width: 100%;
 }
 
-/* 卡片样式 - 净化背景 */
+/* 卡片样式 */
 .wtl-chat-settings-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 12px;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -548,11 +541,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  margin-bottom: 4px;
 }
 
 .wtl-chat-settings-card-head h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--SmartThemeBodyColor);
 }
@@ -561,18 +555,18 @@
 .wtl-chat-settings-controls {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 /* ============================================
-   1. 表单行对齐 - 左右分布布局
+   表单行对齐 - 左右分布布局
    ============================================ */
 .wtl-chat-settings-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-  min-height: 28px;
+  min-height: 24px;
   gap: 12px;
 }
 
@@ -580,8 +574,8 @@
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  min-height: 26px;
-  opacity: 0.9;
+  min-height: 24px;
+  opacity: 0.85;
   line-height: 1.2;
 }
 
@@ -589,40 +583,67 @@
 .wtl-chat-settings-row > input[type="number"],
 .wtl-chat-settings-row > select,
 .wtl-chat-settings-row > input.wtl-chat-settings-input {
-  width: 160px;
+  width: 150px;
   text-align: right;
-  height: 26px;
-  padding: 0 8px;
+  height: 24px;
+  padding: 0 6px;
   box-sizing: border-box;
   flex-shrink: 0;
+  font-size: 12px;
 }
 
-@media (max-width: 480px) {
+.wtl-chat-settings-row > select {
+  text-align: left;
+  padding-right: 20px;
+}
+
+@media (max-width: 520px) {
   .wtl-chat-settings-row > input[type="text"],
   .wtl-chat-settings-row > input[type="number"],
   .wtl-chat-settings-row > select,
   .wtl-chat-settings-row > input.wtl-chat-settings-input {
-    flex: 1;
-    max-width: 200px;
-    min-width: 120px;
+    flex: 1 1 auto;
+    max-width: 50%;
+    min-width: 100px;
+    width: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .wtl-chat-settings-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .wtl-chat-settings-row > span {
+    flex: 0 0 100%;
+    min-height: 20px;
+  }
+  
+  .wtl-chat-settings-row > input[type="text"],
+  .wtl-chat-settings-row > input[type="number"],
+  .wtl-chat-settings-row > select,
+  .wtl-chat-settings-row > input.wtl-chat-settings-input {
+    max-width: none;
+    width: 100%;
   }
 }
 
 .wtl-chat-settings-row > input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   margin: 0;
 }
 
 /* ============================================
-   3. 新增栏 - 紧凑输入组
+   新增栏 - 紧凑输入组
    ============================================ */
 .wtl-chat-settings-create-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .wtl-chat-settings-create-row .wtl-chat-settings-input[type="text"] {
@@ -635,32 +656,33 @@
 .wtl-chat-settings-preset-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
-  padding: 10px;
+  margin-bottom: 8px;
+  padding: 8px;
   background: rgba(0, 0, 0, 0.15);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .wtl-chat-settings-preset-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .wtl-chat-settings-preset-btn {
-  padding: 4px 10px;
-  font-size: 12px;
-  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 5px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
   color: var(--SmartThemeBodyColor);
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+  height: 22px;
 }
 
 .wtl-chat-settings-preset-btn:hover {
@@ -674,22 +696,17 @@
   font-weight: 600;
 }
 
-.wtl-chat-settings-preset-btn[data-preset="默认"].is-active {
-  background: rgba(128, 128, 128, 0.3);
-  border-color: rgba(128, 128, 128, 0.5);
-}
-
 .wtl-chat-settings-view-toggle {
   display: flex;
   flex-wrap: nowrap;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
 }
 
 .wtl-chat-settings-view-btn {
-  padding: 4px 12px;
-  font-size: 12px;
-  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  border-radius: 5px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
   color: var(--SmartThemeBodyColor);
@@ -697,6 +714,7 @@
   transition: all 0.2s;
   white-space: nowrap;
   flex: 1;
+  height: 22px;
 }
 
 .wtl-chat-settings-view-btn:hover {
@@ -712,14 +730,15 @@
 
 .wtl-chat-settings-preset-select {
   flex: 1;
-  min-width: 120px;
+  min-width: 100px;
+  height: 24px;
 }
 
 /* ============================================
-   Section 样式 - 净化背景
+   Section 样式
    ============================================ */
 .wtl-chat-settings-section {
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(0, 0, 0, 0.2);
   overflow: visible;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -730,14 +749,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 10px 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   background: transparent;
   color: var(--SmartThemeBodyColor);
   cursor: pointer;
   text-align: left;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .wtl-chat-settings-section-copy {
@@ -747,13 +768,13 @@
 }
 
 .wtl-chat-settings-section-arrow {
-  font-size: 11px;
+  font-size: 10px;
   opacity: 0.68;
 }
 
 .wtl-chat-settings-section-body {
   display: none;
-  padding: 0 16px 16px;
+  padding: 0 12px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -764,41 +785,40 @@
 .wtl-chat-settings-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 /* ============================================
-   2. 列表项 - 紧凑图标按钮布局
+   列表项 - 紧凑布局
    ============================================ */
 .wtl-chat-settings-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .wtl-chat-settings-item-main {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
   min-width: 0;
 }
 
 .wtl-chat-settings-order {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--SmartThemeBodyColor);
-  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.6;
   flex-shrink: 0;
 }
 
@@ -814,40 +834,41 @@
 .wtl-chat-settings-color-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 .wtl-chat-settings-color-slider {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 2px;
+  padding: 1px 2px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
 }
 
 .wtl-chat-settings-color-display {
-  width: 32px;
-  height: 24px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  width: 24px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   flex-shrink: 0;
 }
 
 .wtl-chat-settings-color-nav {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border: none;
+  background: transparent;
   color: var(--SmartThemeBodyColor);
+  opacity: 0.5;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 10px;
   font-weight: bold;
   padding: 0;
   transition: all 0.2s;
@@ -855,20 +876,15 @@
 }
 
 .wtl-chat-settings-color-nav:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.wtl-chat-settings-color-nav:active {
-  background: rgba(255, 255, 255, 0.18);
+  opacity: 1;
 }
 
 /* ============================================
-   操作按钮 - 统一 28x28px 图标按钮
+   操作按钮 - 极简无边框图标
    ============================================ */
 .wtl-chat-settings-actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
   align-items: center;
 }
@@ -879,74 +895,70 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
   color: var(--SmartThemeBodyColor);
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+  transition: opacity 0.2s;
   box-sizing: border-box;
   white-space: nowrap;
 }
 
-/* 图标按钮 - 28x28px 正方形 */
+/* 图标按钮 - 极简样式 */
 .wtl-chat-settings-btn.is-icon {
-  width: 28px;
-  height: 28px;
+  width: 18px;
+  height: 18px;
   padding: 0;
-  min-width: 28px;
+  min-width: 18px;
+  opacity: 0.5;
 }
 
 .wtl-chat-settings-btn.is-icon i {
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1;
 }
 
 .wtl-chat-settings-btn:hover,
 .wtl-chat-settings-close:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.wtl-chat-settings-btn.is-primary {
-  background: rgba(255, 255, 255, 0.12);
-  font-weight: 600;
+  opacity: 1;
 }
 
 .wtl-chat-settings-btn.is-danger {
-  color: #f2b7bb;
-  border-color: rgba(224, 108, 117, 0.35);
-  background: rgba(224, 108, 117, 0.1);
+  color: #e06c75;
 }
 
 .wtl-chat-settings-btn.is-danger:hover {
-  background: rgba(224, 108, 117, 0.2);
-  border-color: rgba(224, 108, 117, 0.5);
+  opacity: 1;
 }
 
 .wtl-chat-settings-btn[disabled] {
-  opacity: 0.35;
+  opacity: 0.2;
   cursor: not-allowed;
 }
 
-/* 文本按钮变体（用于新增等操作） */
+/* 文本按钮 */
 .wtl-chat-settings-btn:not(.is-icon) {
-  height: 28px;
-  padding: 0 12px;
+  height: 24px;
+  padding: 0 10px;
   min-width: auto;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* 输入框样式 */
 .wtl-chat-settings-input {
-  height: 28px;
-  border-radius: 6px;
+  height: 24px;
+  border-radius: 5px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--SmartThemeBodyColor);
   font-size: 12px;
-  padding: 0 8px;
+  padding: 0 6px;
   background: rgba(0, 0, 0, 0.26);
   box-sizing: border-box;
-  line-height: 28px;
+  line-height: 24px;
 }
 
 .wtl-chat-settings-input:focus {
@@ -962,7 +974,7 @@
   line-height: normal;
   cursor: pointer;
   background-color: var(--SmartThemeBlurTintColor, #1e1e1e);
-  height: 28px;
+  height: 24px;
 }
 
 .wtl-chat-settings-row select.wtl-chat-settings-input:focus,
@@ -979,9 +991,9 @@
 }
 
 .wtl-chat-settings-empty {
-  padding: 16px;
+  padding: 12px;
   text-align: center;
-  border-radius: 10px;
+  border-radius: 8px;
   opacity: 0.6;
   font-size: 12px;
   background: rgba(255, 255, 255, 0.02);
@@ -1001,15 +1013,15 @@
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  padding: 4px 8px;
+  padding: 3px 6px;
   background: rgba(0, 0, 0, 0.85);
   color: var(--SmartThemeBodyColor);
-  font-size: 11px;
+  font-size: 10px;
   white-space: nowrap;
-  border-radius: 4px;
+  border-radius: 3px;
   z-index: 1000;
   pointer-events: none;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 /* ============================================
@@ -1146,17 +1158,27 @@
 /* 超小屏幕 */
 @media (max-width: 480px) {
   .wtl-chat-settings-item {
-    gap: 8px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 5px 8px;
   }
   
   .wtl-chat-settings-btn.is-icon {
-    width: 26px;
-    height: 26px;
-    min-width: 26px;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+  }
+  
+  .wtl-chat-settings-btn.is-icon i {
+    font-size: 10px;
   }
   
   .wtl-chat-settings-item-main {
-    gap: 6px;
+    gap: 5px;
+  }
+  
+  .wtl-chat-settings-order {
+    width: 18px;
+    height: 18px;
+    font-size: 9px;
   }
 }
