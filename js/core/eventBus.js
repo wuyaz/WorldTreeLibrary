@@ -153,6 +153,36 @@ export const EVENTS = {
   MEMORY_TABLE_SAVED: 'wtl:memory-table-saved',
   MEMORY_TABLE_CLEARED: 'wtl:memory-table-cleared',
   
+  // Editor Events
+  TEMPLATE_EDITOR_OPENED: 'wtl:template-editor-opened',
+  TEMPLATE_EDITOR_CLOSED: 'wtl:template-editor-closed',
+  TABLE_EDITING_TOGGLED: 'wtl:table-editing-toggled',
+  TABLE_CONTENT_CHANGED: 'wtl:table-content-changed',
+  TABLE_CONTENT_SAVED: 'wtl:table-content-saved',
+  TABLE_RESET_TO_TEMPLATE: 'wtl:table-reset-to-template',
+  TEMPLATE_CONTENT_CHANGED: 'wtl:template-content-changed',
+  SCHEMA_CONTENT_CHANGED: 'wtl:schema-content-changed',
+  SCHEMA_CONTENT_SAVED: 'wtl:schema-content-saved',
+  TEMPLATE_STATE_CHANGED: 'wtl:template-state-changed',
+  HISTORY_RESTORED: 'wtl:history-restored',
+  HISTORY_MODAL_OPENED: 'wtl:history-modal-opened',
+  
+  // Runtime Events
+  BATCH_STARTED: 'wtl:batch-started',
+  BATCH_COMPLETED: 'wtl:batch-completed',
+  BATCH_ERROR: 'wtl:batch-error',
+  BATCH_SETTINGS_CHANGED: 'wtl:batch-settings-changed',
+  AUTO_REFRESH_TOGGLED: 'wtl:auto-refresh-toggled',
+  WORLDBOOK_MODE_CHANGED: 'wtl:worldbook-mode-changed',
+  OPENAI_MODELS_REFRESHED: 'wtl:openai-models-refreshed',
+  
+  // Page Events
+  PAGE_CHANGED: 'wtl:page-changed',
+  EXTERNAL_TAB_CHANGED: 'wtl:external-tab-changed',
+  SEND_MODE_CHANGED: 'wtl:send-mode-changed',
+  INST_MODE_CHANGED: 'wtl:inst-mode-changed',
+  SCHEMA_MODE_CHANGED: 'wtl:schema-mode-changed',
+  
   // Chat Manager Events
   CHAT_MANAGER_LOADED: 'wtl:chat-manager-loaded',
   CHAT_MANAGER_STATE_CHANGED: 'wtl:chat-manager-state-changed',

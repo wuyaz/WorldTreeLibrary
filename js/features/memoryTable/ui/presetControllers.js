@@ -1,14 +1,25 @@
+import { getPromptPresets, getSchemaPresets } from '../../../core/storage.js';
+
 function populatePresetSelect(selectEl, presets) {
   if (!selectEl) return;
-  const names = Object.keys(presets || {}).sort();
+  const presetsObj = presets || {};
+  const names = Object.keys(presetsObj).sort();
   selectEl.innerHTML = names.map((name) => `<option value="${name}">${name}</option>`).join('') || '<option value="">(无预设)</option>';
 }
 
 export function refreshTextPresetSelect(selectEl, presets) {
+  if (!selectEl) return;
+  if (typeof presets === 'string') {
+    presets = getPromptPresets(presets);
+  }
   populatePresetSelect(selectEl, presets);
 }
 
 export function refreshSchemaPresetSelect(selectEl, presets) {
+  if (!selectEl) return;
+  if (!presets) {
+    presets = getSchemaPresets();
+  }
   populatePresetSelect(selectEl, presets);
 }
 

@@ -28,11 +28,13 @@ export class PageController {
       currentExternalTab: 'order',
       isFeatureEnabled: true
     };
-    
-    this.initialize();
   }
   
   initialize() {
+    if (!this.ui || !this.ui.root) {
+      console.warn('[WTL PageController] UI refs not ready, delaying initialization');
+      return;
+    }
     this.initializeControllers();
     this.bindEvents();
     this.loadInitialState();
@@ -89,6 +91,10 @@ export class PageController {
     // Bind event bus listeners
     eventBus.on(EVENTS.FEATURE_FLAGS_CHANGED, this.handleFeatureFlagsChanged.bind(this));
     eventBus.on(EVENTS.CHAT_CHANGED, this.handleChatChanged.bind(this));
+    
+    eventBus.on('page:changed', (page) => {
+      this.state.currentPage = page;
+    });
   }
   
   loadInitialState() {

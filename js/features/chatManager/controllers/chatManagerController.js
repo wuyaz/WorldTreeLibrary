@@ -445,6 +445,10 @@ export class ChatManagerController {
         e.stopPropagation();
         await this.handlePreview(actionEl.dataset.char, actionEl.dataset.file);
         break;
+      case 'open-chat':
+        e.stopPropagation();
+        await this.handleOpenChat(actionEl.dataset.char, actionEl.dataset.file);
+        break;
       case 'toggle-pin':
         e.stopPropagation();
         await this.handleTogglePin(actionEl.dataset.key);
@@ -457,6 +461,10 @@ export class ChatManagerController {
         e.stopPropagation();
         await this.handleDeleteChat(actionEl.dataset.char, actionEl.dataset.file, actionEl.dataset.key);
         break;
+      case 'select-all':
+        e.stopPropagation();
+        this.handleSelectAll(e.target.checked);
+        break;
       case 'batch-folder':
         this.handleBatchFolder();
         break;
@@ -465,6 +473,9 @@ export class ChatManagerController {
         break;
       case 'batch-tag-del':
         this.handleBatchTagDel();
+        break;
+      case 'batch-rename':
+        this.handleBatchRename();
         break;
     }
   }
@@ -1089,7 +1100,7 @@ export class ChatManagerController {
 
   handleViewChange(viewMode) {
     this.dataService.state.viewMode = viewMode;
-    this.dataService.state.activeFilter = '全部';
+    this.dataService.state.activeFilter = viewMode === 'folder' ? '未分类' : '';
     this.dataService.state.isBatchMode = false;
     this.dataService.state.selectedChats.clear();
     this.dataService.state.save();
@@ -1130,10 +1141,12 @@ export class ChatManagerController {
       const summary = state.chatSummary[key] || '';
       const customTitle = state.chatTitleOverride[key] || chat.fileName.replace(/\.jsonl$/i, '');
 
-      if (state.activeFilter !== '全部') {
-        if (state.viewMode === 'folder' && folder !== state.activeFilter) return false;
-        if (state.viewMode === 'tag' && !tags.includes(state.activeFilter)) return false;
-        if (state.viewMode === 'character' && chat.character !== state.activeFilter) return false;
+      if (state.viewMode === 'folder') {
+        if (state.activeFilter && state.activeFilter !== '全部' && folder !== state.activeFilter) return false;
+      } else if (state.viewMode === 'tag') {
+        if (state.activeFilter && state.activeFilter !== '全部' && !tags.includes(state.activeFilter)) return false;
+      } else if (state.viewMode === 'character') {
+        if (state.activeFilter && state.activeFilter !== '全部' && chat.character !== state.activeFilter) return false;
       }
 
       if (state.viewMode === 'favorite' && !state.favoriteChats.includes(key)) return false;
@@ -1211,7 +1224,10 @@ export class ChatManagerController {
                 throw new Error(errorData.error || `HTTP ${response.status}`);
               }
               
-              this.dataService.setChatTitle(globalKey, val);
+              const newGlobalKey = `${chat.charId}|${newFileName}`;
+              this.dataService.state.migrateChatData(globalKey, newGlobalKey);
+              
+              this.dataService.setChatTitle(newGlobalKey, val);
               
               this.dataService.isDataLoaded = false;
               this.dataService.chats = [];
@@ -1314,6 +1330,16 @@ export class ChatManagerController {
     });
   }
 
+  async handleOpenChat(charId, fileName) {
+    const { openCharacterChat } = await import('../../../shared/api/chatApi.js');
+    const success = await openCharacterChat(charId, fileName);
+    if (success) {
+      this.ui.togglePanel(false);
+    } else {
+      this.toast('warning', '未能打开聊天，请手动在列表中选择');
+    }
+  }
+
   async handleTogglePin(globalKey) {
     this.dataService.togglePin(globalKey);
     this.globalChats = await this.dataService.loadAllChats();
@@ -1327,82 +1353,243 @@ export class ChatManagerController {
 
   async handleDeleteChat(charId, fileName, globalKey) {
     try {
-      const popupModule = await import('/scripts/popup.js');
-      const confirmed = await popupModule.callGenericPopup('Delete the Chat File?', popupModule.POPUP_TYPE.CONFIRM);
+      const confirmed = await this.confirm('确定要删除这个聊天吗？此操作不可撤销。');
       if (!confirmed) return;
 
-      const scriptModule = await import('/script.js');
-      const characters = scriptModule.characters || [];
-      const characterId = characters.findIndex(x => x.avatar === charId);
-      if (characterId === -1) {
-        this.toast('error', '未找到对应角色，无法删除聊天');
-        return;
+      const headers = await (await import('../../../shared/api/chatApi.js')).getRequestHeaders();
+      
+      let normalizedFileName = fileName;
+      while (normalizedFileName.endsWith('.jsonl')) {
+        normalizedFileName = normalizedFileName.slice(0, -6);
+      }
+      normalizedFileName += '.jsonl';
+      
+      let normalizedCharId = charId;
+      if (!normalizedCharId.endsWith('.png')) {
+        normalizedCharId += '.png';
       }
 
-      await scriptModule.deleteCharacterChatByName(String(characterId), fileName);
+      const response = await fetch('/api/chats/delete', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          avatar_url: normalizedCharId,
+          chatfile: normalizedFileName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`删除失败: ${response.status} ${errorText}`);
+      }
+
       this.dataService.state.selectedChats.delete(globalKey);
+      this.dataService.removeChatData(globalKey);
       this.globalChats = await this.dataService.loadAllChats();
       this.toast('success', '聊天已删除');
       this.renderPanel();
     } catch (error) {
       console.error('[WTL ChatManager] Failed to delete chat:', error);
-      this.toast('error', '删除失败，请查看控制台日志');
+      this.toast('error', '删除失败: ' + error.message);
     }
   }
 
   handleBatchFolder() {
     if (this.dataService.state.selectedChats.size === 0) return;
     
+    this.handleBatchFolderAsync();
+  }
+
+  async handleBatchFolderAsync() {
     const folders = this.dataService.getFolders();
-    const opts = folders.map((f, i) => `${i}. ${f}`).join('\n');
-    const choice = prompt(`将 ${this.dataService.state.selectedChats.size} 个对话移入分组:\n${opts}`);
-    
-    if (choice !== null && folders[parseInt(choice)]) {
-      const target = folders[parseInt(choice)];
-      this.dataService.state.selectedChats.forEach(k => {
-        this.dataService.state.setChatFolder(k, target);
-      });
-      this.dataService.state.isBatchMode = false;
-      this.dataService.state.selectedChats.clear();
-      this.dataService.state.save();
-      this.renderPanel();
+    const selected = await this.showOptionPicker({
+      title: '批量设置分组',
+      subtitle: `为 ${this.dataService.state.selectedChats.size} 个对话设置分组`,
+      options: folders,
+      selectedValue: '',
+      createLabel: '新建分组',
+      createPlaceholder: '输入新分组名称',
+      allowEmpty: true,
+      emptyLabel: '未分类',
+    });
+
+    if (selected === null) return;
+
+    if (selected && !folders.includes(selected)) {
+      this.dataService.state.addFolder(selected);
     }
+
+    this.dataService.state.selectedChats.forEach(k => {
+      this.dataService.setChatFolder(k, selected || '');
+    });
+    this.dataService.state.isBatchMode = false;
+    this.dataService.state.selectedChats.clear();
+    this.dataService.state.save();
+    this.renderPanel();
   }
 
   handleBatchTagAdd() {
     if (this.dataService.state.selectedChats.size === 0) return;
     
-    const t = prompt('为批量对话添加标签:');
-    if (t && t.trim()) {
-      const tag = t.trim();
-      const tags = this.dataService.getTags();
+    this.handleBatchTagAddAsync();
+  }
+
+  async handleBatchTagAddAsync() {
+    const tags = this.dataService.getTags();
+    const selected = await this.showMultiOptionPicker({
+      subtitle: `为 ${this.dataService.state.selectedChats.size} 个对话添加标签`,
+      options: tags,
+      selectedValues: [],
+      createLabel: '新建标签',
+      createPlaceholder: '输入新标签名称，多个请用逗号分隔',
+    });
+
+    if (!selected || selected.length === 0) return;
+
+    selected.forEach((tag) => {
       if (!tags.includes(tag)) {
         this.dataService.addTag(tag);
       }
       this.dataService.state.selectedChats.forEach(k => {
         this.dataService.addTagToChat(k, tag);
       });
-      this.dataService.state.isBatchMode = false;
-      this.dataService.state.selectedChats.clear();
-      this.dataService.state.save();
-      this.renderPanel();
-    }
+    });
+
+    this.dataService.state.isBatchMode = false;
+    this.dataService.state.selectedChats.clear();
+    this.dataService.state.save();
+    this.renderPanel();
   }
 
   handleBatchTagDel() {
     if (this.dataService.state.selectedChats.size === 0) return;
     
-    const t = prompt('为批量对话移除标签:');
-    if (t && t.trim()) {
-      const tag = t.trim();
-      this.dataService.state.selectedChats.forEach(k => {
-        this.dataService.removeTagFromChat(k, tag);
-      });
-      this.dataService.state.isBatchMode = false;
-      this.dataService.state.selectedChats.clear();
-      this.dataService.state.save();
-      this.renderPanel();
+    this.handleBatchTagClearAsync();
+  }
+
+  async handleBatchTagClearAsync() {
+    const confirmed = await this.confirm(`确定要清空 ${this.dataService.state.selectedChats.size} 个对话的所有标签吗？此操作不可撤销。`);
+    if (!confirmed) return;
+
+    this.dataService.state.selectedChats.forEach(k => {
+      this.dataService.state.chatTags[k] = [];
+      delete this.dataService.state.chatTags[k];
+    });
+    this.dataService.state.isBatchMode = false;
+    this.dataService.state.selectedChats.clear();
+    this.dataService.state.save();
+    this.renderPanel();
+  }
+
+  handleSelectAll(checked) {
+    const visibleKeys = this.getFilteredChats().map(c => c.globalKey);
+    if (checked) {
+      visibleKeys.forEach(k => this.dataService.state.selectedChats.add(k));
+    } else {
+      visibleKeys.forEach(k => this.dataService.state.selectedChats.delete(k));
     }
+    this.dataService.state.save();
+    this.renderPanel();
+  }
+
+  handleBatchRename() {
+    if (this.dataService.state.selectedChats.size === 0) return;
+    this.handleBatchRenameAsync();
+  }
+
+  extractOriginalName(title) {
+    let name = title || '';
+    name = name.replace(/^【[^】]*】/, '');
+    name = name.replace(/\[[^\]]*\]/g, '');
+    return name.trim();
+  }
+
+  async handleBatchRenameAsync() {
+    const confirmed = await this.confirm(`确定要批量重命名 ${this.dataService.state.selectedChats.size} 个对话吗？\n格式：【分组名】原名 [标签1][标签2]`);
+    if (!confirmed) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const globalKey of this.dataService.state.selectedChats) {
+      const chat = this.globalChats.find(c => c.globalKey === globalKey);
+      if (!chat) {
+        failCount++;
+        continue;
+      }
+
+      try {
+        const folder = this.dataService.state.chatFolder[globalKey] || '';
+        const tags = this.dataService.state.chatTags[globalKey] || [];
+        const currentTitle = this.dataService.getChatTitle(globalKey);
+        const originalName = this.extractOriginalName(currentTitle);
+
+        const folderPart = folder && folder !== '未分类' ? `【${folder}】` : '';
+        const tagsPart = tags.length > 0 ? ' ' + tags.map(t => `[${t}]`).join('') : '';
+        const newTitle = `${folderPart}${originalName}${tagsPart}`.trim();
+
+        let charId = chat.charId;
+        if (charId.endsWith('.png')) {
+          charId = charId.slice(0, -4);
+        }
+
+        let oldFileName = chat.fileName;
+        while (oldFileName.endsWith('.jsonl')) {
+          oldFileName = oldFileName.slice(0, -6);
+        }
+        oldFileName += '.jsonl';
+        
+        const newFileName = `${newTitle}.jsonl`;
+
+        if (oldFileName === newFileName) {
+          successCount++;
+          continue;
+        }
+
+        const chatApi = await import('../../../shared/api/chatApi.js');
+        const headers = await chatApi.getRequestHeaders();
+        
+        const response = await fetch('/api/chats/rename', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            avatar_url: charId + '.png',
+            original_file: oldFileName,
+            renamed_file: newFileName,
+            is_group: false,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        const newGlobalKey = `${chat.charId}|${newFileName}`;
+        this.dataService.state.migrateChatData(globalKey, newGlobalKey);
+        
+        successCount++;
+      } catch (error) {
+        console.error(`[WTL ChatManager] Failed to rename ${globalKey}:`, error);
+        failCount++;
+      }
+    }
+
+    this.dataService.isDataLoaded = false;
+    this.dataService.chats = [];
+    this.globalChats = await this.dataService.loadAllChats();
+
+    this.dataService.state.isBatchMode = false;
+    this.dataService.state.selectedChats.clear();
+    this.dataService.state.save();
+
+    if (failCount === 0) {
+      this.toast('success', `批量重命名完成：${successCount} 个对话`);
+    } else {
+      this.toast('warning', `批量重命名完成：成功 ${successCount} 个，失败 ${failCount} 个`);
+    }
+
+    this.renderPanel();
   }
 
   renderPanel() {

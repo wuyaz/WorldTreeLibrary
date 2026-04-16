@@ -30,24 +30,29 @@ export async function loadTableForChatState({
 }) {
   const metadata = getChatMetadataFromContext(ctx);
   const chatKey = getChatKeyFromContext(ctx);
+  
   const metaJson = safeParseJson(metadata?.WorldTreeLibrary?.tableJson);
   const localJson = safeParseJson(localStorage.getItem(`wtl.tableJson.${chatKey}`));
   const tableJson = metaJson || localJson;
-  if (tableJson) {
+  
+  if (tableJson && tableJson.sections) {
     hiddenRowsRef.value = typeof tableJson.hiddenRows === 'object' && tableJson.hiddenRows ? tableJson.hiddenRows : {};
     return renderJsonToMarkdown(tableJson);
   }
 
-  const schemaMode = localStorage.getItem('wtl.schemaMode') || defaults.schemaMode;
-  const resolved = resolveSchemaByScope();
-  const schema = resolved?.text || loadSchemaForMode(schemaMode) || getDefaultSchemaText();
+  const schemaMode = localStorage.getItem('wtl.schemaMode') || defaults?.schemaMode || 'global';
+  const resolved = typeof resolveSchemaByScope === 'function' ? resolveSchemaByScope() : null;
+  const schema = resolved?.text || (typeof loadSchemaForMode === 'function' ? loadSchemaForMode(schemaMode) : '') || (typeof getDefaultSchemaText === 'function' ? getDefaultSchemaText() : '');
+  
   const template = parseSchemaToTemplate(schema || '');
   const defaultJson = buildEmptyTableFromTemplate(template);
   defaultJson.hiddenRows = {};
   hiddenRowsRef.value = {};
+  
   const tableMd = renderJsonToMarkdown(defaultJson);
   localStorage.setItem(`wtl.tableJson.${chatKey}`, JSON.stringify(defaultJson));
   localStorage.setItem(`wtl.table.${chatKey}`, tableMd);
+  
   return tableMd;
 }
 
@@ -64,7 +69,11 @@ export async function saveTableForChatState({
   const wrapped = wrapTable(tableMd);
   const tableJson = parseMarkdownTableToJson(wrapped);
   tableJson.hiddenRows = hiddenRows || {};
-  appendHistory(tableJson, wrapped, meta);
+  
+  if (typeof appendHistory === 'function') {
+    appendHistory(tableJson, wrapped, meta);
+  }
+  
   if (metadata && typeof metadata === 'object') {
     metadata.WorldTreeLibrary = { ...(metadata.WorldTreeLibrary || {}), tableJson, table: wrapped };
     if (window.ST_API?.chatHistory?.update) {
@@ -80,6 +89,7 @@ export async function saveTableForChatState({
       }
     }
   }
+  
   const chatKey = getChatKeyFromContext(ctx);
   localStorage.setItem(`wtl.tableJson.${chatKey}`, JSON.stringify(tableJson));
   localStorage.setItem(`wtl.table.${chatKey}`, wrapped);

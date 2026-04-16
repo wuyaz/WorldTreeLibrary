@@ -241,31 +241,49 @@ export async function fetchChatContent(charId, fileName) {
 }
 
 export async function openCharacterChat(charId, fileName) {
-  const ctx = window.SillyTavern?.getContext?.();
-  
-  if (!ctx) {
-    console.warn('[WTL ChatManager] SillyTavern context not available');
-    return false;
-  }
-
   try {
-    if (window.this_chid === undefined || 
-        window.characters?.[window.this_chid]?.avatar !== charId) {
-      const charIdx = window.characters?.findIndex(
-        c => c.avatar === charId || c.name === charId
-      );
-      if (charIdx > -1 && typeof ctx.selectCharacterById === 'function') {
-        await ctx.selectCharacterById(charIdx);
-      }
+    const scriptModule = await import('/script.js');
+    
+    let normalizedCharId = charId;
+    if (normalizedCharId.endsWith('.png')) {
+      normalizedCharId = normalizedCharId.slice(0, -4);
     }
     
-    if (typeof ctx.openCharacterChat === 'function') {
-      await ctx.openCharacterChat(fileName);
+    const characters = scriptModule.characters || window.characters || [];
+    const charIdx = characters.findIndex(
+      c => c.avatar === charId || c.avatar === normalizedCharId + '.png' || c.name === normalizedCharId
+    );
+    
+    if (charIdx === -1) {
+      console.warn('[WTL ChatManager] Character not found:', charId);
+      return false;
+    }
+    
+    let normalizedFileName = fileName;
+    while (normalizedFileName.endsWith('.jsonl')) {
+      normalizedFileName = normalizedFileName.slice(0, -6);
+    }
+    
+    if (typeof scriptModule.selectCharacterById === 'function') {
+      await scriptModule.selectCharacterById(charIdx);
+    } else if (typeof window.selectCharacterById === 'function') {
+      await window.selectCharacterById(charIdx);
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    if (typeof scriptModule.openCharacterChat === 'function') {
+      await scriptModule.openCharacterChat(normalizedFileName);
+      return true;
+    } else if (typeof window.openCharacterChat === 'function') {
+      await window.openCharacterChat(normalizedFileName);
       return true;
     }
+    
+    console.warn('[WTL ChatManager] openCharacterChat function not found');
+    return false;
   } catch (e) {
     console.error('[WTL ChatManager] Failed to open chat:', e);
+    return false;
   }
-  
-  return false;
 }

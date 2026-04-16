@@ -230,9 +230,18 @@
 .wtl-chat-manager-check {
   display: none;
   align-items: center;
+  flex-shrink: 0;
+  width: 18px;
+  padding: 0;
 }
 .wtl-chat-manager-panel.is-batch .wtl-chat-manager-check {
   display: flex;
+}
+.wtl-chat-manager-checkbox {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
 }
 
 .wtl-chat-manager-card-main {
@@ -468,12 +477,48 @@
 
 /* 弹窗与分页样式 */
 .wtl-chat-manager-batchbar {
+  display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 8px 10px;
   margin-top: 10px;
   border: 1px solid var(--SmartThemeBorderColor);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.3);
+  gap: 10px;
+}
+.wtl-chat-manager-batchbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.wtl-chat-manager-batchbar-right {
+  display: flex;
+  gap: 6px;
+}
+.wtl-chat-manager-select-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.wtl-chat-manager-select-all input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+}
+.wtl-chat-manager-selected-count {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.wtl-chat-manager-batchbar .wtl-chat-manager-btn.is-danger {
+  color: #e06c75;
+  border-color: rgba(224, 108, 117, 0.4);
+}
+.wtl-chat-manager-batchbar .wtl-chat-manager-btn.is-danger:hover {
+  background: rgba(224, 108, 117, 0.12);
 }
 .wtl-chat-manager-empty {
   text-align: center;
@@ -1109,7 +1154,7 @@
     font-size: 11px;
   }
   .wtl-chat-manager-card {
-    flex-direction: column;
+    flex-direction: row;
   }
   .wtl-chat-manager-card-top {
     flex-wrap: wrap;

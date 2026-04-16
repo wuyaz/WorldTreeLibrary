@@ -203,9 +203,12 @@ export class ChatManagerUI {
     
     const addBtn = showAdd ? `<button class="wtl-chat-manager-pill" data-action="add-item" data-type="${viewMode}">+ 新建</button>` : '';
     
+    const firstFilter = viewMode === 'folder' ? '未分类' : '';
+    const firstFilterHtml = firstFilter ? `<button class="wtl-chat-manager-pill ${activeFilter === firstFilter ? 'is-active' : ''}" data-action="filter" data-val="${this.escapeHtml(firstFilter)}">${this.escapeHtml(firstFilter)}</button>` : '';
+    
     return `
       <div class="wtl-chat-manager-filters">
-        <button class="wtl-chat-manager-pill ${activeFilter === '全部' ? 'is-active' : ''}" data-action="filter" data-val="全部">全部</button>
+        ${firstFilterHtml}
         ${itemsHtml}
         ${addBtn}
       </div>
@@ -288,14 +291,17 @@ export class ChatManagerUI {
                 <button class="wtl-chat-manager-inline-icon" title="改名" data-action="edit-title" data-key="${card.globalKey}">
                   <i class="fa-solid fa-pen"></i>
                 </button>
+                <button class="wtl-chat-manager-inline-icon" title="添加简介" data-action="edit-summary" data-key="${card.globalKey}">
+                  <i class="fa-solid fa-comment-dots"></i>
+                </button>
               </div>
             </div>
           </div>
           ${card.summary ? `<div class="wtl-chat-manager-summary">${this.escapeHtml(card.summary)}</div>` : ''}
           <div class="wtl-chat-manager-preview-row">
             <div class="wtl-chat-manager-preview wtl-chat-manager-preview-lines-${card.previewLines}">${this.escapeHtml(card.preview)}</div>
-            <button class="wtl-chat-manager-inline-icon" title="添加简介" data-action="edit-summary" data-key="${card.globalKey}">
-              <i class="fa-solid fa-plus"></i>
+            <button class="wtl-chat-manager-inline-icon" title="打开此聊天" data-action="open-chat" data-char="${card.charId}" data-file="${card.fileName}">
+              <i class="fa-solid fa-external-link-alt"></i>
             </button>
           </div>
           <div class="wtl-chat-manager-meta-row">
@@ -355,16 +361,30 @@ export class ChatManagerUI {
     const { isBatchMode, selectedChats } = state;
     if (!isBatchMode) return '';
     
+    const allKeys = this.getAllVisibleKeys(state);
+    const allSelected = allKeys.length > 0 && allKeys.every(k => selectedChats.has(k));
+    
     return `
       <div class="wtl-chat-manager-batchbar">
-        <span>已选 ${selectedChats.size} 条</span>
-        <div>
+        <div class="wtl-chat-manager-batchbar-left">
+          <label class="wtl-chat-manager-select-all">
+            <input type="checkbox" ${allSelected ? 'checked' : ''} data-action="select-all">
+            <span>全选</span>
+          </label>
+          <span class="wtl-chat-manager-selected-count">已选 ${selectedChats.size} 条</span>
+        </div>
+        <div class="wtl-chat-manager-batchbar-right">
           <button class="wtl-chat-manager-btn" data-action="batch-folder">设分组</button>
           <button class="wtl-chat-manager-btn" data-action="batch-tag-add">加标签</button>
-          <button class="wtl-chat-manager-btn" data-action="batch-tag-del">删标签</button>
+          <button class="wtl-chat-manager-btn" data-action="batch-rename">重命名</button>
+          <button class="wtl-chat-manager-btn is-danger" data-action="batch-tag-del">清空标签</button>
         </div>
       </div>
     `;
+  }
+
+  getAllVisibleKeys(state) {
+    return [];
   }
 
   renderPanel(globalChats, state) {

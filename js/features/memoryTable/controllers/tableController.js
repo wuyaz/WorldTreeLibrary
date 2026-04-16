@@ -14,6 +14,9 @@ import {
   buildEmptyTableFromTemplate
 } from '../data/markdown.js';
 import {
+  parseSchemaToTemplate
+} from '../data/template.js';
+import {
   updateTableRows as updatePreviewTableRows,
   moveTableRow,
   applyPreviewEditsToMarkdown as applyTablePreviewEdits,
@@ -33,17 +36,8 @@ import {
   saveTableForChatState,
   reloadStateForCurrentChat as reloadChatState
 } from '../services/chatStateService.js';
-import {
-  ensureAutoFillDefaults,
-  collectLoadStateSnapshot,
-  seedStoredLoadStateSnapshot,
-  persistCoreUiState
-} from '../services/stateService.js';
-import {
-  buildManagedPromptInjectionItems,
-  getManagedPromptInjectionEntryName
-} from '../services/injectionService.js';
 import { safeParseJson } from '../../../shared/utils/index.js';
+import { getFeatureFlags } from '../../../core/storage.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
 
 export class TableController {
@@ -68,10 +62,15 @@ export class TableController {
       runtimeInjectedInput: null
     };
     
-    this.initialize();
+    this.history = [];
+    this.autoRefreshInterval = null;
   }
   
   initialize() {
+    if (!this.ui || !this.ui.root) {
+      console.warn('[WTL TableController] UI refs not ready, delaying initialization');
+      return;
+    }
     this.bindEvents();
     this.loadState();
     this.applyFeatureUi();
@@ -155,8 +154,8 @@ export class TableController {
       parseSchemaToTemplate,
       buildEmptyTableFromTemplate,
       getDefaultSchemaText: () => this.getDefaultSchemaText(),
-      resolveSchemaByScope: this.resolveSchemaByScope.bind(this),
-      loadSchemaForMode: this.loadSchemaForMode.bind(this),
+      resolveSchemaByScope: () => this.resolveSchemaByScope(),
+      loadSchemaForMode: (mode) => this.loadSchemaForMode(mode),
       hiddenRowsRef
     });
     this.state.hiddenRows = hiddenRowsRef.value;
@@ -170,18 +169,14 @@ export class TableController {
     
     try {
       const emptyTable = buildEmptyTableFromTemplate(this.state.templateState);
-      await saveTableForChatState({
-        ctx: this.ctx,
-        tableMd: emptyTable,
-        defaults: this.defaults,
-        safeParseJson,
-        parseMarkdownTableToJson,
-        renderJsonToMarkdown,
-        getDefaultSchemaText: () => this.getDefaultSchemaText(),
-        resolveSchemaByScope: this.resolveSchemaByScope.bind(this)
-      });
+      const tableMd = renderJsonToMarkdown(emptyTable);
+      
+      if (this.ui.tableMdEl) {
+        this.ui.tableMdEl.value = tableMd;
+      }
       
       this.state.hiddenRows = {};
+      await this.saveTable();
       await this.loadTableForEditing();
       
       eventBus.emit(EVENTS.MEMORY_TABLE_CLEARED);
@@ -196,17 +191,17 @@ export class TableController {
     }
   }
   
-  async saveTable(tableMd) {
+  async saveTable(meta = {}) {
     try {
+      const tableMd = this.ui.tableMdEl?.value || '';
       await saveTableForChatState({
         ctx: this.ctx,
         tableMd,
-        defaults: this.defaults,
-        safeParseJson,
+        meta,
+        hiddenRows: this.state.hiddenRows,
+        wrapTable,
         parseMarkdownTableToJson,
-        renderJsonToMarkdown,
-        getDefaultSchemaText: () => this.getDefaultSchemaText(),
-        resolveSchemaByScope: this.resolveSchemaByScope.bind(this)
+        appendHistory: this.appendHistory.bind(this)
       });
       
       eventBus.emit(EVENTS.MEMORY_TABLE_SAVED, { tableMd });
@@ -220,6 +215,26 @@ export class TableController {
       });
       this.setStatus('保存表格失败', 'error');
       return false;
+    }
+  }
+  
+  appendHistory(tableJson, tableMd, meta) {
+    const historyItem = {
+      timestamp: Date.now(),
+      tableJson,
+      tableMd,
+      meta
+    };
+    this.history.push(historyItem);
+    if (this.history.length > 50) {
+      this.history.shift();
+    }
+    
+    const chatKey = getChatKeyFromContext(this.ctx);
+    try {
+      localStorage.setItem(`wtl.history.${chatKey}`, JSON.stringify(this.history));
+    } catch (e) {
+      console.warn('[WTL TableController] Failed to save history:', e);
     }
   }
   
@@ -328,16 +343,22 @@ export class TableController {
   
   saveState() {
     try {
+      const chatKey = getChatKeyFromContext(this.ctx);
+      
+      localStorage.setItem(`wtl.hiddenRows.${chatKey}`, JSON.stringify(this.state.hiddenRows));
+      localStorage.setItem(`wtl.activeSection.${chatKey}`, this.state.activeSection);
+      localStorage.setItem(`wtl.tableSectionOrder.${chatKey}`, JSON.stringify(this.state.tableSectionOrder));
+      
       const blockOrder = serializeBlockOrder(this.ui.blockListEl);
       const refBlockOrder = serializeBlockOrder(this.ui.refBlockListEl);
       
-      persistCoreUiState({
-        blockOrder,
-        refBlockOrder,
-        hiddenRows: this.state.hiddenRows,
-        activeSection: this.state.activeSection,
-        tableSectionOrder: this.state.tableSectionOrder
-      });
+      if (blockOrder) {
+        localStorage.setItem('wtl.blockOrder', JSON.stringify(blockOrder));
+      }
+      
+      if (refBlockOrder) {
+        localStorage.setItem('wtl.refBlockOrder', JSON.stringify(refBlockOrder));
+      }
       
       eventBus.emit(EVENTS.STORAGE_CHANGED, { type: 'uiState' });
     } catch (error) {
@@ -347,15 +368,21 @@ export class TableController {
   
   loadState() {
     try {
-      const snapshot = collectLoadStateSnapshot();
+      const chatKey = getChatKeyFromContext(this.ctx);
       
-      if (snapshot) {
-        this.state.hiddenRows = snapshot.hiddenRows || {};
-        this.state.activeSection = snapshot.activeSection || '';
-        this.state.tableSectionOrder = snapshot.tableSectionOrder || [];
-        
-        // Seed stored state if needed
-        seedStoredLoadStateSnapshot(snapshot);
+      const savedHiddenRows = localStorage.getItem(`wtl.hiddenRows.${chatKey}`);
+      if (savedHiddenRows) {
+        this.state.hiddenRows = safeParseJson(savedHiddenRows) || {};
+      }
+      
+      const savedActiveSection = localStorage.getItem(`wtl.activeSection.${chatKey}`);
+      if (savedActiveSection) {
+        this.state.activeSection = savedActiveSection;
+      }
+      
+      const savedSectionOrder = localStorage.getItem(`wtl.tableSectionOrder.${chatKey}`);
+      if (savedSectionOrder) {
+        this.state.tableSectionOrder = safeParseJson(savedSectionOrder) || [];
       }
     } catch (error) {
       console.error('[WTL TableController] Failed to load state:', error);
@@ -425,25 +452,68 @@ export class TableController {
     }
   }
   
-  // Helper methods
   getDefaultSchemaText() {
-    // Implementation for getting default schema text
-    return '';
+    try {
+      const presets = safeParseJson(localStorage.getItem('wtl.schema.presets')) || {};
+      const active = localStorage.getItem('wtl.schema.presetActive') || '默认';
+      
+      if (presets[active]) {
+        return presets[active];
+      }
+      
+      if (presets['默认']) {
+        return presets['默认'];
+      }
+      
+      if (window.__WTL_PRESETS__?.schema?.['默认']) {
+        const fallback = window.__WTL_PRESETS__.schema['默认'];
+        return Array.isArray(fallback) ? fallback.join('\n') : String(fallback || '');
+      }
+      
+      return '';
+    } catch (error) {
+      console.error('[WTL TableController] Failed to get default schema:', error);
+      return '';
+    }
   }
   
-  resolveSchemaByScope(scope) {
-    // Implementation for resolving schema by scope
-    return '';
+  resolveSchemaByScope() {
+    try {
+      const chatId = getChatKeyFromContext(this.ctx);
+      const charId = this.ctx?.characterId || '';
+      
+      const scopedPresets = safeParseJson(localStorage.getItem('wtl.schema.presetsByScope')) || {};
+      const presets = safeParseJson(localStorage.getItem('wtl.schema.presets')) || {};
+      
+      const chatName = scopedPresets?.chat?.[chatId];
+      if (chatName && presets[chatName]) {
+        return { scope: 'chat', name: chatName, text: presets[chatName] };
+      }
+      
+      const charName = scopedPresets?.character?.[charId];
+      if (charName && presets[charName]) {
+        return { scope: 'character', name: charName, text: presets[charName] };
+      }
+      
+      const globalName = scopedPresets?.global || localStorage.getItem('wtl.schema.presetActive') || '默认';
+      const globalText = presets[globalName] || presets['默认'] || this.getDefaultSchemaText();
+      return { scope: 'global', name: globalName || '默认', text: globalText || '' };
+    } catch (error) {
+      console.error('[WTL TableController] Failed to resolve schema by scope:', error);
+      return { scope: 'global', name: '默认', text: '' };
+    }
   }
   
   loadSchemaForMode(mode) {
-    // Implementation for loading schema for mode
-    return '';
+    const resolved = this.resolveSchemaByScope();
+    return resolved?.text || this.getDefaultSchemaText();
   }
   
   getFeatureFlags() {
-    const flags = safeParseJson(localStorage.getItem('wtl.featureFlags')) || {};
-    return flags;
+    return safeParseJson(localStorage.getItem('wtl.featureFlags')) || {
+      memoryTable: true,
+      chatManager: true
+    };
   }
   
   // Public API

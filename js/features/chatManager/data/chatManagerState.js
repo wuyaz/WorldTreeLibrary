@@ -34,6 +34,9 @@ export class ChatManagerState {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
+      this.viewMode = data.viewMode || this.viewMode;
+      this.activeFilter = data.activeFilter || this.activeFilter;
+      this.searchQuery = data.searchQuery || '';
       this.folders = data.folders || this.folders;
       this.tags = data.tags || this.tags;
       this.folderColors = data.folderColors || {};
@@ -49,6 +52,12 @@ export class ChatManagerState {
       this.isExpanded = data.isExpanded || false;
       this.selectedFolder = data.selectedFolder || null;
       this.selectedTags = data.selectedTags || [];
+      
+      if (this.viewMode === 'folder' && !this.activeFilter) {
+        this.activeFilter = '未分类';
+      } else if ((this.viewMode === 'tag' || this.viewMode === 'character') && this.activeFilter === '全部') {
+        this.activeFilter = '';
+      }
     } catch (e) {
       console.warn('[WTL ChatManager] Failed to load state:', e);
     }
@@ -57,6 +66,9 @@ export class ChatManagerState {
   save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        viewMode: this.viewMode,
+        activeFilter: this.activeFilter,
+        searchQuery: this.searchQuery,
         folders: this.folders,
         tags: this.tags,
         folderColors: this.folderColors,
@@ -300,6 +312,59 @@ export class ChatManagerState {
       }
       this.save();
     }
+  }
+
+  removeChatData(globalKey) {
+    delete this.chatFolder[globalKey];
+    delete this.chatTags[globalKey];
+    delete this.chatSummary[globalKey];
+    delete this.chatTitleOverride[globalKey];
+    
+    const pinnedIndex = this.pinnedChats.indexOf(globalKey);
+    if (pinnedIndex !== -1) {
+      this.pinnedChats.splice(pinnedIndex, 1);
+    }
+    
+    const favoriteIndex = this.favoriteChats.indexOf(globalKey);
+    if (favoriteIndex !== -1) {
+      this.favoriteChats.splice(favoriteIndex, 1);
+    }
+    
+    this.save();
+  }
+
+  migrateChatData(oldKey, newKey) {
+    if (this.chatFolder[oldKey] !== undefined) {
+      this.chatFolder[newKey] = this.chatFolder[oldKey];
+      delete this.chatFolder[oldKey];
+    }
+    
+    if (this.chatTags[oldKey] !== undefined) {
+      this.chatTags[newKey] = this.chatTags[oldKey];
+      delete this.chatTags[oldKey];
+    }
+    
+    if (this.chatSummary[oldKey] !== undefined) {
+      this.chatSummary[newKey] = this.chatSummary[oldKey];
+      delete this.chatSummary[oldKey];
+    }
+    
+    if (this.chatTitleOverride[oldKey] !== undefined) {
+      this.chatTitleOverride[newKey] = this.chatTitleOverride[oldKey];
+      delete this.chatTitleOverride[oldKey];
+    }
+    
+    const pinnedIndex = this.pinnedChats.indexOf(oldKey);
+    if (pinnedIndex !== -1) {
+      this.pinnedChats[pinnedIndex] = newKey;
+    }
+    
+    const favoriteIndex = this.favoriteChats.indexOf(oldKey);
+    if (favoriteIndex !== -1) {
+      this.favoriteChats[favoriteIndex] = newKey;
+    }
+    
+    this.save();
   }
 
   exportState() {

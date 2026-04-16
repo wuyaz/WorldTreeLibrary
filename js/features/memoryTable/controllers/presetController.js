@@ -8,19 +8,13 @@ import {
   loadTextPresetValue,
   saveTextPresetValue,
   renameTextPresetValue,
-  deleteTextPresetValue,
-  importJsonPresets,
-  saveSchemaPresetValue,
-  renameSchemaPresetValue,
-  deleteSchemaPresetValue,
-  importPresetFile,
-  exportPresetFile
+  deleteTextPresetValue
 } from '../ui/presets.js';
 import {
   createSchemaPresetHelpers,
   createOpenAiPresetHelpers,
-  bindSchemaPresetGroup,
-  bindPromptPresetGroups,
+  bindSchemaPresetControls,
+  bindTextPresetControls,
   refreshSchemaPresetSelect,
   refreshTextPresetSelect
 } from '../ui/presetControllers.js';
@@ -32,25 +26,17 @@ import {
   SCHEMA_PRESET_KEY,
   SCHEMA_PRESET_ACTIVE_KEY,
   getFeatureFlags,
-  safeParseJson,
   getOpenAIPresets,
   setOpenAIPresets,
   getPromptPresets,
   setPromptPresets,
-  getPresetFromStorage,
-  getPresetTextByName,
-  getTextPresetFromStorage,
-  getDefaultPromptText,
-  getDefaultSchemaText,
   getSchemaPresets,
   setSchemaPresets,
   getSchemaScopedPresets,
-  setSchemaScopedPresets,
-  getBlocksPreset,
-  getRefBlocksPreset,
-  getOrderPreset,
-  getRefOrderPreset
+  setSchemaScopedPresets
 } from '../../../core/storage.js';
+import { safeParseJson } from '../../../shared/utils/index.js';
+import { saveSchemaPresetValue, renameSchemaPresetValue, deleteSchemaPresetValue } from '../ui/presets.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
 
 export class PresetController {
@@ -61,11 +47,13 @@ export class PresetController {
     
     this.schemaPresetHelpers = null;
     this.openAiPresetHelpers = null;
-    
-    this.initialize();
   }
   
   initialize() {
+    if (!this.ui || !this.ui.root) {
+      console.warn('[WTL PresetController] UI refs not ready, delaying initialization');
+      return;
+    }
     this.initializePresetHelpers();
     this.bindEvents();
     this.refreshPresetSelects();
@@ -102,59 +90,103 @@ export class PresetController {
   bindEvents() {
     // Bind schema preset controls
     if (this.ui.schemaPresetEl) {
-      bindSchemaPresetGroup({
-        presetSelectEl: this.ui.schemaPresetEl,
-        presetNameEl: this.ui.schemaPresetNameEl,
-        presetLoadEl: this.ui.schemaPresetLoadEl,
-        presetSaveEl: this.ui.schemaPresetSaveEl,
-        presetRenameEl: this.ui.schemaPresetRenameEl,
-        presetDelEl: this.ui.schemaPresetDelEl,
-        presetImportEl: this.ui.schemaPresetImportEl,
-        presetExportEl: this.ui.schemaPresetExportEl,
-        presetFileEl: this.ui.schemaPresetFileEl,
-        getSchemaScopedPresets,
+      bindSchemaPresetControls({
+        schemaPresetEl: this.ui.schemaPresetEl,
+        schemaPresetNameEl: this.ui.schemaPresetNameEl,
+        schemaPresetLoadEl: this.ui.schemaPresetLoadEl,
+        schemaPresetSaveEl: this.ui.schemaPresetSaveEl,
+        schemaPresetRenameEl: this.ui.schemaPresetRenameEl,
+        schemaPresetDelEl: this.ui.schemaPresetDelEl,
+        schemaPresetImportEl: this.ui.schemaPresetImportEl,
+        schemaPresetFileEl: this.ui.schemaPresetFileEl,
+        schemaPresetExportEl: this.ui.schemaPresetExportEl,
+        schemaBindGlobalEl: this.ui.schemaBindGlobalEl,
+        schemaBindCharacterEl: this.ui.schemaBindCharacterEl,
+        schemaBindChatEl: this.ui.schemaBindChatEl,
+        schemaEl: this.ui.schemaEl,
+        schemaEffectiveEl: this.ui.schemaEffectiveEl,
         getSchemaPresets,
         setSchemaPresets,
+        getSchemaScope: () => this.schemaPresetHelpers?.getSchemaScope?.() || 'global',
+        getSchemaScopeLabel: (scope) => this.schemaPresetHelpers?.getSchemaScopeLabel?.(scope) || scope,
+        getSchemaScopedPresets,
         setSchemaScopedPresets,
-        getSchemaPreset: this.getSchemaPreset.bind(this),
         getCurrentChatId: this.getCurrentChatId.bind(this),
         getCurrentCharacterId: this.getCurrentCharacterId.bind(this),
-        localStorageRef: localStorage,
-        onSchemaUpdated: this.handleSchemaUpdated.bind(this)
+        resolveSchemaByScope: () => this.schemaPresetHelpers?.resolveSchemaByScope?.() || { scope: 'global', name: '默认', text: '' },
+        parseSchemaToTemplate: this.parseSchemaToTemplate.bind(this),
+        updateSchemaPreview: this.updateSchemaPreview.bind(this),
+        refreshPromptPreview: this.refreshPromptPreview.bind(this),
+        importPresetFile: this.importPresetFile.bind(this),
+        exportPresetFile: this.exportPresetFile.bind(this),
+        downloadJsonFile: this.downloadJsonFile.bind(this),
+        saveSchemaPresetValue,
+        renameSchemaPresetValue,
+        deleteSchemaPresetValue,
+        updateSchemaBindRadios: (scope) => this.schemaPresetHelpers?.updateSchemaBindRadios?.(scope),
+        onSchemaLoaded: this.handleSchemaUpdated.bind(this),
+        setStatus: this.setStatus.bind(this)
       });
     }
     
     // Bind prompt preset controls
-    bindPromptPresetGroups({
-      preprompt: {
-        presetSelectEl: this.ui.prepromptPresetEl,
-        presetNameEl: this.ui.prepromptPresetNameEl,
-        presetLoadEl: this.ui.prepromptPresetLoadEl,
-        presetSaveEl: this.ui.prepromptPresetSaveEl,
-        presetRenameEl: this.ui.prepromptPresetRenameEl,
-        presetDelEl: this.ui.prepromptPresetDelEl,
-        presetImportEl: this.ui.prepromptPresetImportEl,
-        presetExportEl: this.ui.prepromptPresetExportEl,
-        presetFileEl: this.ui.prepromptPresetFileEl,
-        storageKey: PREPROMPT_PRESET_KEY,
-        activeKey: PREPROMPT_PRESET_ACTIVE_KEY,
-        getDefaultText: () => getDefaultPromptText('preprompt'),
-        onPresetUpdated: this.handlePresetUpdated.bind(this, 'preprompt')
-      },
-      instruction: {
-        presetSelectEl: this.ui.instructionPresetEl,
-        presetNameEl: this.ui.instructionPresetNameEl,
-        presetLoadEl: this.ui.instructionPresetLoadEl,
-        presetSaveEl: this.ui.instructionPresetSaveEl,
-        presetRenameEl: this.ui.instructionPresetRenameEl,
-        presetDelEl: this.ui.instructionPresetDelEl,
-        presetImportEl: this.ui.instructionPresetImportEl,
-        presetExportEl: this.ui.instructionPresetExportEl,
-        presetFileEl: this.ui.instructionPresetFileEl,
-        storageKey: INSTRUCTION_PRESET_KEY,
-        activeKey: INSTRUCTION_PRESET_ACTIVE_KEY,
-        getDefaultText: () => getDefaultPromptText('instruction'),
-        onPresetUpdated: this.handlePresetUpdated.bind(this, 'instruction')
+    bindTextPresetControls({
+      selectEl: this.ui.prepromptPresetEl,
+      nameEl: this.ui.prepromptPresetNameEl,
+      textareaEl: this.ui.prePromptEl,
+      loadBtn: this.ui.prepromptPresetLoadEl,
+      saveBtn: this.ui.prepromptPresetSaveEl,
+      renameBtn: this.ui.prepromptPresetRenameEl,
+      deleteBtn: this.ui.prepromptPresetDelEl,
+      importBtn: this.ui.prepromptPresetImportEl,
+      fileEl: this.ui.prepromptPresetFileEl,
+      exportBtn: this.ui.prepromptPresetExportEl,
+      storageKey: PREPROMPT_PRESET_KEY,
+      activeStorageKey: PREPROMPT_PRESET_ACTIVE_KEY,
+      getPromptPresets,
+      setPromptPresets,
+      loadTextPresetValue,
+      saveTextPresetValue,
+      renameTextPresetValue,
+      deleteTextPresetValue,
+      importPresetFile: this.importPresetFile.bind(this),
+      exportPresetFile: this.exportPresetFile.bind(this),
+      downloadJsonFile: this.downloadJsonFile.bind(this),
+      refreshPromptPreview: this.refreshPromptPreview.bind(this),
+      setStatus: this.setStatus.bind(this),
+      labels: {
+        subject: '破限提示',
+        filename: 'wtl-preprompt-presets.json'
+      }
+    });
+    
+    bindTextPresetControls({
+      selectEl: this.ui.instructionPresetEl,
+      nameEl: this.ui.instructionPresetNameEl,
+      textareaEl: this.ui.instructionEl,
+      loadBtn: this.ui.instructionPresetLoadEl,
+      saveBtn: this.ui.instructionPresetSaveEl,
+      renameBtn: this.ui.instructionPresetRenameEl,
+      deleteBtn: this.ui.instructionPresetDelEl,
+      importBtn: this.ui.instructionPresetImportEl,
+      fileEl: this.ui.instructionPresetFileEl,
+      exportBtn: this.ui.instructionPresetExportEl,
+      storageKey: INSTRUCTION_PRESET_KEY,
+      activeStorageKey: INSTRUCTION_PRESET_ACTIVE_KEY,
+      getPromptPresets,
+      setPromptPresets,
+      loadTextPresetValue,
+      saveTextPresetValue,
+      renameTextPresetValue,
+      deleteTextPresetValue,
+      importPresetFile: this.importPresetFile.bind(this),
+      exportPresetFile: this.exportPresetFile.bind(this),
+      downloadJsonFile: this.downloadJsonFile.bind(this),
+      refreshPromptPreview: this.refreshPromptPreview.bind(this),
+      setStatus: this.setStatus.bind(this),
+      labels: {
+        subject: '填表指令',
+        filename: 'wtl-instruction-presets.json'
       }
     });
     
@@ -170,9 +202,6 @@ export class PresetController {
     if (this.ui.openaiRefreshEl) {
       this.ui.openaiRefreshEl.addEventListener('click', () => this.handleOpenAIRefresh());
     }
-    
-    // Bind preset import/export
-    this.bindPresetImportExport();
   }
   
   bindPresetImportExport() {
@@ -287,26 +316,6 @@ export class PresetController {
       if (!fileInput) return;
       
       fileInput.click();
-      
-      fileInput.onchange = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        
-        try {
-          await importPresetFile(file, presetType);
-          await this.refreshPresetSelect(presetType);
-          eventBus.emit(EVENTS.PRESET_LOADED, { type: presetType, source: 'import' });
-        } catch (error) {
-          console.error(`[WTL PresetController] Failed to import ${presetType} preset:`, error);
-          eventBus.emit(EVENTS.ERROR_OCCURRED, { 
-            context: `import${presetType}Preset`, 
-            error 
-          });
-        }
-        
-        // Reset file input
-        fileInput.value = '';
-      };
     } catch (error) {
       console.error(`[WTL PresetController] Failed to setup ${presetType} preset import:`, error);
     }
@@ -314,7 +323,9 @@ export class PresetController {
   
   async handlePresetExport(presetType) {
     try {
-      await exportPresetFile(presetType);
+      const filename = presetType === 'preprompt' ? 'wtl-preprompt-presets.json' : 'wtl-instruction-presets.json';
+      const presets = getPromptPresets(presetType === 'preprompt' ? PREPROMPT_PRESET_KEY : INSTRUCTION_PRESET_KEY);
+      this.downloadJsonFile(filename, presets);
       eventBus.emit(EVENTS.PRESET_SAVED, { type: presetType, action: 'export' });
     } catch (error) {
       console.error(`[WTL PresetController] Failed to export ${presetType} preset:`, error);
@@ -325,32 +336,68 @@ export class PresetController {
     }
   }
   
+  async importPresetFile({ file, currentPresets, applyPresets, onSuccess, onError, resetInput }) {
+    if (!file) return false;
+    try {
+      const text = await file.text();
+      const data = safeParseJson(text) || {};
+      const presets = { ...(currentPresets || {}), ...data };
+      applyPresets?.(presets);
+      onSuccess?.(presets);
+      return true;
+    } catch (err) {
+      onError?.(err);
+      return false;
+    } finally {
+      resetInput?.();
+    }
+  }
+  
+  exportPresetFile({ filename, presets, downloadJson }) {
+    downloadJson?.(filename, presets || {});
+  }
+  
+  downloadJsonFile(filename, data) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  
+  parseSchemaToTemplate(schemaText) {
+    try {
+      const { parseSchemaToTemplate } = import('../data/template.js');
+      return parseSchemaToTemplate(schemaText);
+    } catch (error) {
+      console.error('[WTL PresetController] Failed to parse schema:', error);
+      return { title: '记忆表格', sections: [] };
+    }
+  }
+  
+  updateSchemaPreview() {
+    if (this.ui.schemaEl) {
+      const schemaText = this.getSchemaPreset();
+      this.ui.schemaEl.value = schemaText || '';
+    }
+  }
+  
+  refreshPromptPreview(force = false) {
+    eventBus.emit('refreshPromptPreview', { force });
+  }
+  
+  setStatus(message) {
+    console.log('[WTL PresetController]', message);
+  }
+  
   async handleSchemaPresetImport() {
     try {
       const fileInput = this.ui.schemaPresetFileEl;
       if (!fileInput) return;
       
       fileInput.click();
-      
-      fileInput.onchange = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        
-        try {
-          await importJsonPresets(file, 'schema');
-          await refreshSchemaPresetSelect(this.ui.schemaPresetEl);
-          eventBus.emit(EVENTS.PRESET_LOADED, { type: 'schema', source: 'import' });
-        } catch (error) {
-          console.error('[WTL PresetController] Failed to import schema preset:', error);
-          eventBus.emit(EVENTS.ERROR_OCCURRED, { 
-            context: 'importSchemaPreset', 
-            error 
-          });
-        }
-        
-        // Reset file input
-        fileInput.value = '';
-      };
     } catch (error) {
       console.error('[WTL PresetController] Failed to setup schema preset import:', error);
     }
@@ -358,7 +405,8 @@ export class PresetController {
   
   async handleSchemaPresetExport() {
     try {
-      await exportPresetFile('schema');
+      const presets = getSchemaPresets();
+      this.downloadJsonFile('wtl-schema-presets.json', presets);
       eventBus.emit(EVENTS.PRESET_SAVED, { type: 'schema', action: 'export' });
     } catch (error) {
       console.error('[WTL PresetController] Failed to export schema preset:', error);
@@ -451,6 +499,8 @@ export class PresetController {
         return this.ui.prepromptPresetFileEl;
       case 'instruction':
         return this.ui.instructionPresetFileEl;
+      case 'schema':
+        return this.ui.schemaPresetFileEl;
       default:
         return null;
     }

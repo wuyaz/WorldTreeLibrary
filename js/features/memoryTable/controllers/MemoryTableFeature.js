@@ -80,27 +80,29 @@ export class MemoryTableFeature {
     }
     
     try {
-      this.context = context;
-      this.defaults = defaults;
+      this.context = context || window.SillyTavern?.getContext?.() || {};
+      this.defaults = defaults || window.__WTL_DEFAULTS__ || {};
       
-      // Get UI references
       this.uiRefs = this.getUiRefs(root);
       
-      // Initialize controllers with UI references
-      this.controllers.table = new TableController(this.uiRefs, context, defaults);
-      this.controllers.preset = new PresetController(this.uiRefs, context, defaults);
-      this.controllers.prompt = new PromptController(this.uiRefs, context, defaults);
-      this.controllers.page = new PageController(this.uiRefs, context, defaults);
-      this.controllers.editor = new EditorController(this.uiRefs, context, defaults);
-      this.controllers.runtime = new RuntimeController(this.uiRefs, context, defaults);
+      this.controllers.table = new TableController(this.uiRefs, this.context, this.defaults);
+      this.controllers.preset = new PresetController(this.uiRefs, this.context, this.defaults);
+      this.controllers.prompt = new PromptController(this.uiRefs, this.context, this.defaults);
+      this.controllers.page = new PageController(this.uiRefs, this.context, this.defaults);
+      this.controllers.editor = new EditorController(this.uiRefs, this.context, this.defaults);
+      this.controllers.runtime = new RuntimeController(this.uiRefs, this.context, this.defaults);
       
-      // Bind cross-controller events
+      this.controllers.table.initialize();
+      this.controllers.preset.initialize();
+      this.controllers.prompt.initialize();
+      this.controllers.page.initialize();
+      this.controllers.editor.initialize();
+      this.controllers.runtime.initialize();
+      
       this.bindCrossControllerEvents();
       
-      // Apply initial UI state
       this.applyFeatureUi();
       
-      // Set up global hook for chat changes
       this.setupChatHooks();
       
       this.uiInitialized = true;
@@ -130,51 +132,92 @@ export class MemoryTableFeature {
       return document.getElementById(id);
     };
     
-    // 完整UI引用映射，基于HTML文件中的所有ID
     return {
-      // 核心元素
       root: root,
       statusEl: byId('wtl-status'),
       pageMainEl: byId('wtl-page-main'),
       pageConfigEl: byId('wtl-page-config'),
       memoryFeatureDisabledEl: byId('wtl-memory-feature-disabled'),
       
-      // 表格控制
-      editTableBtn: byId('wtl-edit-table'),
-      clearTableBtn: byId('wtl-clear-table'),
-      tablePreviewEl: byId('wtl-table-preview'),
-      blockListEl: byId('wtl-block-list'),
-      refBlockListEl: byId('wtl-ref-block-list'),
+      tablePreviewEl: byId('wtl-table-view'),
+      tablePreviewHeadEl: byId('wtl-preview-head'),
+      tablePreviewBodyEl: byId('wtl-preview-body'),
+      tableResizeEl: byId('wtl-table-resize'),
       tableMdEl: byId('wtl-table-md'),
-      templateEditorEl: byId('wtl-template-editor'),
+      tablePreviewTextareaEl: byId('wtl-table-preview'),
       
-      // 提示词控制
+      runBtn: byId('wtl-run'),
+      autoToggleBtn: byId('wtl-auto-toggle'),
+      autoFloorsEl: byId('wtl-auto-floors'),
+      autoEveryEl: byId('wtl-auto-every'),
+      batchBtn: byId('wtl-batch'),
+      batchStartEl: byId('wtl-batch-start'),
+      batchEndEl: byId('wtl-batch-end'),
+      batchStepEl: byId('wtl-batch-step'),
+      batchParamsEl: byId('wtl-batch-params'),
+      
+      editTableBtn: byId('wtl-edit-table'),
+      editTemplateBtn: byId('wtl-edit-template'),
+      clearTableBtn: byId('wtl-clear-table'),
+      openConfigBtn: byId('wtl-open-config'),
+      resetGlobalBtn: byId('wtl-reset-global'),
+      historyBackBtn: byId('wtl-history-back'),
+      historyUndoBtn: byId('wtl-history-undo'),
+      backMainBtn: byId('wtl-back-main'),
+      
+      templateEditorEl: byId('wtl-template-editor'),
+      sectionListEl: byId('wtl-section-list'),
+      columnListEl: byId('wtl-column-list'),
+      sectionAddBtn: byId('wtl-section-add'),
+      sectionApplyBtn: byId('wtl-section-apply'),
+      sectionCancelBtn: byId('wtl-section-cancel'),
+      columnAddBtn: byId('wtl-column-add'),
+      
+      editorOverlayEl: byId('wtl-editor-overlay'),
+      editorDialogTitleEl: byId('wtl-editor-dialog-title'),
+      editorDialogNameEl: byId('wtl-editor-dialog-name'),
+      editorDialogDefinitionEl: byId('wtl-editor-dialog-definition'),
+      editorDialogInsertEl: byId('wtl-editor-dialog-insert'),
+      editorDialogInsertEnabledEl: byId('wtl-editor-dialog-insert-enabled'),
+      editorDialogUpdateEl: byId('wtl-editor-dialog-update'),
+      editorDialogUpdateEnabledEl: byId('wtl-editor-dialog-update-enabled'),
+      editorDialogDeleteEl: byId('wtl-editor-dialog-delete'),
+      editorDialogDeleteEnabledEl: byId('wtl-editor-dialog-delete-enabled'),
+      editorDialogFillEl: byId('wtl-editor-dialog-fill'),
+      editorDialogSendEl: byId('wtl-editor-dialog-send'),
+      editorDialogSaveBtn: byId('wtl-editor-dialog-save'),
+      editorDialogCloseBtn: byId('wtl-editor-dialog-close'),
+      
+      sendModeEl: byId('wtl-send-mode'),
+      stModeEl: byId('wtl-mode-st'),
+      externalModeEl: byId('wtl-mode-external'),
+      
+      instModeEl: byId('wtl-inst-mode'),
+      instInjectToggleEl: byId('wtl-inst-inject-toggle'),
+      instPosEl: byId('wtl-inst-pos'),
+      instRoleEl: byId('wtl-inst-role'),
+      instDepthEl: byId('wtl-inst-depth'),
+      instOrderEl: byId('wtl-inst-order'),
+      
+      schemaModeSendEl: byId('wtl-schema-mode-send'),
+      schemaInjectToggleEl: byId('wtl-schema-inject-toggle'),
+      schemaPosEl: byId('wtl-schema-pos'),
+      schemaRoleEl: byId('wtl-schema-role'),
+      schemaDepthEl: byId('wtl-schema-depth'),
+      schemaOrderEl: byId('wtl-schema-order'),
+      
+      tableModeEl: byId('wtl-table-mode'),
+      tableInjectToggleEl: byId('wtl-table-inject-toggle'),
+      tablePosEl: byId('wtl-table-pos'),
+      tableRoleEl: byId('wtl-table-role'),
+      tableDepthEl: byId('wtl-table-depth'),
+      tableOrderEl: byId('wtl-table-order'),
+      
       prePromptEl: byId('wtl-preprompt'),
       instructionEl: byId('wtl-instruction'),
       schemaEl: byId('wtl-schema'),
-      sendModeEl: byId('wtl-send-mode'),
-      instModeEl: byId('wtl-inst-mode'),
-      schemaModeSendEl: byId('wtl-schema-mode-send'),
-      tableModeEl: byId('wtl-table-mode'),
-      stModeEl: byId('wtl-mode-st'),
       
-      // 预设控制
       prePromptPresetEl: byId('wtl-preprompt-preset'),
-      instructionPresetEl: byId('wtl-instruction-preset'),
-      schemaPresetEl: byId('wtl-schema-preset'),
-      openaiPresetEl: byId('wtl-openai-preset'),
-      openaiPresetNameEl: byId('wtl-openai-preset-name'),
-      openaiPresetLoadEl: byId('wtl-openai-preset-load'),
-      openaiPresetDelEl: byId('wtl-openai-preset-del'),
-      openaiRefreshEl: byId('wtl-openai-refresh'),
-      schemaPresetNameEl: byId('wtl-schema-preset-name'),
-      schemaPresetLoadEl: byId('wtl-schema-preset-load'),
-      schemaPresetSaveEl: byId('wtl-schema-preset-save'),
-      schemaPresetRenameEl: byId('wtl-schema-preset-rename'),
-      schemaPresetDelEl: byId('wtl-schema-preset-del'),
-      schemaPresetImportEl: byId('wtl-schema-preset-import'),
-      schemaPresetExportEl: byId('wtl-schema-preset-export'),
-      schemaPresetFileEl: byId('wtl-schema-preset-file'),
       prePromptPresetNameEl: byId('wtl-preprompt-preset-name'),
       prePromptPresetLoadEl: byId('wtl-preprompt-preset-load'),
       prePromptPresetSaveEl: byId('wtl-preprompt-preset-save'),
@@ -183,15 +226,10 @@ export class MemoryTableFeature {
       prePromptPresetImportEl: byId('wtl-preprompt-preset-import'),
       prePromptPresetExportEl: byId('wtl-preprompt-preset-export'),
       prePromptPresetFileEl: byId('wtl-preprompt-preset-file'),
-      prepromptPresetEl: byId('wtl-preprompt-preset'),  // 注意：这里有两个不同的变量名
-      prepromptPresetNameEl: byId('wtl-preprompt-preset-name'),
-      prepromptPresetLoadEl: byId('wtl-preprompt-preset-load'),
-      prepromptPresetSaveEl: byId('wtl-preprompt-preset-save'),
-      prepromptPresetRenameEl: byId('wtl-preprompt-preset-rename'),
-      prepromptPresetDelEl: byId('wtl-preprompt-preset-del'),
-      prepromptPresetImportEl: byId('wtl-preprompt-preset-import'),
-      prepromptPresetExportEl: byId('wtl-preprompt-preset-export'),
-      prepromptPresetFileEl: byId('wtl-preprompt-preset-file'),
+      editPrePromptBtn: byId('wtl-edit-preprompt'),
+      resetPrePromptBtn: byId('wtl-reset-preprompt'),
+      
+      instructionPresetEl: byId('wtl-instruction-preset'),
       instructionPresetNameEl: byId('wtl-instruction-preset-name'),
       instructionPresetLoadEl: byId('wtl-instruction-preset-load'),
       instructionPresetSaveEl: byId('wtl-instruction-preset-save'),
@@ -200,120 +238,38 @@ export class MemoryTableFeature {
       instructionPresetImportEl: byId('wtl-instruction-preset-import'),
       instructionPresetExportEl: byId('wtl-instruction-preset-export'),
       instructionPresetFileEl: byId('wtl-instruction-preset-file'),
+      editInstructionBtn: byId('wtl-edit-instruction'),
+      resetInstructionBtn: byId('wtl-reset-instruction'),
+      
+      schemaPresetEl: byId('wtl-schema-preset'),
+      schemaPresetNameEl: byId('wtl-schema-preset-name'),
+      schemaPresetLoadEl: byId('wtl-schema-preset-load'),
+      schemaPresetSaveEl: byId('wtl-schema-preset-save'),
+      schemaPresetRenameEl: byId('wtl-schema-preset-rename'),
+      schemaPresetDelEl: byId('wtl-schema-preset-del'),
+      schemaPresetImportEl: byId('wtl-schema-preset-import'),
+      schemaPresetExportEl: byId('wtl-schema-preset-export'),
+      schemaPresetFileEl: byId('wtl-schema-preset-file'),
+      refreshSchemaBtn: byId('wtl-refresh-schema'),
+      resetSchemaBtn: byId('wtl-reset-schema'),
+      schemaEffectiveEl: byId('wtl-schema-effective'),
       schemaBindGlobalEl: byId('wtl-schema-bind-global'),
       schemaBindCharacterEl: byId('wtl-schema-bind-character'),
       schemaBindChatEl: byId('wtl-schema-bind-chat'),
-      schemaEffectiveEl: byId('wtl-schema-effective'),
       
-      // AI设置
+      openaiPresetEl: byId('wtl-openai-preset'),
+      openaiPresetNameEl: byId('wtl-openai-preset-name'),
+      openaiPresetLoadEl: byId('wtl-openai-preset-load'),
+      openaiPresetDelEl: byId('wtl-openai-preset-del'),
       openaiUrlEl: byId('wtl-openai-url'),
       openaiKeyEl: byId('wtl-openai-key'),
       openaiModelEl: byId('wtl-openai-model'),
       openaiTempEl: byId('wtl-openai-temp'),
       openaiMaxEl: byId('wtl-openai-max'),
       openaiStreamEl: byId('wtl-openai-stream'),
-      
-      // 自动填表
-      runBtn: byId('wtl-run'),
-      autoToggleBtn: byId('wtl-auto-toggle'),
-      autoFloorsEl: byId('wtl-auto-floors'),
-      autoEveryEl: byId('wtl-auto-every'),
-      
-      // 批量填表
-      batchBtn: byId('wtl-batch'),
-      batchStartEl: byId('wtl-batch-start'),
-      batchEndEl: byId('wtl-batch-end'),
-      batchStepEl: byId('wtl-batch-step'),
-      
-      // 模态框
-      modalEl: byId('wtl-modal'),
-      modalTitleEl: byId('wtl-modal-title'),
-      modalContentEl: byId('wtl-modal-content'),
-      modalCustomEl: byId('wtl-modal-custom'),
-      modalActionsEl: byId('wtl-modal-actions'),
-      modalCloseBtn: byId('wtl-modal-close'),
-      
-      // 预览
-      previewBodyEl: byId('wtl-preview-body'),
-      previewHeadEl: byId('wtl-preview-head'),
-      logContentEl: byId('wtl-log-content'),
-      logPromptEl: byId('wtl-log-prompt'),
-      logAiEl: byId('wtl-log-ai'),
-      logRefreshBtn: byId('wtl-log-refresh'),
-      
-      // 其他重要元素
-      resetGlobalBtn: byId('wtl-reset-global'),
-      openConfigBtn: byId('wtl-open-config'),
-      editTemplateBtn: byId('wtl-edit-template'),
-      historyBackBtn: byId('wtl-history-back'),
-      historyUndoBtn: byId('wtl-history-undo'),
-      refreshSchemaBtn: byId('wtl-refresh-schema'),
-      wbManualUiEl: byId('wtl-wb-manual-ui'),
+      openaiRefreshEl: byId('wtl-openai-refresh'),
       externalSaveBtn: byId('wtl-external-save'),
       
-      // PromptController需要的元素
-      externalEl: byId('wtl-mode-external'),
-      logPromptBtn: byId('wtl-log-prompt'),
-      logAiBtn: byId('wtl-log-ai'),
-      logRefreshBtn: byId('wtl-log-refresh'),
-      logContentEl: byId('wtl-log-content'),
-      tableInjectToggleBtn: byId('wtl-table-inject-toggle'),
-      instInjectToggleEl: byId('wtl-inst-inject-toggle'),
-      schemaInjectToggleEl: byId('wtl-schema-inject-toggle'),
-      instBlockEl: byId('wtl-inst-block'),
-      schemaBlockEl: byId('wtl-schema-block'),
-      instDepthEl: byId('wtl-inst-depth'),
-      schemaDepthEl: byId('wtl-schema-depth'),
-      instOrderEl: byId('wtl-inst-order'),
-      schemaOrderEl: byId('wtl-schema-order'),
-      instPosEl: byId('wtl-inst-pos'),
-      schemaPosEl: byId('wtl-schema-pos'),
-      instRoleEl: byId('wtl-inst-role'),
-      schemaRoleEl: byId('wtl-schema-role'),
-      
-      // EditorController可能需要的元素
-      resetInstructionBtn: byId('wtl-reset-instruction'),
-      resetPrePromptBtn: byId('wtl-reset-preprompt'),
-      resetSchemaBtn: byId('wtl-reset-schema'),
-      sectionListEl: byId('wtl-section-list'),
-      sectionAddBtn: byId('wtl-section-add'),
-      columnListEl: byId('wtl-column-list'),
-      columnAddBtn: byId('wtl-column-add'),
-      blockAddBtn: byId('wtl-block-add'),
-      blockResetBtn: byId('wtl-block-reset'),
-      refBlockAddBtn: byId('wtl-ref-block-add'),
-      refBlockResetBtn: byId('wtl-ref-block-reset'),
-      editorDialogTitle: byId('wtl-editor-dialog-title'),
-      editorDialogName: byId('wtl-editor-dialog-name'),
-      editorDialogDefinition: byId('wtl-editor-dialog-definition'),
-      editorDialogSave: byId('wtl-editor-dialog-save'),
-      editorDialogClose: byId('wtl-editor-dialog-close'),
-      editorDialogUpdate: byId('wtl-editor-dialog-update'),
-      editorDialogUpdateRow: byId('wtl-editor-dialog-update-row'),
-      editorDialogInsert: byId('wtl-editor-dialog-insert'),
-      editorDialogInsertRow: byId('wtl-editor-dialog-insert-row'),
-      editorDialogDelete: byId('wtl-editor-dialog-delete'),
-      editorDialogDeleteRow: byId('wtl-editor-dialog-delete-row'),
-      editorDialogFill: byId('wtl-editor-dialog-fill'),
-      editorDialogFillRow: byId('wtl-editor-dialog-fill-row'),
-      editorDialogSend: byId('wtl-editor-dialog-send'),
-      editorDialogSendRow: byId('wtl-editor-dialog-send-row'),
-      editorDialogUpdateEnabled: byId('wtl-editor-dialog-update-enabled'),
-      editorDialogInsertEnabled: byId('wtl-editor-dialog-insert-enabled'),
-      editorDialogDeleteEnabled: byId('wtl-editor-dialog-delete-enabled'),
-      editorDialogUpdateToggle: byId('wtl-editor-dialog-update-toggle'),
-      editorDialogInsertToggle: byId('wtl-editor-dialog-insert-toggle'),
-      editorDialogDeleteToggle: byId('wtl-editor-dialog-delete-toggle'),
-      editorOverlay: byId('wtl-editor-overlay'),
-      
-      // 表格相关元素
-      tableViewEl: byId('wtl-table-view'),
-      tableResizeBtn: byId('wtl-table-resize'),
-      tableTabsEl: byId('wtl-table-tabs'),
-      wbManualEl: byId('wtl-wb-manual'),
-      wbManualRefreshBtn: byId('wtl-wb-manual-refresh'),
-      wbManualWrapEl: byId('wtl-wb-manual-wrap'),
-      wbModeEl: byId('wtl-wb-mode'),
       externalNavOrder: byId('wtl-external-nav-order'),
       externalNavRef: byId('wtl-external-nav-ref'),
       externalNavWb: byId('wtl-external-nav-wb'),
@@ -321,9 +277,31 @@ export class MemoryTableFeature {
       externalPanelRef: byId('wtl-external-panel-ref'),
       externalPanelWb: byId('wtl-external-panel-wb'),
       
-      // 如果需要更多元素，可以继续添加...
+      blockListEl: byId('wtl-block-list'),
+      blockAddBtn: byId('wtl-block-add'),
+      blockResetBtn: byId('wtl-block-reset'),
       
-      // 如果需要更多元素，可以继续添加...
+      refBlockListEl: byId('wtl-ref-block-list'),
+      refBlockAddBtn: byId('wtl-ref-block-add'),
+      refBlockResetBtn: byId('wtl-ref-block-reset'),
+      
+      wbModeEl: byId('wtl-wb-mode'),
+      wbManualWrapEl: byId('wtl-wb-manual-wrap'),
+      wbManualEl: byId('wtl-wb-manual'),
+      wbManualRefreshEl: byId('wtl-wb-manual-refresh'),
+      wbManualUiEl: byId('wtl-wb-manual-ui'),
+      
+      logPromptBtn: byId('wtl-log-prompt'),
+      logAiBtn: byId('wtl-log-ai'),
+      logContentEl: byId('wtl-log-content'),
+      logRefreshBtn: byId('wtl-log-refresh'),
+      
+      modalEl: byId('wtl-modal'),
+      modalTitleEl: byId('wtl-modal-title'),
+      modalContentEl: byId('wtl-modal-content'),
+      modalCustomEl: byId('wtl-modal-custom'),
+      modalActionsEl: byId('wtl-modal-actions'),
+      modalCloseBtn: byId('wtl-modal-close')
     };
   }
   

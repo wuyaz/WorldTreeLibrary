@@ -29,11 +29,13 @@ export class PromptController {
       isAutoRefreshEnabled: false,
       injectionItems: []
     };
-    
-    this.initialize();
   }
   
   initialize() {
+    if (!this.ui || !this.ui.root) {
+      console.warn('[WTL PromptController] UI refs not ready, delaying initialization');
+      return;
+    }
     this.initializeControllers();
     this.bindEvents();
     this.loadInitialState();

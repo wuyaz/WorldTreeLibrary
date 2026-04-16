@@ -30,11 +30,13 @@ export class RuntimeController {
       openAiModels: [],
       worldBookMode: 'auto'
     };
-    
-    this.initialize();
   }
   
   initialize() {
+    if (!this.ui || !this.ui.root) {
+      console.warn('[WTL RuntimeController] UI refs not ready, delaying initialization');
+      return;
+    }
     this.initializeControllers();
     this.bindEvents();
     this.loadInitialState();

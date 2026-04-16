@@ -34,11 +34,13 @@ export class EditorController {
       historyIndex: 0,
       historyStack: []
     };
-    
-    this.initialize();
   }
   
   initialize() {
+    if (!this.ui || !this.ui.root) {
+      console.warn('[WTL EditorController] UI refs not ready, delaying initialization');
+      return;
+    }
     this.initializeControllers();
     this.bindEvents();
     this.loadInitialState();

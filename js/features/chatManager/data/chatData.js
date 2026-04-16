@@ -122,6 +122,14 @@ export class ChatDataService {
     return [...new Set(this.chats.map(c => c.character))].sort();
   }
 
+  removeChatData(globalKey) {
+    this.state.removeChatData(globalKey);
+  }
+
+  migrateChatData(oldKey, newKey) {
+    this.state.migrateChatData(oldKey, newKey);
+  }
+
   getState() {
     return this.state;
   }
