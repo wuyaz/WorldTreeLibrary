@@ -37,6 +37,7 @@ import {
 } from '../../../core/storage.js';
 import { safeParseJson } from '../../../shared/utils/index.js';
 import { saveSchemaPresetValue, renameSchemaPresetValue, deleteSchemaPresetValue } from '../ui/presets.js';
+import { getDefaultSchemaText } from '../services/schemaHelper.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
 
 export class PresetController {

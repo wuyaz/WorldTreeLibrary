@@ -100,6 +100,10 @@ export function createStateController({
     openaiStreamEl,
     autoFloorsEl,
     autoEveryEl,
+    manualStartEl,
+    manualEndEl,
+    manualPerBatchEl,
+    autoDelayEl,
     tablePreviewEl,
     tablePosEl,
     tableRoleEl,
@@ -277,6 +281,10 @@ export function createStateController({
     setAutoUi(autoFillEnabled);
     if (autoFloorsEl) autoFloorsEl.value = autoFillFloors;
     if (autoEveryEl) autoEveryEl.value = autoFillEvery;
+    if (manualStartEl) manualStartEl.value = storage.getItem('wtl.manualStart') || '1';
+    if (manualEndEl) manualEndEl.value = storage.getItem('wtl.manualEnd') || '12';
+    if (manualPerBatchEl) manualPerBatchEl.value = storage.getItem('wtl.manualPerBatch') || '3';
+    if (autoDelayEl) autoDelayEl.value = storage.getItem('wtl.autoDelay') || '0';
 
     if (tablePreviewEl) tablePreviewEl.value = table;
 
@@ -353,6 +361,10 @@ export function createStateController({
         'wtl.schemaInjectEnabled': schemaInjectToggleEl ? (schemaInjectToggleEl.checked ? 'true' : 'false') : undefined,
         'wtl.autoFillFloors': autoFloorsEl?.value || '',
         'wtl.autoFillEvery': autoEveryEl?.value || '',
+        'wtl.manualStart': manualStartEl?.value || '',
+        'wtl.manualEnd': manualEndEl?.value || '',
+        'wtl.manualPerBatch': manualPerBatchEl?.value || '',
+        'wtl.autoDelay': autoDelayEl?.value || '',
         'wtl.openaiUrl': openaiUrlEl?.value,
         'wtl.openaiKey': openaiKeyEl?.value,
         'wtl.openaiModel': openaiModelEl?.value,
@@ -417,6 +429,10 @@ export function createStateController({
       'wtl.autoFillEnabled',
       'wtl.autoFillFloors',
       'wtl.autoFillEvery',
+      'wtl.manualStart',
+      'wtl.manualEnd',
+      'wtl.manualPerBatch',
+      'wtl.autoDelay',
       'wtl.autoFillInitialized',
       'wtl.autoFillDefaultsVersion',
       'wtl.tablePos',
@@ -472,6 +488,10 @@ export function createStateController({
     setAutoUi(defaults.autoFillEnabled === true || defaults.autoFillEnabled === 'true');
     if (autoFloorsEl) autoFloorsEl.value = defaults.autoFillFloors || '12';
     if (autoEveryEl) autoEveryEl.value = defaults.autoFillEvery || '1';
+    if (manualStartEl) manualStartEl.value = '1';
+    if (manualEndEl) manualEndEl.value = '12';
+    if (manualPerBatchEl) manualPerBatchEl.value = '3';
+    if (autoDelayEl) autoDelayEl.value = '0';
 
     if (tableInjectToggleBtn) tableInjectToggleBtn.checked = defaults.tableInjectEnabled === 'true' || defaults.tableInjectEnabled === true;
     if (tablePosEl) tablePosEl.value = defaults.tablePos;
@@ -520,8 +540,35 @@ export function createStateController({
     updateSchemaBindRadios('global');
     if (schemaEffectiveEl) schemaEffectiveEl.textContent = '全局 · 默认';
 
-    if (blockListEl) renderBlockList(getBlocksPreset() || []);
-    if (refBlockListEl) renderRefBlockList(getRefBlocksPreset() || []);
+    const orderLabels = (safeParseJson(storage.getItem('wtl.order.presets')) || {})['默认'];
+    const blocksFromPreset = getBlocksPreset() || [];
+    let defaultBlockOrder = blocksFromPreset;
+    if (Array.isArray(orderLabels) && orderLabels.length) {
+      defaultBlockOrder = orderLabels.map(label =>
+        blocksFromPreset.find(b => b.label === label || b.id === label)
+      ).filter(Boolean);
+      blocksFromPreset.forEach(b => {
+        if (!defaultBlockOrder.some(o => o.id === b.id)) defaultBlockOrder.push(b);
+      });
+    } else {
+      defaultBlockOrder = blocksFromPreset;
+    }
+    if (blockListEl) renderBlockList(defaultBlockOrder);
+
+    const refOrderLabels = (safeParseJson(storage.getItem('wtl.refOrder.presets')) || {})['默认'];
+    const refBlocksFromPreset = getRefBlocksPreset() || [];
+    let defaultRefOrder = refBlocksFromPreset;
+    if (Array.isArray(refOrderLabels) && refOrderLabels.length) {
+      defaultRefOrder = refOrderLabels.map(label =>
+        refBlocksFromPreset.find(b => b.label === label || b.id === label)
+      ).filter(Boolean);
+      refBlocksFromPreset.forEach(b => {
+        if (!defaultRefOrder.some(o => o.id === b.id)) defaultRefOrder.push(b);
+      });
+    } else {
+      defaultRefOrder = refBlocksFromPreset;
+    }
+    if (refBlockListEl) renderRefBlockList(defaultRefOrder);
 
     state.schemaSource = defaultSchema || '';
     state.templateState = parseSchemaToTemplate(state.schemaSource);

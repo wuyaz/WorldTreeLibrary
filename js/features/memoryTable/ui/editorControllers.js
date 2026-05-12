@@ -165,13 +165,21 @@ export function bindTemplateEditingControls({
     const nextMode = !getTableEditMode();
     setTableEditMode(nextMode);
     if (editTableBtn) {
-      const label = nextMode ? '保存表格' : '编辑表格';
-      editTableBtn.querySelector('span') ? editTableBtn.querySelector('span').textContent = label : (editTableBtn.textContent = label);
+      const icon = editTableBtn.querySelector('i');
+      if (nextMode) {
+        editTableBtn.title = '保存并退出编辑';
+        editTableBtn.classList.add('is-editing');
+        if (icon) icon.className = 'fa-solid fa-floppy-disk';
+      } else {
+        editTableBtn.title = '编辑表格';
+        editTableBtn.classList.remove('is-editing');
+        if (icon) icon.className = 'fa-solid fa-pencil';
+      }
     }
 
     if (nextMode) {
       renderPreview(tableMdEl?.value || '');
-      setStatus('编辑表格：可直接修改单元格；拖拽表头以调整列顺序');
+      setStatus('编辑表格：可直接修改单元格；拖拽行头调整顺序；右滑删除行');
       return;
     }
 

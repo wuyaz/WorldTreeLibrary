@@ -74,12 +74,12 @@ export async function saveTableForChatState({
     appendHistory(tableJson, wrapped, meta);
   }
   
-  if (metadata && typeof metadata === 'object') {
+  const chatId = ctx?.chatId || ctx?.chat?.id || ctx?.chat?.file;
+  if (metadata && typeof metadata === 'object' && chatId) {
     metadata.WorldTreeLibrary = { ...(metadata.WorldTreeLibrary || {}), tableJson, table: wrapped };
     if (window.ST_API?.chatHistory?.update) {
       try {
-        const payload = { metadata };
-        if (ctx?.chatId) payload.chatId = ctx.chatId;
+        const payload = { metadata, chatId };
         if (ctx?.chat?.id) payload.id = ctx.chat.id;
         if (ctx?.chat?.file) payload.file = ctx.chat.file;
         await window.ST_API.chatHistory.update(payload);

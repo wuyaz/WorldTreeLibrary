@@ -185,13 +185,10 @@ async function registerUIComponents(ctx, config, defaults) {
 function applyFeatureFlags(flags = getFeatureFlags()) {
   const root = document.getElementById('wtl-root');
   if (root) {
-    // Apply memory table disabled state
-    root.classList.toggle('wtl-memory-disabled', flags.memoryTable === false);
-    
-    // Show/hide disabled message
+    // Always show table area — never hide it
     const disabledEl = document.getElementById('wtl-memory-feature-disabled');
     if (disabledEl) {
-      disabledEl.style.display = flags.memoryTable === false ? 'block' : 'none';
+      disabledEl.style.display = 'none';
     }
   }
   

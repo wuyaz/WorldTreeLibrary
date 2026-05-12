@@ -34,7 +34,9 @@ export function loadTextPresetValue({ storageKey, name, getPromptPresets, setSta
     setStatus?.('未找到预设');
     return null;
   }
-  return presets[name];
+  const value = presets[name];
+  if (Array.isArray(value)) return value.join('\n');
+  return value;
 }
 
 export function saveTextPresetValue({ storageKey, name, value, getPromptPresets, setPromptPresets, setStatus }) {

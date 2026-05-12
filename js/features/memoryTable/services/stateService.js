@@ -1,20 +1,21 @@
 export function ensureAutoFillDefaults({ defaults = {} } = {}) {
   const autoFillInitKey = 'wtl.autoFillInitialized';
   const autoFillDefaultsVersionKey = 'wtl.autoFillDefaultsVersion';
-  const autoFillDefaultsVersion = '2026-04-03-auto-on';
+  const autoFillDefaultsVersion = '2026-04-23-api-mode';
+  const memoryTableDefaults = defaults.memoryTable || defaults;
   if (!localStorage.getItem(autoFillInitKey) || localStorage.getItem(autoFillDefaultsVersionKey) !== autoFillDefaultsVersion) {
-    localStorage.setItem('wtl.autoFillEnabled', String(defaults.autoFillEnabled ?? false));
-    localStorage.setItem('wtl.autoFillFloors', String(defaults.autoFillFloors || '12'));
-    localStorage.setItem('wtl.autoFillEvery', String(defaults.autoFillEvery || '1'));
+    localStorage.setItem('wtl.autoFillEnabled', String(memoryTableDefaults.autoFillEnabled ?? true));
+    localStorage.setItem('wtl.autoFillFloors', String(memoryTableDefaults.autoFillFloors || '3'));
+    localStorage.setItem('wtl.autoFillEvery', String(memoryTableDefaults.autoFillEvery || '1'));
     localStorage.setItem(autoFillInitKey, 'true');
     localStorage.setItem(autoFillDefaultsVersionKey, autoFillDefaultsVersion);
   }
   const autoFillEnabledStored = localStorage.getItem('wtl.autoFillEnabled');
   return {
     autoFillEnabledStored,
-    autoFillEnabled: (autoFillEnabledStored ?? String(defaults.autoFillEnabled ?? false)) === 'true',
-    autoFillFloors: localStorage.getItem('wtl.autoFillFloors') ?? String(defaults.autoFillFloors || '12'),
-    autoFillEvery: localStorage.getItem('wtl.autoFillEvery') ?? String(defaults.autoFillEvery || '1')
+    autoFillEnabled: (autoFillEnabledStored ?? String(memoryTableDefaults.autoFillEnabled ?? true)) === 'true',
+    autoFillFloors: localStorage.getItem('wtl.autoFillFloors') ?? String(memoryTableDefaults.autoFillFloors || '3'),
+    autoFillEvery: localStorage.getItem('wtl.autoFillEvery') ?? String(memoryTableDefaults.autoFillEvery || '1')
   };
 }
 

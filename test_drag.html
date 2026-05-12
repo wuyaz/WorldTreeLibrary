@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Drag</title>
+    <style>
+        .test-item {
+            width: 100px;
+            padding: 10px;
+            margin: 5px;
+            background: #ccc;
+            display: inline-block;
+        }
+        .drag-handle {
+            cursor: grab;
+        }
+        .dragging {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div class="test-item" draggable="true"><span class="drag-handle">☰</span> Item 1</div>
+        <div class="test-item" draggable="true"><span class="drag-handle">☰</span> Item 2</div>
+        <div class="test-item" draggable="true"><span class="drag-handle">☰</span> Item 3</div>
+    </div>
+    <script>
+        const container = document.getElementById('container');
+        let draggedItem = null;
+        
+        container.addEventListener('dragstart', (e) => {
+            const item = e.target.closest('.test-item');
+            const handle = e.target.closest('.drag-handle');
+            
+            if (!item || !handle) {
+                e.preventDefault();
+                console.log('Prevented drag from non-handle');
+                return;
+            }
+            
+            draggedItem = item;
+            item.classList.add('dragging');
+            console.log('Drag started:', item.textContent);
+        });
+        
+        container.addEventListener('dragend', (e) => {
+            if (draggedItem) {
+                draggedItem.classList.remove('dragging');
+                draggedItem = null;
+            }
+            console.log('Drag ended');
+        });
+        
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const item = e.target.closest('.test-item');
+            if (!item || item === draggedItem) return;
+            
+            const rect = item.getBoundingClientRect();
+            const midX = rect.left + rect.width / 2;
+            
+            if (e.clientX < midX) {
+                item.parentNode.insertBefore(draggedItem, item);
+            } else {
+                item.parentNode.insertBefore(draggedItem, item.nextSibling);
+            }
+        });
+    </script>
+</body>
+</html>

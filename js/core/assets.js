@@ -22,18 +22,26 @@ const resolveExtRoot = () => {
   return "/scripts/extensions/third-party/WorldTreeLibrary";
 };
 const ensureWtlStyle = async (extRoot = resolveExtRoot()) => {
-  try {
-    const url = `${extRoot}/assets/css/wtl-global.css`;
-    const res = await fetch(url);
-    if (!res.ok) return;
-    const css = await res.text();
-    const styleEl = document.getElementById("wtl-inline-style") || document.createElement("style");
-    styleEl.id = "wtl-inline-style";
-    styleEl.textContent = css;
-    document.head.appendChild(styleEl);
-  } catch (err) {
-    console.warn("[WTL] failed to load css", err);
+  const cssFiles = [
+    'assets/css/wtl-global.css',
+    'assets/css/wtl-table.css',
+    'assets/css/wtl-chat.css'
+  ];
+  const parts = [];
+  for (const file of cssFiles) {
+    try {
+      const url = `${extRoot}/${file}`;
+      const res = await fetch(url);
+      if (res.ok) parts.push(await res.text());
+    } catch (err) {
+      console.warn(`[WTL] failed to load css: ${file}`, err);
+    }
   }
+  if (!parts.length) return;
+  const styleEl = document.getElementById("wtl-inline-style") || document.createElement("style");
+  styleEl.id = "wtl-inline-style";
+  styleEl.textContent = parts.join('\n');
+  document.head.appendChild(styleEl);
 };
 const loadDefaults = async (extRoot = resolveExtRoot()) => {
   try {

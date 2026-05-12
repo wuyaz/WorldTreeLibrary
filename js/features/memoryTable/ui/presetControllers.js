@@ -212,20 +212,25 @@ export function createSchemaPresetHelpers({
   };
 
   const resolveSchemaByScope = () => {
+    const normalizeText = (text) => {
+      if (Array.isArray(text)) return text.join('\n');
+      return text || '';
+    };
     const chatId = getCurrentChatId();
     const charId = getCurrentCharacterId();
     const map = getSchemaScopedPresets();
     const presets = getSchemaPresets();
     const chatName = map?.chat?.[chatId];
     if (chatName && presets[chatName]) {
-      return { scope: 'chat', name: chatName, text: presets[chatName] };
+      return { scope: 'chat', name: chatName, text: normalizeText(presets[chatName]) };
     }
     const charName = map?.character?.[charId];
     if (charName && presets[charName]) {
-      return { scope: 'character', name: charName, text: presets[charName] };
+      return { scope: 'character', name: charName, text: normalizeText(presets[charName]) };
     }
     const globalName = map?.global || localStorageRef.getItem('wtl.schema.presetActive') || '默认';
-    const globalText = presets[globalName] || presets['默认'] || getDefaultSchemaText();
+    let globalText = presets[globalName] || presets['默认'] || getDefaultSchemaText();
+    globalText = normalizeText(globalText);
     return { scope: 'global', name: globalName || '默认', text: globalText || '' };
   };
 
@@ -338,7 +343,8 @@ export function bindSchemaPresetControls({
       setStatus('未找到预设');
       return;
     }
-    const schemaSource = presets[name];
+    let schemaSource = presets[name];
+    if (Array.isArray(schemaSource)) schemaSource = schemaSource.join('\n');
     schemaEl.value = schemaSource;
     localStorage.setItem('wtl.schema.presetActive', name);
     const templateState = parseSchemaToTemplate(schemaSource);

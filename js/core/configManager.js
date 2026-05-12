@@ -84,7 +84,9 @@ export async function loadConfig() {
       order: (await loadPreset('order')) || {},
       refOrder: (await loadPreset('refOrder')) || {},
       blocks: (await loadPreset('blocks')) || {},
-      refBlocks: (await loadPreset('refBlocks')) || {}
+      refBlocks: (await loadPreset('refBlocks')) || {},
+      tags: (await loadPreset('tags')) || {},
+      folders: (await loadPreset('folders')) || {}
     };
     
     // Store in window for global access

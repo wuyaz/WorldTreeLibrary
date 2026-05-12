@@ -150,15 +150,15 @@ export class MemoryTableFeature {
       autoToggleBtn: byId('wtl-auto-toggle'),
       autoFloorsEl: byId('wtl-auto-floors'),
       autoEveryEl: byId('wtl-auto-every'),
-      batchBtn: byId('wtl-batch'),
-      batchStartEl: byId('wtl-batch-start'),
-      batchEndEl: byId('wtl-batch-end'),
-      batchStepEl: byId('wtl-batch-step'),
-      batchParamsEl: byId('wtl-batch-params'),
+      manualStartEl: byId('wtl-manual-start'),
+      manualEndEl: byId('wtl-manual-end'),
+      manualPerBatchEl: byId('wtl-manual-per-batch'),
+      autoDelayEl: byId('wtl-auto-delay'),
       
       editTableBtn: byId('wtl-edit-table'),
       editTemplateBtn: byId('wtl-edit-template'),
       clearTableBtn: byId('wtl-clear-table'),
+      newTableFromTemplateBtn: byId('wtl-new-table-from-template'),
       openConfigBtn: byId('wtl-open-config'),
       resetGlobalBtn: byId('wtl-reset-global'),
       historyBackBtn: byId('wtl-history-back'),
@@ -337,15 +337,9 @@ export class MemoryTableFeature {
    * Apply feature UI state based on feature flags
    */
   applyFeatureUi() {
-    const featureFlags = getFeatureFlags();
-    
-    if (this.uiRefs?.root) {
-      this.uiRefs.root.classList.toggle('wtl-memory-disabled', featureFlags.memoryTable === false);
-    }
-    
+    // Always show table area — never hide it
     if (this.uiRefs?.memoryFeatureDisabledEl) {
-      this.uiRefs.memoryFeatureDisabledEl.style.display = 
-        featureFlags.memoryTable === false ? 'block' : 'none';
+      this.uiRefs.memoryFeatureDisabledEl.style.display = 'none';
     }
   }
   
@@ -389,12 +383,9 @@ export class MemoryTableFeature {
    * Set feature enabled/disabled state
    */
   setEnabled(enabled) {
-    if (this.uiRefs?.root) {
-      this.uiRefs.root.classList.toggle('wtl-memory-disabled', !enabled);
-    }
-    
+    // Always show table area — never hide it
     if (this.uiRefs?.memoryFeatureDisabledEl) {
-      this.uiRefs.memoryFeatureDisabledEl.style.display = enabled ? 'none' : 'block';
+      this.uiRefs.memoryFeatureDisabledEl.style.display = 'none';
     }
     
     // Notify controllers

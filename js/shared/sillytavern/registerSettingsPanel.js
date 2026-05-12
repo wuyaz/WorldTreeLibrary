@@ -1,293 +1,213 @@
 // 注册扩展栏设置面板
 import { getFeatureFlags, setFeatureFlags } from '../../core/storage.js';
+import * as DataManager from '../../core/dataManager.js';
+import { exportAllSettings, importAllSettings, resetAllSettings } from '../../core/settingsManager.js';
 
 const FEATURE_SETTINGS_PANEL_ID = 'WorldTreeLibrary.features';
-const FEATURE_MODAL_ID = 'wtl-feature-menu-modal';
 
 function renderFeatureSettingsHtml() {
   return `
-    <div id="wtl-feature-settings" class="wtl-card" style="display:flex; flex-direction:column; gap:12px; padding:12px;">
+    <div id="wtl-feature-settings" style="display:flex; flex-direction:column; gap:16px; color:var(--SmartThemeBodyColor);">
       <style>
-        #wtl-feature-settings {
+        #wtl-feature-settings .wtl-section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        #wtl-feature-settings .wtl-section-title {
+          font-weight: 600;
+          margin: 0;
+        }
+        #wtl-feature-settings .wtl-checkbox-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          cursor: pointer;
+          padding: 6px 0;
+        }
+        #wtl-feature-settings .wtl-checkbox-row input[type="checkbox"] {
+          margin-top: 2px;
+          flex-shrink: 0;
+        }
+        #wtl-feature-settings .wtl-checkbox-copy {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+        #wtl-feature-settings .wtl-checkbox-title {
+          font-weight: 500;
+          font-size: 13px;
+        }
+        #wtl-feature-settings .wtl-checkbox-desc {
+          font-size: 11px;
+          opacity: 0.65;
+          line-height: 1.4;
+        }
+        #wtl-feature-settings .wtl-divider {
+          border: none;
+          border-top: 1px solid var(--SmartThemeBorderColor);
+          opacity: 0.4;
+          margin: 0;
+        }
+        #wtl-feature-settings .wtl-btn-row {
+          display: flex;
+          gap: 6px;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+        }
+        #wtl-feature-settings .wtl-btn-row button {
+          white-space: nowrap;
+        }
+        #wtl-feature-settings .wtl-btn-row button {
+          font-size: 12px;
+          padding: 4px 10px;
+          min-width: auto;
+        }
+        #wtl-feature-settings .wtl-settings-preview {
+          width: 100%;
+          min-height: 80px;
+          max-height: 200px;
+          font-size: 11px;
+          font-family: var(--mono-font, monospace);
+          background: color-mix(in srgb, var(--SmartThemeBgColor) 90%, transparent);
+          border: 1px solid var(--SmartThemeBorderColor);
+          border-radius: 6px;
+          padding: 8px;
           color: var(--SmartThemeBodyColor);
+          resize: vertical;
+          box-sizing: border-box;
         }
-        #wtl-feature-settings .wtl-feature-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 10px;
-        }
-        #wtl-feature-settings .wtl-feature-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          padding: 12px;
-          border: 1px solid var(--SmartThemeBorderColor);
-          border-radius: 12px;
-          background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 84%, transparent);
-        }
-        #wtl-feature-settings .wtl-feature-copy {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          min-width: 0;
-        }
-        #wtl-feature-settings .wtl-feature-title {
-          font-weight: 700;
-          color: var(--SmartThemeUnderlineColor);
-        }
-        #wtl-feature-settings .wtl-feature-desc {
-          font-size: 12px;
+        #wtl-feature-settings .wtl-data-stats {
+          font-size: 11px;
+          opacity: 0.7;
           line-height: 1.5;
-          opacity: 0.76;
-        }
-        #wtl-feature-settings .wtl-feature-note {
-          font-size: 12px;
-          line-height: 1.6;
-          opacity: 0.76;
-          padding: 10px 12px;
-          border: 1px solid var(--SmartThemeBorderColor);
-          border-radius: 12px;
-          background: color-mix(in srgb, var(--SmartThemeBgColor) 82%, transparent);
-        }
-        #wtl-feature-settings .wtl-switch {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-        }
-        #wtl-feature-settings .wtl-switch input[type="checkbox"] {
-          position: absolute;
-          opacity: 0;
-          pointer-events: none;
-        }
-        #wtl-feature-settings .wtl-switch-track {
-          width: 44px;
-          height: 24px;
-          border-radius: 999px;
-          background: color-mix(in srgb, var(--SmartThemeBodyColor) 12%, transparent);
-          border: 1px solid var(--SmartThemeBorderColor);
-          display: inline-flex;
-          align-items: center;
-          padding: 2px;
-          transition: all 0.2s ease;
-        }
-        #wtl-feature-settings .wtl-switch-knob {
-          width: 18px;
-          height: 18px;
-          border-radius: 999px;
-          background: var(--SmartThemeBodyColor);
-          transform: translateX(0);
-          transition: transform 0.2s ease;
-        }
-        #wtl-feature-settings .wtl-switch input[type="checkbox"]:checked + .wtl-switch-track {
-          background: var(--SmartThemeUnderlineColor);
-          border-color: color-mix(in srgb, var(--SmartThemeUnderlineColor) 80%, transparent);
-        }
-        #wtl-feature-settings .wtl-switch input[type="checkbox"]:checked + .wtl-switch-track .wtl-switch-knob {
-          transform: translateX(20px);
+          word-break: break-all;
         }
       </style>
-      <div class="wtl-feature-grid">
-        <div class="wtl-feature-item">
-          <div class="wtl-feature-copy">
-            <div class="wtl-feature-title">记忆表格</div>
-            <div class="wtl-feature-desc">控制 WorldTreeLibrary 主工作台与填表页签显示。</div>
+
+      <div>
+        <div class="wtl-section-title">功能开关</div>
+        <label class="wtl-checkbox-row">
+          <input id="wtl-feature-memory-toggle" type="checkbox" />
+          <div class="wtl-checkbox-copy">
+            <div class="wtl-checkbox-title">记忆表格</div>
+            <div class="wtl-checkbox-desc">控制 WorldTreeLibrary 主工作台与填表页签显示。</div>
           </div>
-          <label class="wtl-switch">
-            <input id="wtl-feature-memory-toggle" type="checkbox" />
-            <span class="wtl-switch-track"><span class="wtl-switch-knob"></span></span>
-          </label>
-        </div>
-        <div class="wtl-feature-item">
-          <div class="wtl-feature-copy">
-            <div class="wtl-feature-title">聊天管理</div>
-            <div class="wtl-feature-desc">控制欢迎页聊天管理器注入、预览和快速跳转功能。</div>
+        </label>
+        <label class="wtl-checkbox-row">
+          <input id="wtl-feature-chat-toggle" type="checkbox" />
+          <div class="wtl-checkbox-copy">
+            <div class="wtl-checkbox-title">聊天管理</div>
+            <div class="wtl-checkbox-desc">控制欢迎页聊天管理器注入、预览和快速跳转功能。</div>
           </div>
-          <label class="wtl-switch">
-            <input id="wtl-feature-chat-toggle" type="checkbox" />
-            <span class="wtl-switch-track"><span class="wtl-switch-knob"></span></span>
-          </label>
-        </div>
+        </label>
       </div>
-      <div class="wtl-feature-note" id="wtl-feature-settings-note"></div>
+
+      <hr class="wtl-divider">
+
+      <div>
+        <div class="wtl-section-header">
+          <div class="wtl-section-title">用户设置</div>
+          <div class="wtl-btn-row">
+            <button id="wtl-settings-export" class="menu_button">导出</button>
+            <button id="wtl-settings-import" class="menu_button">导入</button>
+            <button id="wtl-settings-reset" class="menu_button">重置</button>
+          </div>
+        </div>
+        <textarea id="wtl-settings-preview" class="wtl-settings-preview" readonly placeholder="加载中..."></textarea>
+        <input id="wtl-settings-import-file" type="file" accept=".json" style="display:none;">
+      </div>
+
+      <hr class="wtl-divider">
+
+      <div>
+        <div class="wtl-section-header">
+          <div class="wtl-section-title">本地数据</div>
+          <div class="wtl-btn-row">
+            <button id="wtl-data-export" class="menu_button">导出</button>
+            <button id="wtl-data-import" class="menu_button">导入</button>
+            <button id="wtl-data-delete-all" class="menu_button" style="color:#dc3545;">删除全部</button>
+          </div>
+        </div>
+        <div id="wtl-data-stats" class="wtl-data-stats">加载中...</div>
+        <div class="wtl-btn-row" style="margin-top:8px;">
+          <button id="wtl-data-delete-tables" class="menu_button">仅删表格</button>
+          <button id="wtl-data-delete-presets" class="menu_button">仅删预设</button>
+          <button id="wtl-data-delete-chat" class="menu_button">仅删聊天数据</button>
+        </div>
+        <input id="wtl-data-import-file" type="file" accept=".json" style="display:none;">
+      </div>
     </div>
   `;
 }
 
-function ensureFeatureModal() {
-  let modal = document.getElementById(FEATURE_MODAL_ID);
-  if (modal) return modal;
-
-  modal = document.createElement('div');
-  modal.id = FEATURE_MODAL_ID;
-  modal.style.cssText = [
-    'display:none',
-    'position:fixed',
-    'inset:0',
-    'z-index:40000',
-    'background:color-mix(in srgb, var(--SmartThemeBgColor) 56%, transparent)',
-    'backdrop-filter:blur(4px)',
-    'align-items:center',
-    'justify-content:center',
-    'padding:16px'
-  ].join(';');
-
-  modal.innerHTML = `
-    <div style="width:min(520px, 96vw); max-height:86vh; overflow:auto; border:1px solid var(--SmartThemeBorderColor); border-radius:16px; background:var(--SmartThemeBlurTintColor); box-shadow:0 20px 40px color-mix(in srgb, var(--SmartThemeBgColor) 30%, transparent);">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--SmartThemeBorderColor);">
-        <strong style="color:var(--SmartThemeBodyColor);">WTL 功能开关</strong>
-        <button type="button" data-action="close" class="menu_button"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div data-role="content"></div>
-    </div>
-  `;
-
-  modal.addEventListener('click', (event) => {
-    if (event.target === modal || event.target.closest('[data-action="close"]')) {
-      modal.style.display = 'none';
-    }
-  });
-
-  document.body.appendChild(modal);
-  return modal;
+function showToast(message, type = 'info') {
+  if (window.toastr && typeof window.toastr[type] === 'function') {
+    window.toastr[type](message);
+  } else {
+    console.log(`[WTL] ${message}`);
+  }
 }
 
-function openFeatureModal(onChange) {
-  const modal = ensureFeatureModal();
-  const content = modal.querySelector('[data-role="content"]');
-  if (!content) return;
+function downloadJson(filename, jsonString) {
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
-  const html = `
-    <div id="wtl-feature-modal-content" class="wtl-card" style="display:flex; flex-direction:column; gap:12px; padding:12px;">
-      <style>
-        #wtl-feature-modal-content .wtl-feature-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 10px;
-        }
-        #wtl-feature-modal-content .wtl-feature-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          padding: 12px;
-          border: 1px solid var(--SmartThemeBorderColor);
-          border-radius: 12px;
-          background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 84%, transparent);
-        }
-        #wtl-feature-modal-content .wtl-feature-copy {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          min-width: 0;
-        }
-        #wtl-feature-modal-content .wtl-feature-title {
-          font-weight: 700;
-          color: var(--SmartThemeUnderlineColor);
-        }
-        #wtl-feature-modal-content .wtl-feature-desc {
-          font-size: 12px;
-          line-height: 1.5;
-          opacity: 0.76;
-        }
-        #wtl-feature-modal-content .wtl-switch {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-        }
-        #wtl-feature-modal-content .wtl-switch input[type="checkbox"] {
-          position: absolute;
-          opacity: 0;
-          pointer-events: none;
-        }
-        #wtl-feature-modal-content .wtl-switch-track {
-          width: 44px;
-          height: 24px;
-          border-radius: 999px;
-          background: color-mix(in srgb, var(--SmartThemeBodyColor) 12%, transparent);
-          border: 1px solid var(--SmartThemeBorderColor);
-          display: inline-flex;
-          align-items: center;
-          padding: 2px;
-          transition: all 0.2s ease;
-        }
-        #wtl-feature-modal-content .wtl-switch-knob {
-          width: 18px;
-          height: 18px;
-          border-radius: 999px;
-          background: var(--SmartThemeBodyColor);
-          transform: translateX(0);
-          transition: transform 0.2s ease;
-        }
-        #wtl-feature-modal-content .wtl-switch input[type="checkbox"]:checked + .wtl-switch-track {
-          background: var(--SmartThemeUnderlineColor);
-          border-color: color-mix(in srgb, var(--SmartThemeUnderlineColor) 80%, transparent);
-        }
-        #wtl-feature-modal-content .wtl-switch input[type="checkbox"]:checked + .wtl-switch-track .wtl-switch-knob {
-          transform: translateX(20px);
-        }
-      </style>
-      <div class="wtl-feature-grid">
-        <div class="wtl-feature-item">
-          <div class="wtl-feature-copy">
-            <div class="wtl-feature-title">记忆表格</div>
-            <div class="wtl-feature-desc">控制 WorldTreeLibrary 主工作台与填表页签显示。</div>
-          </div>
-          <label class="wtl-switch">
-            <input id="wtl-feature-modal-memory-toggle" type="checkbox" />
-            <span class="wtl-switch-track"><span class="wtl-switch-knob"></span></span>
-          </label>
-        </div>
-        <div class="wtl-feature-item">
-          <div class="wtl-feature-copy">
-            <div class="wtl-feature-title">聊天管理</div>
-            <div class="wtl-feature-desc">控制欢迎页聊天管理器注入、预览和快速跳转功能。</div>
-          </div>
-          <label class="wtl-switch">
-            <input id="wtl-feature-modal-chat-toggle" type="checkbox" />
-            <span class="wtl-switch-track"><span class="wtl-switch-knob"></span></span>
-          </label>
-        </div>
-      </div>
-      <div class="wtl-feature-note" id="wtl-feature-modal-note"></div>
-    </div>
-  `;
-
-  content.innerHTML = html;
-  const root = content.querySelector('#wtl-feature-modal-content');
-  if (!root) return;
-
-  const syncUi = () => {
-    const flags = getFeatureFlags();
-    const memoryToggleEl = root.querySelector('#wtl-feature-modal-memory-toggle');
-    const chatToggleEl = root.querySelector('#wtl-feature-modal-chat-toggle');
-    const noteEl = root.querySelector('#wtl-feature-modal-note');
-    if (memoryToggleEl) memoryToggleEl.checked = flags.memoryTable !== false;
-    if (chatToggleEl) chatToggleEl.checked = flags.chatManager !== false;
-    if (noteEl) {
-      noteEl.textContent = flags.chatManager !== false
-        ? '聊天管理已启用，欢迎页最近聊天区域下方会显示管理面板。'
-        : '聊天管理当前未注入欢迎页。启用后会自动挂载到欢迎页最近聊天区域。';
-    }
-  };
-
-  root.addEventListener('change', (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    const current = getFeatureFlags();
-    let next = current;
-    if (target.id === 'wtl-feature-modal-memory-toggle') {
-      next = setFeatureFlags({ ...current, memoryTable: target.checked });
-    }
-    if (target.id === 'wtl-feature-modal-chat-toggle') {
-      next = setFeatureFlags({ ...current, chatManager: target.checked });
-    }
-    syncUi();
-    if (typeof onChange === 'function') onChange(next);
+function promptFileImport(accept = '.json') {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (!file) { resolve(null); return; }
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsText(file);
+    });
+    input.addEventListener('cancel', () => resolve(null));
+    input.click();
   });
+}
 
-  syncUi();
-  modal.style.display = 'flex';
+async function refreshSettingsPreview(textarea) {
+  try {
+    const json = await exportAllSettings();
+    textarea.value = json || '{}';
+  } catch (e) {
+    textarea.value = '无法加载设置: ' + e.message;
+  }
+}
+
+function refreshDataStats(el) {
+  try {
+    const stats = DataManager.getAllDataStats();
+    el.textContent = [
+      `存储表格: ${stats.tables}`,
+      `Schema预设: ${stats.schemaPresets}`,
+      `Preprompt预设: ${stats.prepromptPresets}`,
+      `指令预设: ${stats.instructionPresets}`,
+      `Blocks预设: ${stats.blocksPresets}`,
+      `RefBlocks预设: ${stats.refBlocksPresets}`,
+      `Order预设: ${stats.orderPresets}`,
+      `RefOrder预设: ${stats.refOrderPresets}`,
+      `聊天管理: ${stats.chatManagerEntries}`
+    ].join('  |  ');
+  } catch (e) {
+    el.textContent = '无法加载数据统计: ' + e.message;
+  }
 }
 
 export async function registerFeatureSettingsPanel(options = {}) {
@@ -298,25 +218,17 @@ export async function registerFeatureSettingsPanel(options = {}) {
     return null;
   }
 
-  ensureFeatureModal();
-
   const syncUi = () => {
     const flags = getFeatureFlags();
     const memoryToggleEl = document.querySelector('#wtl-feature-memory-toggle');
     const chatToggleEl = document.querySelector('#wtl-feature-chat-toggle');
-    const noteEl = document.querySelector('#wtl-feature-settings-note');
     if (memoryToggleEl) memoryToggleEl.checked = flags.memoryTable !== false;
     if (chatToggleEl) chatToggleEl.checked = flags.chatManager !== false;
-    if (noteEl) {
-      noteEl.textContent = flags.chatManager !== false
-        ? '聊天管理已启用，欢迎页最近聊天区域下方会显示管理面板。'
-        : '聊天管理当前未注入欢迎页。启用后会自动挂载到欢迎页最近聊天区域。';
-    }
   };
 
   return ST_API.ui.registerSettingsPanel({
     id: FEATURE_SETTINGS_PANEL_ID,
-    title: 'WorldTreeLibrary 功能开关',
+    title: 'WorldTreeLibrary',
     target: 'right',
     expanded: false,
     content: {
@@ -325,6 +237,9 @@ export async function registerFeatureSettingsPanel(options = {}) {
         container.innerHTML = renderFeatureSettingsHtml();
         const root = container.querySelector('#wtl-feature-settings');
         if (!root) return;
+
+        const settingsPreview = root.querySelector('#wtl-settings-preview');
+        const dataStatsEl = root.querySelector('#wtl-data-stats');
 
         root.addEventListener('change', (event) => {
           const target = event.target;
@@ -341,20 +256,112 @@ export async function registerFeatureSettingsPanel(options = {}) {
           if (typeof onChange === 'function') onChange(next);
         });
 
-        // 添加更多设置按钮
-        const moreSettingsBtn = document.createElement('button');
-        moreSettingsBtn.className = 'menu_button';
-        moreSettingsBtn.style.marginTop = '12px';
-        moreSettingsBtn.innerHTML = '<i class="fa-solid fa-gear"></i> 更多设置';
-        moreSettingsBtn.addEventListener('click', () => {
-          openFeatureModal(onChange);
+        root.querySelector('#wtl-settings-export').addEventListener('click', async () => {
+          try {
+            const json = await exportAllSettings();
+            downloadJson('worldtree-settings.json', json);
+            showToast('用户设置已导出', 'success');
+          } catch (e) {
+            showToast('导出失败: ' + e.message, 'error');
+          }
         });
-        container.appendChild(moreSettingsBtn);
+
+        root.querySelector('#wtl-settings-import').addEventListener('click', async () => {
+          const content = await promptFileImport('.json');
+          if (!content) return;
+          const success = await importAllSettings(content);
+          if (success) {
+            showToast('用户设置已导入', 'success');
+            if (settingsPreview) refreshSettingsPreview(settingsPreview);
+            syncUi();
+          } else {
+            showToast('导入失败: 无效的JSON格式', 'error');
+          }
+        });
+
+        root.querySelector('#wtl-settings-reset').addEventListener('click', async () => {
+          if (!confirm('确定要重置所有用户设置到默认值吗？此操作不可撤销。')) return;
+          try {
+            await resetAllSettings();
+            showToast('用户设置已重置', 'success');
+            if (settingsPreview) refreshSettingsPreview(settingsPreview);
+            syncUi();
+          } catch (e) {
+            showToast('重置失败: ' + e.message, 'error');
+          }
+        });
+
+        root.querySelector('#wtl-data-export').addEventListener('click', () => {
+          try {
+            const json = DataManager.exportLocalData();
+            downloadJson('worldtree-data.json', json);
+            showToast('本地数据已导出', 'success');
+          } catch (e) {
+            showToast('导出失败: ' + e.message, 'error');
+          }
+        });
+
+        root.querySelector('#wtl-data-import').addEventListener('click', async () => {
+          const content = await promptFileImport('.json');
+          if (!content) return;
+          const result = DataManager.importLocalData(content);
+          if (result.success) {
+            showToast(`已导入 ${result.importedCount} 条数据`, 'success');
+            if (dataStatsEl) refreshDataStats(dataStatsEl);
+          } else {
+            showToast('导入失败: ' + result.error, 'error');
+          }
+        });
+
+        root.querySelector('#wtl-data-delete-all').addEventListener('click', () => {
+          if (!confirm('确定要删除所有 WorldTreeLibrary 本地数据吗？此操作不可撤销。')) return;
+          try {
+            const count = DataManager.deleteLocalData('all');
+            showToast(`已删除 ${count} 条数据`, 'success');
+            if (dataStatsEl) refreshDataStats(dataStatsEl);
+          } catch (e) {
+            showToast('删除失败: ' + e.message, 'error');
+          }
+        });
+
+        root.querySelector('#wtl-data-delete-tables').addEventListener('click', () => {
+          if (!confirm('确定要删除所有存储的表格数据吗？')) return;
+          try {
+            const count = DataManager.deleteLocalData('tables');
+            showToast(`已删除 ${count} 条表格数据`, 'success');
+            if (dataStatsEl) refreshDataStats(dataStatsEl);
+          } catch (e) {
+            showToast('删除失败: ' + e.message, 'error');
+          }
+        });
+
+        root.querySelector('#wtl-data-delete-presets').addEventListener('click', () => {
+          if (!confirm('确定要删除所有预设数据吗？')) return;
+          try {
+            const count = DataManager.deleteLocalData('presets');
+            showToast(`已删除 ${count} 条预设数据`, 'success');
+            if (dataStatsEl) refreshDataStats(dataStatsEl);
+          } catch (e) {
+            showToast('删除失败: ' + e.message, 'error');
+          }
+        });
+
+        root.querySelector('#wtl-data-delete-chat').addEventListener('click', () => {
+          if (!confirm('确定要删除所有聊天管理数据吗？')) return;
+          try {
+            const count = DataManager.deleteLocalData('chatManager');
+            showToast(`已删除 ${count} 条聊天管理数据`, 'success');
+            if (dataStatsEl) refreshDataStats(dataStatsEl);
+          } catch (e) {
+            showToast('删除失败: ' + e.message, 'error');
+          }
+        });
 
         syncUi();
+        if (settingsPreview) refreshSettingsPreview(settingsPreview);
+        if (dataStatsEl) refreshDataStats(dataStatsEl);
 
         return () => {
-          // 清理函数
           root.removeEventListener('change', () => {});
         };
       }

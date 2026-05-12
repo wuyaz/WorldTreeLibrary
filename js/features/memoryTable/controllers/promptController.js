@@ -533,6 +533,10 @@ export class PromptController {
     return this.state.running;
   }
   
+  handleTableUpdated(data) {
+    // Called when memory table is updated; placeholder noop
+  }
+
   destroy() {
     // Stop auto-refresh
     this.stopAutoRefresh();

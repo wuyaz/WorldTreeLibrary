@@ -229,10 +229,6 @@ export function getCachedAsset(path, type = 'text') {
  */
 export async function ensureWtlStyle() {
   try {
-    // Load main CSS
-    await loadCSS('wtl.css', 'wtl-inline-style');
-    
-    // Load CSS modules
     await loadAllCSSModules();
   } catch (error) {
     console.warn('[WTL AssetLoader] Failed to load WTL styles:', error);

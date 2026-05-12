@@ -95,9 +95,9 @@ export class RuntimeController {
       });
     }
     
-    // Bind auto-refresh toggle
+    // Bind auto-refresh toggle (checkbox)
     if (this.ui.autoToggleBtn) {
-      this.ui.autoToggleBtn.addEventListener('click', () => {
+      this.ui.autoToggleBtn.addEventListener('change', () => {
         this.toggleAutoRefresh();
       });
     }
@@ -172,10 +172,9 @@ export class RuntimeController {
   }
   
   syncUI() {
-    // Update auto-refresh button state
+    // Update auto-refresh checkbox state
     if (this.ui.autoToggleBtn) {
-      this.ui.autoToggleBtn.textContent = this.state.isAutoRefreshEnabled ? '关闭自动刷新' : '开启自动刷新';
-      this.ui.autoToggleBtn.dataset.enabled = this.state.isAutoRefreshEnabled ? 'true' : 'false';
+      this.ui.autoToggleBtn.checked = this.state.isAutoRefreshEnabled;
     }
     
     // Update batch input values

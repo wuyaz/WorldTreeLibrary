@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check DOM</title>
+</head>
+<body>
+    <div id="test"></div>
+    <script>
+        const templateMode = true;
+        const sections = [
+            { name: '表格1' },
+            { name: '表格2' }
+        ];
+        
+        const html = sections.map((section, idx) => {
+            const name = section.name || `表格${idx + 1}`;
+            const dragHandle = templateMode 
+                ? `<i class="fa-solid fa-grip-vertical wtl-table-pill-drag-handle"></i>` 
+                : '';
+            
+            return `
+                <button class="wtl-table-pill is-draggable" data-section-idx="${idx}" ${templateMode ? 'draggable="true"' : ''}>
+                    ${dragHandle}${name}
+                </button>
+            `;
+        }).join('');
+        
+        document.getElementById('test').innerHTML = html;
+        
+        console.log('Generated HTML:', html);
+        console.log('Pills:', document.querySelectorAll('.wtl-table-pill'));
+        console.log('Handles:', document.querySelectorAll('.wtl-table-pill-drag-handle'));
+    </script>
+</body>
+</html>

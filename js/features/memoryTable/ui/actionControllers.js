@@ -300,12 +300,11 @@ export function bindRuntimeModeControls({
   refreshPromptPreview,
   setStatus
 }) {
-  autoToggleBtn?.addEventListener('click', async () => {
-    const enabled = autoToggleBtn.dataset.active === 'true';
-    const next = !enabled;
-    setAutoUi(next);
+  autoToggleBtn?.addEventListener('change', async () => {
+    const enabled = autoToggleBtn.checked;
+    setAutoUi(enabled);
     await saveState();
-    setStatus(next ? '自动填表：已开启' : '自动填表：已关闭');
+    setStatus(enabled ? '自动填表：已开启' : '自动填表：已关闭');
   });
 
   tableInjectToggleBtn?.addEventListener('change', async () => {

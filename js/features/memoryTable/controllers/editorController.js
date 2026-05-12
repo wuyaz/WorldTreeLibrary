@@ -134,7 +134,13 @@ export class EditorController {
         updateSchemaPreview: this.ctx.updateSchemaPreview || (() => {})
       },
       onTemplateSave: this.handleTemplateSave.bind(this),
-      onTemplateCancel: this.handleTemplateCancel.bind(this)
+      onTemplateCancel: this.handleTemplateCancel.bind(this),
+      state: {
+        getTemplateEditMode: () => this.state.isTemplateEditorOpen,
+        setTemplateEditMode: (val) => { this.state.isTemplateEditorOpen = val; },
+        getTableEditMode: () => this.state.isTableEditing,
+        setTableEditMode: (val) => { this.state.isTableEditing = val; }
+      }
     });
     
     // Bind table editing controls
@@ -191,8 +197,16 @@ export class EditorController {
     
     // Update table editing button state
     if (this.ui.editTableBtn) {
-      this.ui.editTableBtn.textContent = this.state.isTableEditing ? '完成编辑' : '编辑表格';
-      this.ui.editTableBtn.dataset.editing = this.state.isTableEditing ? 'true' : 'false';
+      const icon = this.ui.editTableBtn.querySelector('i');
+      if (this.state.isTableEditing) {
+        this.ui.editTableBtn.title = '保存并退出编辑';
+        this.ui.editTableBtn.dataset.editing = 'true';
+        if (icon) icon.className = 'fa-solid fa-floppy-disk';
+      } else {
+        this.ui.editTableBtn.title = '编辑表格';
+        this.ui.editTableBtn.dataset.editing = 'false';
+        if (icon) icon.className = 'fa-solid fa-pencil';
+      }
     }
   }
   
