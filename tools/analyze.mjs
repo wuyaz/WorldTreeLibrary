@@ -3,10 +3,13 @@
 // 用法：node analyze.mjs <插件根目录> [入口文件...]
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = process.argv[2] || path.resolve('.', '..');
+// 不传参数时默认用本脚本所在的插件根目录（tools/ 的上一级），跟 cwd 无关
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(process.argv[2] || path.join(scriptDir, '..'));
 if (!root) {
-  console.error('用法: node analyze.mjs <插件根目录>');
+  console.error('用法: node analyze.mjs [插件根目录]');
   process.exit(2);
 }
 const entries = process.argv.slice(3).length

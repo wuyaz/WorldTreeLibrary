@@ -12,7 +12,7 @@
  * 注意: 这是自动填表的核心服务，只关注自动触发逻辑，不处理具体填表操作
  */
 
-import { getSetting } from '../../../core/settingsManager.js';
+import { readAutoFillConfig } from './uiStateService.js';
 import { showToast } from '../../../shared/ui/toast.js';
 import { debugAlert } from '../../../shared/utils/debugAlert.js';
 
@@ -26,11 +26,12 @@ export class AutoFillService {
     this.runFillOnce = runFillOnceFn || (() => Promise.resolve());
     this.state = {
       isStreaming: false,
-      messageCount: 0,
+      // 从当前聊天已有的消息数起步，否则刷新页面后要重新攒够楼层才会触发
+      messageCount: Array.isArray(this.ctx?.chat) ? this.ctx.chat.length : 0,
       lastStreamTime: 0,
       pendingAutoFill: false
     };
-    
+
     this.initializeStreamingHooks();
   }
   
@@ -148,29 +149,28 @@ export class AutoFillService {
    */
   async checkAndTriggerAutoFill() {
     try {
-      // Read settings from extension_settings
-      const autoFillEnabled = await getSetting('memoryTable', 'autoFillEnabled', true);
-      const autoFillFloors = await getSetting('memoryTable', 'autoFillFloors', '3');
-      const autoFillEvery = await getSetting('memoryTable', 'autoFillEvery', '1');
-      
+      // 配置与界面共用同一份来源（uiStateService），界面改完立即生效
+      const { enabled: autoFillEnabled, floors: autoFillFloors, every: autoFillEvery } =
+        readAutoFillConfig(globalThis.__WTL_DEFAULTS__?.memoryTable || {});
+
       debugAlert('[DEBUG 自动填表] checkAndTriggerAutoFill 开始检查\n启用: ' + autoFillEnabled + '\n消息数: ' + this.state.messageCount + '\n需要楼层: ' + autoFillFloors + '\n每N条触发: ' + autoFillEvery + '\npendingAutoFill: ' + this.state.pendingAutoFill);
-      
+
       // Check if auto-fill is enabled
       if (!autoFillEnabled) {
         console.log('[WTL AutoFill] Auto-fill is disabled');
         debugAlert('[DEBUG 自动填表] 跳过: 自动填表已禁用');
         return;
       }
-      
+
       // Check if we should trigger based on message count
-      if (this.state.messageCount % parseInt(autoFillEvery) !== 0) {
+      if (this.state.messageCount % autoFillEvery !== 0) {
         console.log(`[WTL AutoFill] Message count ${this.state.messageCount} not multiple of ${autoFillEvery}`);
         debugAlert('[DEBUG 自动填表] 跳过: 消息数 ' + this.state.messageCount + ' 不是 ' + autoFillEvery + ' 的倍数');
         return;
       }
-      
+
       // Check if we have enough messages to process
-      if (this.state.messageCount < parseInt(autoFillFloors)) {
+      if (this.state.messageCount < autoFillFloors) {
         console.log(`[WTL AutoFill] Only ${this.state.messageCount} messages, need ${autoFillFloors}`);
         debugAlert('[DEBUG 自动填表] 跳过: 消息数不足 (' + this.state.messageCount + ' < ' + autoFillFloors + ')');
         return;

@@ -145,18 +145,7 @@ export class PromptController {
       this.ui.logRefreshBtn.addEventListener('click', () => this.refreshLog());
     }
     
-    // Bind injection toggle controls
-    if (this.ui.tableInjectToggleBtn) {
-      this.ui.tableInjectToggleBtn.addEventListener('click', () => this.toggleTableInjection());
-    }
-    
-    if (this.ui.instInjectToggleEl) {
-      this.ui.instInjectToggleEl.addEventListener('click', () => this.toggleInstructionInjection());
-    }
-    
-    if (this.ui.schemaInjectToggleEl) {
-      this.ui.schemaInjectToggleEl.addEventListener('click', () => this.toggleSchemaInjection());
-    }
+    // 注入开关（表格 / 指令 / 模板）由 uiStateService 统一接管读写，这里不再绑定
   }
   
   loadInitialState() {
@@ -203,7 +192,7 @@ export class PromptController {
   }
   
   handleSendModeChange() {
-    const sendMode = this.ui.sendModeEl?.value || 'auto';
+    const sendMode = this.ui.sendModeEl?.value || this.defaults.sendMode || 'external';
     localStorage.setItem('wtl.sendMode', sendMode);
     
     // Update UI based on send mode
@@ -217,72 +206,6 @@ export class PromptController {
     if (this.promptMacroController?.refreshModeUi) {
       this.promptMacroController.refreshModeUi();
     }
-  }
-  
-  async toggleTableInjection() {
-    const isEnabled = this.ui.tableInjectToggleBtn?.classList.contains('active') || false;
-    const newState = !isEnabled;
-    
-    // Update UI
-    if (this.ui.tableInjectToggleBtn) {
-      this.ui.tableInjectToggleBtn.classList.toggle('active', newState);
-      this.ui.tableInjectToggleBtn.textContent = newState ? '已启用' : '已禁用';
-    }
-    
-    // Save state
-    localStorage.setItem('wtl.tableInjectionEnabled', newState.toString());
-    
-    // Refresh prompt preview
-    await this.refreshPromptPreview();
-    
-    eventBus.emit(EVENTS.CONFIG_CHANGED, { 
-      key: 'tableInjectionEnabled', 
-      value: newState 
-    });
-  }
-  
-  async toggleInstructionInjection() {
-    const isEnabled = this.ui.instInjectToggleEl?.classList.contains('active') || false;
-    const newState = !isEnabled;
-    
-    // Update UI
-    if (this.ui.instInjectToggleEl) {
-      this.ui.instInjectToggleEl.classList.toggle('active', newState);
-      this.ui.instInjectToggleEl.textContent = newState ? '已启用' : '已禁用';
-    }
-    
-    // Save state
-    localStorage.setItem('wtl.instructionInjectionEnabled', newState.toString());
-    
-    // Refresh prompt preview
-    await this.refreshPromptPreview();
-    
-    eventBus.emit(EVENTS.CONFIG_CHANGED, { 
-      key: 'instructionInjectionEnabled', 
-      value: newState 
-    });
-  }
-  
-  async toggleSchemaInjection() {
-    const isEnabled = this.ui.schemaInjectToggleEl?.classList.contains('active') || false;
-    const newState = !isEnabled;
-    
-    // Update UI
-    if (this.ui.schemaInjectToggleEl) {
-      this.ui.schemaInjectToggleEl.classList.toggle('active', newState);
-      this.ui.schemaInjectToggleEl.textContent = newState ? '已启用' : '已禁用';
-    }
-    
-    // Save state
-    localStorage.setItem('wtl.schemaInjectionEnabled', newState.toString());
-    
-    // Refresh prompt preview
-    await this.refreshPromptPreview();
-    
-    eventBus.emit(EVENTS.CONFIG_CHANGED, { 
-      key: 'schemaInjectionEnabled', 
-      value: newState 
-    });
   }
   
   async refreshPromptPreview(force = false) {
@@ -322,13 +245,14 @@ export class PromptController {
     const instruction = this.ui.instructionEl?.value || '';
     const schema = this.ui.schemaEl?.value || '';
     
-    // Get injection states
-    const tableInjectionEnabled = this.ui.tableInjectToggleBtn?.classList.contains('active') || false;
-    const instructionInjectionEnabled = this.ui.instInjectToggleEl?.classList.contains('active') || false;
-    const schemaInjectionEnabled = this.ui.schemaInjectToggleEl?.classList.contains('active') || false;
-    
+    // 三个注入开关都是 checkbox，读 checked（此前读 classList.active 恒为 false，
+    // 导致拼出来的 Prompt 里根本没有表格 / 指令 / 模板）
+    const tableInjectionEnabled = Boolean(this.ui.tableInjectToggleEl?.checked);
+    const instructionInjectionEnabled = Boolean(this.ui.instInjectToggleEl?.checked);
+    const schemaInjectionEnabled = Boolean(this.ui.schemaInjectToggleEl?.checked);
+
     // Get send mode
-    const sendMode = this.ui.sendModeEl?.value || 'auto';
+    const sendMode = this.ui.sendModeEl?.value || this.defaults.sendMode || 'external';
     
     // Get current table data (this would need to be implemented)
     const tableData = await this.getCurrentTableData();

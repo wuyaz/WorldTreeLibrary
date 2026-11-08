@@ -11,6 +11,7 @@ import { PageController } from './pageController.js';
 import { EditorController } from './editorController.js';
 import { RuntimeController } from './runtimeController.js';
 import { AutoFillService } from '../services/autoFillService.js';
+import { restoreUiState, bindUiStatePersistence } from '../services/uiStateService.js';
 import { createSchemaEditorController } from '../ui/schemaEditorController.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
 import { getFeatureFlags } from '../../../core/storage.js';
@@ -33,6 +34,7 @@ export class MemoryTableFeature {
     this.initialized = false;
     this.uiInitialized = false;
     this.autoFillService = null;
+    this.unbindUiState = null;
   }
   
   /**
@@ -135,7 +137,22 @@ export class MemoryTableFeature {
       if (this.controllers.schemaEditor?.refresh) {
         this.controllers.schemaEditor.refresh();
       }
-      
+
+      // 配置区控件：先回填用户改过的值，再挂上写回存储的监听
+      // （放在预设载入之后，保证这里是最外层的写入者；再交给 applyFeatureUi 处理可见性）
+      restoreUiState({ ui: this.uiRefs, defaults: this.defaults });
+      this.unbindUiState = bindUiStatePersistence({
+        ui: this.uiRefs,
+        onChange: (key) => {
+          // 注入开关会改变预览内容，其余字段只存不刷新，避免每敲一个字就重拼 Prompt
+          if (key.endsWith('InjectEnabled')) {
+            Promise.resolve(this.controllers.prompt?.refreshPromptPreview?.(true)).catch(() => {});
+          }
+        }
+      });
+      // 回填之后让依赖发送模式的显示区（ST 设置 / 外部 API）同步一次
+      this.controllers.prompt?.updateSendModeUI?.(this.uiRefs.sendModeEl?.value);
+
       this.bindCrossControllerEvents();
       
       this.applyFeatureUi();
@@ -511,6 +528,11 @@ export class MemoryTableFeature {
     // Destroy auto-fill service
     if (this.autoFillService?.destroy) {
       this.autoFillService.destroy();
+    }
+
+    if (typeof this.unbindUiState === 'function') {
+      this.unbindUiState();
+      this.unbindUiState = null;
     }
     
     // Destroy controllers

@@ -110,12 +110,8 @@ export class RuntimeController {
       });
     }
     
-    // Bind auto-refresh toggle (checkbox)
-    if (this.ui.autoToggleBtn) {
-      this.ui.autoToggleBtn.addEventListener('change', () => {
-        this.toggleAutoRefresh();
-      });
-    }
+    // 参数条上的「自动」开关属于自动填表（由 uiStateService 统一接管读写），
+    // 这里不再绑定，避免被当成日志自动刷新开关而互相覆盖。
     
     // Bind worldbook controls
     bindWorldBookControls({
@@ -159,7 +155,6 @@ export class RuntimeController {
     eventBus.on(EVENTS.BATCH_STARTED, this.handleBatchStarted.bind(this));
     eventBus.on(EVENTS.BATCH_COMPLETED, this.handleBatchCompleted.bind(this));
     eventBus.on(EVENTS.BATCH_ERROR, this.handleBatchError.bind(this));
-    eventBus.on(EVENTS.AUTO_REFRESH_TOGGLED, this.handleAutoRefreshToggled.bind(this));
   }
   
   loadInitialState() {
@@ -178,20 +173,9 @@ export class RuntimeController {
     if (this.ui.wbModeEl) {
       this.state.worldBookMode = this.ui.wbModeEl.value || 'auto';
     }
-    
-    // Load auto-refresh state from localStorage
-    const autoRefreshState = localStorage.getItem('wtl.autoRefreshEnabled');
-    if (autoRefreshState !== null) {
-      this.state.isAutoRefreshEnabled = autoRefreshState === 'true';
-    }
   }
   
   syncUI() {
-    // Update auto-refresh checkbox state
-    if (this.ui.autoToggleBtn) {
-      this.ui.autoToggleBtn.checked = this.state.isAutoRefreshEnabled;
-    }
-    
     // Update batch input values
     if (this.ui.batchStartEl && this.ui.batchStartEl.value !== this.state.currentBatchStart.toString()) {
       this.ui.batchStartEl.value = this.state.currentBatchStart.toString();
@@ -222,26 +206,6 @@ export class RuntimeController {
   stopAutoRefresh() {
     // Auto-refresh is controlled by the controller's internal timer
     // We'll rely on the controller to handle cleanup
-  }
-  
-  toggleAutoRefresh() {
-    this.state.isAutoRefreshEnabled = !this.state.isAutoRefreshEnabled;
-    localStorage.setItem('wtl.autoRefreshEnabled', this.state.isAutoRefreshEnabled.toString());
-    this.syncUI();
-    
-    if (this.state.isAutoRefreshEnabled) {
-      this.startAutoRefresh();
-      if (this.ctx.setStatus) {
-        this.ctx.setStatus('自动刷新已开启');
-      }
-    } else {
-      // Note: The auto-refresh controller handles its own cleanup
-      if (this.ctx.setStatus) {
-        this.ctx.setStatus('自动刷新已关闭');
-      }
-    }
-    
-    eventBus.emit(EVENTS.AUTO_REFRESH_TOGGLED, { enabled: this.state.isAutoRefreshEnabled });
   }
   
   async runBatchFill() {
@@ -361,18 +325,12 @@ export class RuntimeController {
     this.state.isBatchRunning = false;
     this.syncUI();
   }
-  
-  handleAutoRefreshToggled(data) {
-    this.state.isAutoRefreshEnabled = data.enabled;
-    this.syncUI();
-  }
-  
+
   // Cleanup
   destroy() {
     eventBus.off(EVENTS.BATCH_STARTED, this.handleBatchStarted.bind(this));
     eventBus.off(EVENTS.BATCH_COMPLETED, this.handleBatchCompleted.bind(this));
     eventBus.off(EVENTS.BATCH_ERROR, this.handleBatchError.bind(this));
-    eventBus.off(EVENTS.AUTO_REFRESH_TOGGLED, this.handleAutoRefreshToggled.bind(this));
     
     // Clean up any intervals or timeouts
     if (this.autoRefreshController?.cleanup) {
