@@ -98,43 +98,57 @@ export function bindModeControls({
   sendModeEl,
   instModeEl,
   schemaModeSendEl,
-  tableModeEl,
-  refreshModeUi,
-  saveState,
-  setExternalLeftTab,
-  syncInstructionInjection,
-  syncSchemaInjection,
-  syncTableInjection,
-  refreshPromptPreview
+  schemaModeCopyEl,
+  schemaModeDisplayEl,
+  onSendModeChange,
+  onInstModeChange,
+  onSchemaModeChange
 }) {
-  sendModeEl?.addEventListener('change', async () => {
-    const mode = sendModeEl.value;
-    refreshModeUi();
-    await saveState();
-    if (mode === 'external') {
-      setExternalLeftTab('order');
-    }
-    refreshPromptPreview(true);
+  sendModeEl?.addEventListener('change', () => {
+    onSendModeChange?.(sendModeEl.value);
   });
 
-  instModeEl?.addEventListener('change', async () => {
-    refreshModeUi();
-    await saveState();
-    await syncInstructionInjection();
-    refreshPromptPreview(true);
+  instModeEl?.addEventListener('change', () => {
+    onInstModeChange?.(instModeEl.value);
   });
 
-  schemaModeSendEl?.addEventListener('change', async () => {
-    refreshModeUi();
-    await saveState();
-    await syncSchemaInjection();
-    refreshPromptPreview(true);
+  schemaModeSendEl?.addEventListener('change', () => {
+    onSchemaModeChange?.('send', schemaModeSendEl.value);
   });
 
-  tableModeEl?.addEventListener('change', async () => {
-    refreshModeUi();
-    await saveState();
-    await syncTableInjection();
-    refreshPromptPreview(true);
+  schemaModeCopyEl?.addEventListener('change', () => {
+    onSchemaModeChange?.('copy', schemaModeCopyEl.value);
   });
+
+  schemaModeDisplayEl?.addEventListener('change', () => {
+    onSchemaModeChange?.('display', schemaModeDisplayEl.value);
+  });
+}
+
+/**
+ * 绑定模式切换控制（模块2 → 模块3/4 显示/隐藏）
+ * 当 sendMode 改变时，显示/隐藏 ST 设置和 External 设置区域
+ */
+export function bindModeSwitchControls({
+  sendModeEl,
+  stSettingsEl,
+  externalEl,
+  onSendModeChange
+}) {
+  const updateModeVisibility = () => {
+    const mode = sendModeEl?.value || 'st';
+    const isExternal = mode === 'external';
+    if (stSettingsEl) stSettingsEl.style.display = isExternal ? 'none' : 'block';
+    if (externalEl) externalEl.style.display = isExternal ? 'block' : 'none';
+  };
+
+  sendModeEl?.addEventListener('change', () => {
+    updateModeVisibility();
+    onSendModeChange?.(sendModeEl.value);
+  });
+
+  // 初始状态
+  updateModeVisibility();
+
+  return { updateModeVisibility };
 }

@@ -7,6 +7,8 @@
 import { createBatchController, createOpenAiModelController } from '../ui/runtimeControllers.js';
 import { createAutoRefreshController, bindWorldBookControls, bindOpenAiPresetControls } from '../ui/actionControllers.js';
 import { renderManualWorldBookEditor } from '../ui/manualWorldBook.js';
+import { getOpenAIPresets, setOpenAIPresets } from '../../../core/storage.js';
+import { createOpenAiPresetHelpers } from '../ui/presetControllers.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
 
 export class RuntimeController {
@@ -59,6 +61,19 @@ export class RuntimeController {
       openaiUrlEl: this.ui.openaiUrlEl,
       openaiKeyEl: this.ui.openaiKeyEl,
       openaiModelEl: this.ui.openaiModelEl
+    });
+    
+    // Initialize OpenAI preset helpers (provides loadOpenAIPresetByName, refreshOpenAIPresetSelect)
+    this.openAiPresetHelpers = createOpenAiPresetHelpers({
+      openaiPresetEl: this.ui.openaiPresetEl,
+      openaiPresetNameEl: this.ui.openaiPresetNameEl,
+      openaiUrlEl: this.ui.openaiUrlEl,
+      openaiKeyEl: this.ui.openaiKeyEl,
+      openaiTempEl: this.ui.openaiTempEl,
+      openaiMaxEl: this.ui.openaiMaxEl,
+      openaiStreamEl: this.ui.openaiStreamEl,
+      openaiModelEl: this.ui.openaiModelEl,
+      getOpenAIPresets
     });
     
     // Initialize auto-refresh controller
@@ -132,10 +147,10 @@ export class RuntimeController {
       openaiMaxEl: this.ui.openaiMaxEl,
       openaiStreamEl: this.ui.openaiStreamEl,
       refreshModels: this.openAiModelController?.refreshModels || (() => Promise.resolve()),
-      loadOpenAIPresetByName: this.ctx.loadOpenAIPresetByName || (() => ({})),
-      getOpenAIPresets: this.ctx.getOpenAIPresets || (() => []),
-      setOpenAIPresets: this.ctx.setOpenAIPresets || (() => {}),
-      refreshOpenAIPresetSelect: this.ctx.refreshOpenAIPresetSelect || (() => {}),
+      loadOpenAIPresetByName: this.openAiPresetHelpers?.loadOpenAIPresetByName || (() => false),
+      getOpenAIPresets,
+      setOpenAIPresets,
+      refreshOpenAIPresetSelect: this.openAiPresetHelpers?.refreshOpenAIPresetSelect || (() => {}),
       saveState: this.ctx.saveState || (() => Promise.resolve()),
       setStatus: this.ctx.setStatus || (() => {})
     });

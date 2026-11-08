@@ -4,10 +4,11 @@
  * Handles page navigation, mode controls, and main UI interactions
  */
 
-import { 
-  createExternalTabController, 
-  bindPageControls, 
-  bindModeControls 
+import {
+  createExternalTabController,
+  bindPageControls,
+  bindModeControls,
+  bindModeSwitchControls
 } from '../ui/pageControllers.js';
 import { getFeatureFlags } from '../../../core/storage.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
@@ -71,21 +72,39 @@ export class PageController {
       updateSchemaPreview: this.ctx.updateSchemaPreview || (() => {}),
       setStatus: this.ctx.setStatus || (() => {})
     });
+
+    // Bind external API panel prompt preview refresh
+    if (this.ui.externalPromptRefreshEl && this.ui.externalPromptPreviewEl) {
+      this.ui.externalPromptRefreshEl.addEventListener('click', () => {
+        const cached = localStorage.getItem('wtl.lastPrompt') || '';
+        this.ui.externalPromptPreviewEl.value = cached;
+        // Also trigger a fresh preview build if available
+        if (this.ctx.refreshPromptPreview) {
+          this.ctx.refreshPromptPreview(true).then(() => {
+            this.ui.externalPromptPreviewEl.value = localStorage.getItem('wtl.lastPrompt') || '';
+          }).catch(() => {});
+        }
+      });
+    }
     
-    // Bind mode controls
+    // Bind mode controls (inst/schema mode change events)
     bindModeControls({
       sendModeEl: this.ui.sendModeEl,
       instModeEl: this.ui.instModeEl,
       schemaModeSendEl: this.ui.schemaModeSendEl,
       schemaModeCopyEl: this.ui.schemaModeCopyEl,
       schemaModeDisplayEl: this.ui.schemaModeDisplayEl,
-      externalEl: this.ui.externalEl,
-      stModeEl: this.ui.stModeEl,
-      instBlockEl: this.ui.instBlockEl,
-      instSidebarEl: this.ui.instSidebarEl,
       onSendModeChange: this.handleSendModeChange.bind(this),
       onInstModeChange: this.handleInstModeChange.bind(this),
       onSchemaModeChange: this.handleSchemaModeChange.bind(this)
+    });
+
+    // Bind mode switch controls (模块2 → 模块3/4 显示/隐藏)
+    bindModeSwitchControls({
+      sendModeEl: this.ui.sendModeEl,
+      stSettingsEl: this.ui.stSettingsEl,
+      externalEl: this.ui.externalModeEl,
+      onSendModeChange: this.handleSendModeChange.bind(this)
     });
     
     // Bind event bus listeners

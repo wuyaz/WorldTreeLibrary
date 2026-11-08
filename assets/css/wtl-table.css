@@ -446,35 +446,35 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* Footer edit button */
-#wtl-root .wtl-table-footer .wtl-footer-edit-btn {
+/* Footer icon buttons (no border, no background, pure icon) */
+#wtl-root .wtl-table-footer .wtl-footer-icon-btn {
   background: none;
-  border: 1px solid transparent;
+  border: none;
   color: var(--SmartThemeBodyColor);
   opacity: 0.4;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 4px 6px;
   font-size: 13px;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease;
   outline: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
 }
-#wtl-root .wtl-table-footer .wtl-footer-edit-btn:hover {
-  opacity: 0.7;
-  background: rgba(255, 255, 255, 0.05);
+#wtl-root .wtl-table-footer .wtl-footer-icon-btn:hover {
+  opacity: 0.8;
 }
-#wtl-root .wtl-table-footer .wtl-footer-edit-btn.is-editing {
+#wtl-root .wtl-table-footer .wtl-footer-icon-btn.is-editing {
   opacity: 0.8;
   color: var(--SmartThemeEmColor, #61afef);
-  border-color: var(--SmartThemeEmColor, #61afef);
 }
-#wtl-root .wtl-table-footer .wtl-footer-edit-btn.is-editing:hover {
+#wtl-root .wtl-table-footer .wtl-footer-icon-btn.is-editing:hover {
   opacity: 1;
-  background: rgba(97, 175, 239, 0.1);
+}
+#wtl-root .wtl-table-footer .wtl-footer-icon-btn.wtl-footer-danger:hover {
+  color: #e06c75;
+  opacity: 0.9;
 }
 
 /* Row drag handle (edit mode) */
@@ -617,6 +617,194 @@
   opacity: 0;
 }
 
+/* ========== 右滑删除（Swipe Delete） ========== */
+
+/* 编辑模式下，swipe 行使用 td 包裹，内部 flex 布局实现滑动 */
+#wtl-root .wtl-swipe-row > td {
+  padding: 0 !important;
+  border: none !important;
+  position: relative;
+  overflow: hidden;
+}
+
+#wtl-root .wtl-swipe-container {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+#wtl-root .wtl-swipe-content {
+  flex-shrink: 0;
+  width: 100%;
+  transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform;
+  background: inherit;
+  position: relative;
+  z-index: 2;
+}
+
+#wtl-root .wtl-swipe-content table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+#wtl-root .wtl-swipe-content table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#wtl-root .wtl-swipe-content table .wtl-row-index {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+}
+
+/* 删除按钮 - 初始隐藏在右侧 */
+#wtl-root .wtl-swipe-delete {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e74c3c;
+  color: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  z-index: 1;
+  transform: translateX(56px);
+  transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform;
+  border: none;
+  outline: none;
+}
+
+#wtl-root .wtl-swipe-delete:hover {
+  background: #c0392b;
+}
+
+#wtl-root .wtl-swipe-delete:active {
+  background: #a93226;
+}
+
+/* 拖拽中禁用过渡，实现实时跟随手指 */
+#wtl-root .wtl-swipe-dragging .wtl-swipe-content,
+#wtl-root .wtl-swipe-dragging .wtl-swipe-delete {
+  transition: none !important;
+}
+
+/* 已打开状态 */
+#wtl-root .wtl-swipe-open .wtl-swipe-content {
+  transform: translateX(-56px);
+}
+
+#wtl-root .wtl-swipe-open .wtl-swipe-delete {
+  transform: translateX(0px);
+}
+
+/* 删除动画 */
+#wtl-root .wtl-swipe-row.wtl-row-deleting .wtl-swipe-content {
+  transform: translateX(100%) !important;
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* ===== 6模块配置页面新增样式 ===== */
+
+/* 模式切换：ST/External 显示/隐藏 */
+#wtl-root .wtl-mode-st-only,
+#wtl-root .wtl-mode-external-only {
+  transition: opacity 0.2s ease;
+}
+
+/* 提示文本 */
+#wtl-root .wtl-hint {
+  color: var(--SmartThemeBodyColor);
+  opacity: 0.6;
+  font-size: 12px;
+  margin: 4px 0;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border-left: 3px solid var(--SmartThemeBorderColor);
+}
+
+/* ===== 模块6：前后缀设置 ===== */
+
+/* 预设管理行 */
+#wtl-root .wtl-prefix-preset-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+#wtl-root .wtl-prefix-preset-row .menu_button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* 前后缀编辑器容器 */
+#wtl-root .wtl-blocks-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 单个 block 编辑卡片 */
+#wtl-root .wtl-block-editor-card {
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+#wtl-root .wtl-block-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+#wtl-root .wtl-block-editor-header .wtl-badge {
+  font-weight: bold;
+  min-width: 80px;
+}
+
+#wtl-root .wtl-block-editor-header .wtl-block-key {
+  font-size: 11px;
+  color: var(--SmartThemeBodyColor);
+  opacity: 0.5;
+  font-family: monospace;
+}
+
+#wtl-root .wtl-block-editor-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+#wtl-root .wtl-block-editor-fields label {
+  font-size: 11px;
+  color: var(--SmartThemeBodyColor);
+  opacity: 0.7;
+  display: block;
+  margin-bottom: 2px;
+}
+
+#wtl-root .wtl-block-editor-fields textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   #wtl-root .wtl-table { font-size: 11px; }
@@ -625,4 +813,74 @@
   #wtl-root .wtl-section-tabs { padding: 6px 8px; }
   #wtl-root .wtl-section-tab { padding: 3px 8px; font-size: 11px; height: 24px; }
   #wtl-root .wtl-row-action-btn { font-size: 11px; padding: 3px 8px; }
+  #wtl-root .wtl-block-editor-fields { grid-template-columns: 1fr; }
+  #wtl-root .wtl-prefix-preset-row { flex-direction: column; align-items: stretch; }
+}
+
+/* ===== 表格模板双区域布局 ===== */
+
+/* 双区域网格容器 */
+#wtl-root .wtl-schema-dual-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* 编辑器面板和预览面板 */
+#wtl-root .wtl-schema-editor-panel,
+#wtl-root .wtl-schema-preview-panel {
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--wtl-bg-secondary, rgba(0,0,0,0.1));
+}
+
+/* 面板头部 */
+#wtl-root .wtl-schema-editor-header,
+#wtl-root .wtl-schema-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* 表格面板容器（限制高度，可滚动） */
+#wtl-root .wtl-schema-table-panel {
+  max-height: 300px;
+  overflow: auto;
+}
+
+/* JSON 编辑器 */
+#wtl-root #wtl-schema-json {
+  font-family: monospace;
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 200px;
+}
+
+/* 提示词预览 textarea */
+#wtl-root #wtl-schema-prompt-preview {
+  font-family: monospace;
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 200px;
+}
+
+/* 响应式：窄屏时改为上下布局 */
+@media (max-width: 768px) {
+  #wtl-root .wtl-schema-dual-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 分隔线 */
+#wtl-root .wtl-divider {
+  border: none;
+  border-top: 1px solid var(--wtl-border-color, #444);
+  margin: 16px 0;
 }

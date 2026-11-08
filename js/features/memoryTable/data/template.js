@@ -102,21 +102,7 @@ export const parseSchemaToTemplate = (schemaMd) => {
         };
       })
     };
-    if (!normalized.sections.length) {
-      const secId = createSectionIdWithPrefix(prefix, sectionIds);
-      const colIds = new Set();
-      normalized.sections.push({
-        id: secId,
-        name: '未命名',
-        definition: '',
-        deleteRule: '',
-        insertRule: '',
-        updateRule: '',
-        fillable: true,
-        sendable: true,
-        columns: [{ id: createColumnIdForSection(secId, colIds), name: '列1', definition: '', deleteRule: '', insertRule: '', updateRule: '' }]
-      });
-    }
+    // 删除空占位符生成逻辑，直接返回空 sections 数组
     return normalized;
   }
 
@@ -149,21 +135,7 @@ export const parseSchemaToTemplate = (schemaMd) => {
     }
   }
   if (current) sections.push(current);
-  if (!sections.length) {
-    const secId = createSectionIdWithPrefix(templatePrefix, sectionIds);
-    const colIds = new Set();
-    sections.push({
-      id: secId,
-      name: '未命名',
-      definition: '',
-      deleteRule: '',
-      insertRule: '',
-      updateRule: '',
-      fillable: true,
-      sendable: true,
-      columns: [{ id: createColumnIdForSection(secId, colIds), name: '列1', definition: '', deleteRule: '', insertRule: '', updateRule: '' }]
-    });
-  }
+  // 删除空占位符生成逻辑，直接返回空 sections 数组
   return { title, templatePrefix, sections };
 };
 

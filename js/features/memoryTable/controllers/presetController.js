@@ -38,6 +38,7 @@ import {
 import { safeParseJson } from '../../../shared/utils/index.js';
 import { saveSchemaPresetValue, renameSchemaPresetValue, deleteSchemaPresetValue } from '../ui/presets.js';
 import { getDefaultSchemaText } from '../services/schemaHelper.js';
+import { parseSchemaToTemplate as parseSchemaToTemplateFn } from '../data/template.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
 
 export class PresetController {
@@ -132,16 +133,16 @@ export class PresetController {
     
     // Bind prompt preset controls
     bindTextPresetControls({
-      selectEl: this.ui.prepromptPresetEl,
-      nameEl: this.ui.prepromptPresetNameEl,
+      selectEl: this.ui.prePromptPresetEl,
+      nameEl: this.ui.prePromptPresetNameEl,
       textareaEl: this.ui.prePromptEl,
-      loadBtn: this.ui.prepromptPresetLoadEl,
-      saveBtn: this.ui.prepromptPresetSaveEl,
-      renameBtn: this.ui.prepromptPresetRenameEl,
-      deleteBtn: this.ui.prepromptPresetDelEl,
-      importBtn: this.ui.prepromptPresetImportEl,
-      fileEl: this.ui.prepromptPresetFileEl,
-      exportBtn: this.ui.prepromptPresetExportEl,
+      loadBtn: this.ui.prePromptPresetLoadEl,
+      saveBtn: this.ui.prePromptPresetSaveEl,
+      renameBtn: this.ui.prePromptPresetRenameEl,
+      deleteBtn: this.ui.prePromptPresetDelEl,
+      importBtn: this.ui.prePromptPresetImportEl,
+      fileEl: this.ui.prePromptPresetFileEl,
+      exportBtn: this.ui.prePromptPresetExportEl,
       storageKey: PREPROMPT_PRESET_KEY,
       activeStorageKey: PREPROMPT_PRESET_ACTIVE_KEY,
       getPromptPresets,
@@ -207,14 +208,14 @@ export class PresetController {
   
   bindPresetImportExport() {
     // Preprompt import/export
-    if (this.ui.prepromptPresetImportEl) {
-      this.ui.prepromptPresetImportEl.addEventListener('click', () => 
+    if (this.ui.prePromptPresetImportEl) {
+      this.ui.prePromptPresetImportEl.addEventListener('click', () =>
         this.handlePresetImport('preprompt')
       );
     }
     
-    if (this.ui.prepromptPresetExportEl) {
-      this.ui.prepromptPresetExportEl.addEventListener('click', () => 
+    if (this.ui.prePromptPresetExportEl) {
+      this.ui.prePromptPresetExportEl.addEventListener('click', () =>
         this.handlePresetExport('preprompt')
       );
     }
@@ -370,8 +371,7 @@ export class PresetController {
   
   parseSchemaToTemplate(schemaText) {
     try {
-      const { parseSchemaToTemplate } = import('../data/template.js');
-      return parseSchemaToTemplate(schemaText);
+      return parseSchemaToTemplateFn(schemaText);
     } catch (error) {
       console.error('[WTL PresetController] Failed to parse schema:', error);
       return { title: '记忆表格', sections: [] };
@@ -434,9 +434,9 @@ export class PresetController {
       refreshSchemaPresetSelect(this.ui.schemaPresetEl);
     }
     
-    // Refresh text preset selects
-    refreshTextPresetSelect(this.ui.prepromptPresetEl, 'preprompt');
-    refreshTextPresetSelect(this.ui.instructionPresetEl, 'instruction');
+    // Refresh text preset selects — 使用完整的 localStorage key
+    refreshTextPresetSelect(this.ui.prePromptPresetEl, PREPROMPT_PRESET_KEY);
+    refreshTextPresetSelect(this.ui.instructionPresetEl, INSTRUCTION_PRESET_KEY);
     
     // Refresh OpenAI preset select
     if (this.openAiPresetHelpers) {
@@ -447,10 +447,10 @@ export class PresetController {
   refreshPresetSelect(presetType) {
     switch (presetType) {
       case 'preprompt':
-        refreshTextPresetSelect(this.ui.prepromptPresetEl, 'preprompt');
+        refreshTextPresetSelect(this.ui.prePromptPresetEl, PREPROMPT_PRESET_KEY);
         break;
       case 'instruction':
-        refreshTextPresetSelect(this.ui.instructionPresetEl, 'instruction');
+        refreshTextPresetSelect(this.ui.instructionPresetEl, INSTRUCTION_PRESET_KEY);
         break;
       case 'schema':
         if (this.ui.schemaPresetEl) {
@@ -497,7 +497,7 @@ export class PresetController {
   getPresetFileInput(presetType) {
     switch (presetType) {
       case 'preprompt':
-        return this.ui.prepromptPresetFileEl;
+        return this.ui.prePromptPresetFileEl;
       case 'instruction':
         return this.ui.instructionPresetFileEl;
       case 'schema':

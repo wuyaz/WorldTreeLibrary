@@ -1,5 +1,19 @@
 import { getPromptPresets, getSchemaPresets } from '../../../core/storage.js';
 
+/**
+ * 从 window.__WTL_PRESETS__ 获取默认预设数据并写入 localStorage
+ * @param {string} storageKey localStorage key
+ * @param {string} presetGroup window.__WTL_PRESETS__ 中的分组名
+ */
+function ensureDefaultPresets(storageKey, presetGroup) {
+  const raw = localStorage.getItem(storageKey);
+  if (raw) return; // 已有数据，跳过
+  const fallback = window.__WTL_PRESETS__?.[presetGroup];
+  if (fallback && typeof fallback === 'object' && Object.keys(fallback).length > 0) {
+    localStorage.setItem(storageKey, JSON.stringify(fallback));
+  }
+}
+
 function populatePresetSelect(selectEl, presets) {
   if (!selectEl) return;
   const presetsObj = presets || {};
@@ -10,7 +24,13 @@ function populatePresetSelect(selectEl, presets) {
 export function refreshTextPresetSelect(selectEl, presets) {
   if (!selectEl) return;
   if (typeof presets === 'string') {
-    presets = getPromptPresets(presets);
+    // presets 是 localStorage key，尝试从 __WTL_PRESETS__ 回退
+    const storageKey = presets;
+    const presetGroup = storageKey === 'wtl.preprompt.presets' ? 'preprompt'
+      : storageKey === 'wtl.instruction.presets' ? 'instruction'
+      : null;
+    if (presetGroup) ensureDefaultPresets(storageKey, presetGroup);
+    presets = getPromptPresets(storageKey);
   }
   populatePresetSelect(selectEl, presets);
 }
@@ -18,6 +38,7 @@ export function refreshTextPresetSelect(selectEl, presets) {
 export function refreshSchemaPresetSelect(selectEl, presets) {
   if (!selectEl) return;
   if (!presets) {
+    ensureDefaultPresets('wtl.schema.presets', 'schema');
     presets = getSchemaPresets();
   }
   populatePresetSelect(selectEl, presets);
@@ -40,7 +61,7 @@ export function bindPromptPresetGroups({
   instruction,
   common
 }) {
-  bindTextPresetControls({
+  const prepromptResult = bindTextPresetControls({
     ...preprompt,
     ...common,
     labels: {
@@ -49,7 +70,7 @@ export function bindPromptPresetGroups({
     }
   });
 
-  bindTextPresetControls({
+  const instructionResult = bindTextPresetControls({
     ...instruction,
     ...common,
     labels: {
@@ -57,6 +78,11 @@ export function bindPromptPresetGroups({
       filename: 'wtl-instruction-presets.json'
     }
   });
+
+  return {
+    preprompt: prepromptResult,
+    instruction: instructionResult
+  };
 }
 
 export function bindTextPresetControls({
@@ -85,6 +111,23 @@ export function bindTextPresetControls({
   setStatus,
   labels
 }) {
+  // 自动载入当前激活的预设内容到编辑器（仅当编辑器为空时）
+  const loadEffectivePreset = () => {
+    if (!textareaEl) return;
+    // 如果编辑器已有内容，不覆盖
+    if (textareaEl.value && textareaEl.value.trim().length > 0) return;
+    const activeName = localStorage.getItem(activeStorageKey) || '默认';
+    const presets = getPromptPresets(storageKey);
+    const value = presets[activeName] || presets['默认'] || '';
+    if (value) {
+      const text = Array.isArray(value) ? value.join('\n') : String(value);
+      textareaEl.value = text;
+      if (nameEl) nameEl.value = activeName;
+      if (selectEl) selectEl.value = activeName;
+      refreshPromptPreview(true);
+    }
+  };
+
   selectEl?.addEventListener('change', () => {
     if (!selectEl || !nameEl) return;
     nameEl.value = selectEl.value || '';
@@ -184,6 +227,13 @@ export function bindTextPresetControls({
       downloadJson: downloadJsonFile
     });
   });
+
+  // 初始化时自动载入默认预设内容
+  loadEffectivePreset();
+
+  return {
+    loadEffectivePreset
+  };
 }
 
 export function createSchemaPresetHelpers({
@@ -330,6 +380,20 @@ export function bindSchemaPresetControls({
     if (schemaPresetNameEl) schemaPresetNameEl.value = effective?.name || '';
   };
 
+  // 自动载入当前生效的预设内容到编辑器（仅当编辑器为空时）
+  const loadEffectiveSchema = () => {
+    if (!schemaEl) return;
+    // 如果编辑器已有内容，不覆盖
+    if (schemaEl.value && schemaEl.value.trim().length > 0) return;
+    const effective = resolveSchemaByScope();
+    if (effective?.text) {
+      schemaEl.value = effective.text;
+      const templateState = parseSchemaToTemplate(effective.text);
+      onSchemaLoaded({ schemaSource: effective.text, templateState });
+      updateSchemaPreview();
+    }
+  };
+
   schemaPresetEl?.addEventListener('change', () => {
     if (!schemaPresetEl || !schemaPresetNameEl) return;
     schemaPresetNameEl.value = schemaPresetEl.value || '';
@@ -347,9 +411,11 @@ export function bindSchemaPresetControls({
     if (Array.isArray(schemaSource)) schemaSource = schemaSource.join('\n');
     schemaEl.value = schemaSource;
     localStorage.setItem('wtl.schema.presetActive', name);
+    if (schemaPresetNameEl) schemaPresetNameEl.value = name;
     const templateState = parseSchemaToTemplate(schemaSource);
     onSchemaLoaded({ schemaSource, templateState });
     updateSchemaPreview();
+    updateSchemaEffectiveUi();
     refreshPromptPreview(true);
     setStatus('模板预设已载入');
   });
@@ -455,7 +521,12 @@ export function bindSchemaPresetControls({
     updateSchemaEffectiveUi();
   });
 
+  // 初始化时填充"当前生效"并自动载入默认预设内容
+  updateSchemaEffectiveUi();
+  loadEffectiveSchema();
+
   return {
-    updateSchemaEffectiveUi
+    updateSchemaEffectiveUi,
+    loadEffectiveSchema
   };
 }

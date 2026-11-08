@@ -1,5 +1,22 @@
 import { stripTableWrapper, wrapTable } from '../data/markdown.js';
 
+/**
+ * 独立的宏处理函数，可被 tableController 等直接引用
+ * 不依赖 createPromptMacroController 的闭包变量
+ */
+export async function applyAllPromptMacros(text) {
+  const input = String(text || '');
+  const macros = window.ST_API?.macros;
+  if (!input.trim() || !macros?.process) return input;
+  try {
+    const res = await macros.process({ text: input, env: {} });
+    return res?.text || input;
+  } catch (e) {
+    console.warn('[WorldTreeLibrary] macros.process failed', e);
+    return input;
+  }
+}
+
 export function createPromptMacroController({
   defaults,
   localStorageRef,
@@ -7,8 +24,6 @@ export function createPromptMacroController({
   instModeEl,
   schemaModeSendEl,
   tableModeEl,
-  stModeEl,
-  externalEl,
   instBlockEl,
   schemaBlockEl,
   tableInjectToggleBtn,
@@ -130,19 +145,6 @@ export function createPromptMacroController({
     macroRegistered = true;
   };
 
-  const applyAllPromptMacros = async (text) => {
-    const input = String(text || '');
-    const macros = window.ST_API?.macros;
-    if (!input.trim() || !macros?.process) return input;
-    try {
-      const res = await macros.process({ text: input, env: {} });
-      return res?.text || input;
-    } catch (e) {
-      console.warn('[WorldTreeLibrary] macros.process failed', e);
-      return input;
-    }
-  };
-
   const ensurePromptFieldDefaults = ({ syncSchema = false } = {}) => {
     const fallback = getDefaultPromptValues();
     let changed = false;
@@ -185,10 +187,18 @@ export function createPromptMacroController({
 
   const refreshModeUi = () => {
     const { isExternal, isStLike } = getSendModeFlags();
-    if (stModeEl) stModeEl.style.display = isStLike ? 'block' : 'none';
-    if (externalEl) externalEl.style.display = isExternal ? 'block' : 'none';
-    if (instBlockEl) instBlockEl.style.display = isStLike ? 'block' : 'none';
-    if (schemaBlockEl) schemaBlockEl.style.display = isStLike ? 'block' : 'none';
+    
+    // 模块3：酒馆填表设置（仅 ST 模式显示）
+    const stSettingsEl = document.getElementById('wtl-mode-st-settings');
+    if (stSettingsEl) stSettingsEl.style.display = isStLike ? 'block' : 'none';
+    
+    // 模块4：第三方填表设置（仅 external 模式显示）
+    const externalContainerEl = document.getElementById('wtl-mode-external');
+    if (externalContainerEl) externalContainerEl.style.display = isExternal ? 'block' : 'none';
+    
+    // instBlockEl 和 schemaBlockEl 在模块3「酒馆填表设置」中，仅 ST 模式显示
+    // 模块1「表格注入」仅包含表格注入设置，始终可见
+    // 模块1「表格注入」仅包含表格注入设置，始终可见
 
     setModeConfigVisibility({
       mode: instModeEl?.value || defaults.instMode || 'inject',
@@ -440,4 +450,209 @@ export function setModeConfigVisibility({ mode, fieldIds = [], helpHost = null, 
   const help = ensureMacroHelpBlock(helpId, macroName, usageText);
   if (!help.parentElement) helpHost.appendChild(help);
   help.style.display = isMacro ? 'block' : 'none';
+}
+
+/**
+ * 创建前后缀设置控制器
+ * 管理 #wtl-blocks-editor 中每个 block 的前缀/后缀编辑
+ */
+export function createPrefixSuffixController({
+  blocksPresetEl,
+  blocksPresetNameEl,
+  blocksPresetLoadEl,
+  blocksPresetSaveEl,
+  blocksPresetDelEl,
+  blocksPresetResetEl,
+  blocksEditorEl,
+  getBlocksPresets,
+  setBlocksPresets,
+  getBlocksPresetActive,
+  setBlocksPresetActive,
+  defaults,
+  saveState,
+  setStatus
+}) {
+  /** 从 defaults/blocks.json 获取默认 blocks 定义 */
+  const getDefaultBlocks = () => {
+    if (window.__WTL_PRESETS__?.blocks) return window.__WTL_PRESETS__.blocks;
+    return [
+      { key: 'preprompt', label: '破限提示', prefix: '', suffix: '' },
+      { key: 'instruction', label: '填表指令', prefix: '', suffix: '' },
+      { key: 'reference', label: '参考信息', prefix: '', suffix: '' },
+      { key: 'chat', label: '聊天记录', prefix: '', suffix: '' },
+      { key: 'schema', label: '表格模板', prefix: '', suffix: '' },
+      { key: 'table', label: '当前表格', prefix: '', suffix: '' }
+    ];
+  };
+
+  /** 渲染编辑器 */
+  const renderEditor = (blocks) => {
+    if (!blocksEditorEl) return;
+    blocksEditorEl.innerHTML = '';
+    (blocks || []).forEach((block, index) => {
+      const card = document.createElement('div');
+      card.className = 'wtl-block-editor-card';
+      card.innerHTML = `
+        <div class="wtl-block-editor-header">
+          <span class="wtl-badge">${block.label || block.key}</span>
+          <span class="wtl-block-key">${block.key}</span>
+        </div>
+        <div class="wtl-block-editor-fields">
+          <div class="wtl-form-group">
+            <label>前缀</label>
+            <textarea class="text_pole wtl-block-prefix" data-key="${block.key}" rows="2" placeholder="前缀文本">${(block.prefix || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+          </div>
+          <div class="wtl-form-group">
+            <label>后缀</label>
+            <textarea class="text_pole wtl-block-suffix" data-key="${block.key}" rows="2" placeholder="后缀文本">${(block.suffix || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+          </div>
+        </div>
+      `;
+      blocksEditorEl.appendChild(card);
+    });
+  };
+
+  /** 从编辑器读取当前 blocks 数据 */
+  const readEditorBlocks = () => {
+    const blocks = [];
+    if (!blocksEditorEl) return blocks;
+    const cards = blocksEditorEl.querySelectorAll('.wtl-block-editor-card');
+    cards.forEach((card) => {
+      const badge = card.querySelector('.wtl-badge');
+      const keyEl = card.querySelector('.wtl-block-key');
+      const prefixEl = card.querySelector('.wtl-block-prefix');
+      const suffixEl = card.querySelector('.wtl-block-suffix');
+      blocks.push({
+        key: keyEl?.textContent || '',
+        label: badge?.textContent || '',
+        prefix: prefixEl?.value || '',
+        suffix: suffixEl?.value || ''
+      });
+    });
+    return blocks;
+  };
+
+  /** 刷新预设下拉列表 */
+  const refreshPresetSelect = () => {
+    if (!blocksPresetEl) return;
+    const presets = getBlocksPresets();
+    const active = getBlocksPresetActive();
+    blocksPresetEl.innerHTML = '';
+    const names = Object.keys(presets);
+    if (names.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = '(无预设)';
+      blocksPresetEl.appendChild(opt);
+      return;
+    }
+    names.forEach((name) => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      if (name === active) opt.selected = true;
+      blocksPresetEl.appendChild(opt);
+    });
+  };
+
+  /** 加载指定预设 */
+  const loadPreset = (name) => {
+    const presets = getBlocksPresets();
+    const data = presets[name];
+    if (!data) {
+      // 加载默认
+      renderEditor(getDefaultBlocks());
+      return;
+    }
+    renderEditor(data);
+    setBlocksPresetActive(name);
+    if (blocksPresetNameEl) blocksPresetNameEl.value = name;
+  };
+
+  /** 保存当前编辑为预设 */
+  const savePreset = (name) => {
+    if (!name) return false;
+    const blocks = readEditorBlocks();
+    const presets = getBlocksPresets();
+    presets[name] = blocks;
+    setBlocksPresets(presets);
+    setBlocksPresetActive(name);
+    refreshPresetSelect();
+    return true;
+  };
+
+  /** 删除预设 */
+  const deletePreset = (name) => {
+    if (!name) return false;
+    const presets = getBlocksPresets();
+    if (!presets[name]) return false;
+    delete presets[name];
+    setBlocksPresets(presets);
+    if (getBlocksPresetActive() === name) {
+      setBlocksPresetActive('默认');
+    }
+    refreshPresetSelect();
+    loadPreset(getBlocksPresetActive());
+    return true;
+  };
+
+  /** 恢复默认 */
+  const resetToDefault = () => {
+    renderEditor(getDefaultBlocks());
+    setBlocksPresetActive('默认');
+    if (blocksPresetNameEl) blocksPresetNameEl.value = '默认';
+  };
+
+  // 绑定事件
+  blocksPresetLoadEl?.addEventListener('click', () => {
+    const name = blocksPresetEl?.value || '';
+    if (!name) return;
+    loadPreset(name);
+    setStatus?.('已加载前后缀预设');
+  });
+
+  blocksPresetSaveEl?.addEventListener('click', () => {
+    const name = (blocksPresetNameEl?.value || '').trim();
+    if (!name) {
+      setStatus?.('请输入预设名称');
+      return;
+    }
+    savePreset(name);
+    setStatus?.('前后缀预设已保存');
+  });
+
+  blocksPresetDelEl?.addEventListener('click', () => {
+    const name = blocksPresetEl?.value || '';
+    if (!name) return;
+    deletePreset(name);
+    setStatus?.('前后缀预设已删除');
+  });
+
+  blocksPresetResetEl?.addEventListener('click', () => {
+    resetToDefault();
+    setStatus?.('前后缀已恢复默认');
+  });
+
+  // 编辑器内容变更自动保存
+  blocksEditorEl?.addEventListener('input', () => {
+    // 自动保存到当前预设
+    const active = getBlocksPresetActive();
+    if (active && active !== '默认') {
+      savePreset(active);
+    }
+  });
+
+  // 初始化
+  refreshPresetSelect();
+  loadPreset(getBlocksPresetActive());
+
+  return {
+    renderEditor,
+    readEditorBlocks,
+    refreshPresetSelect,
+    loadPreset,
+    savePreset,
+    deletePreset,
+    resetToDefault
+  };
 }

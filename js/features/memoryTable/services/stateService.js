@@ -24,7 +24,6 @@ export function collectLoadStateSnapshot({
   getStoredOrDefault,
   setStoredIfEmpty,
   getDefaultPromptText,
-  getOpenAIPresets,
   prepromptPresetKey,
   prepromptPresetActiveKey,
   instructionPresetKey,
@@ -36,7 +35,7 @@ export function collectLoadStateSnapshot({
     localStorage.setItem('wtl.sendMode', sendMode);
   }
 
-  const defaultOpenAIPreset = getOpenAIPresets()?.['默认'] || {};
+  const defaultOpenAIPreset = defaults.openai || {};
   const autoFill = ensureAutoFillDefaults({ defaults });
 
   const snapshot = {

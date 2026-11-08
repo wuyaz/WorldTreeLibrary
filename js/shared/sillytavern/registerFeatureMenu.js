@@ -107,6 +107,16 @@ function renderFeatureMenuHtml() {
             <span class="wtl-switch-track"><span class="wtl-switch-knob"></span></span>
           </label>
         </div>
+        <div class="wtl-feature-item">
+          <div class="wtl-feature-copy">
+            <div class="wtl-feature-title">调试功能</div>
+            <div class="wtl-feature-desc">开启后填表每一步都会弹出 alert 确认弹窗，用于调试填表流程。</div>
+          </div>
+          <label class="wtl-switch">
+            <input id="wtl-feature-debug-toggle" type="checkbox" />
+            <span class="wtl-switch-track"><span class="wtl-switch-knob"></span></span>
+          </label>
+        </div>
       </div>
       <div class="wtl-feature-note" id="wtl-feature-menu-note"></div>
     </div>
@@ -164,9 +174,11 @@ function openFeatureModal(onChange) {
     const flags = getFeatureFlags();
     const memoryToggleEl = root.querySelector('#wtl-feature-memory-toggle');
     const chatToggleEl = root.querySelector('#wtl-feature-chat-toggle');
+    const debugToggleEl = root.querySelector('#wtl-feature-debug-toggle');
     const noteEl = root.querySelector('#wtl-feature-menu-note');
     if (memoryToggleEl) memoryToggleEl.checked = flags.memoryTable !== false;
     if (chatToggleEl) chatToggleEl.checked = flags.chatManager !== false;
+    if (debugToggleEl) debugToggleEl.checked = flags.debugMode === true;
     if (noteEl) {
       noteEl.textContent = flags.chatManager !== false
         ? '聊天管理已启用，欢迎页最近聊天区域下方会显示管理面板。'
@@ -184,6 +196,9 @@ function openFeatureModal(onChange) {
     }
     if (target.id === 'wtl-feature-chat-toggle') {
       next = setFeatureFlags({ ...current, chatManager: target.checked });
+    }
+    if (target.id === 'wtl-feature-debug-toggle') {
+      next = setFeatureFlags({ ...current, debugMode: target.checked });
     }
     syncUi();
     if (typeof onChange === 'function') onChange(next);

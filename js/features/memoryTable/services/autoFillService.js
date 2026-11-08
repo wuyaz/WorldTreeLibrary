@@ -13,11 +13,16 @@
  */
 
 import { getSetting } from '../../../core/settingsManager.js';
+import { debugAlert } from '../../../shared/utils/debugAlert.js';
 
 export class AutoFillService {
-  constructor(context, tableController) {
+  /**
+   * @param {object} context - SillyTavern context
+   * @param {Function} runFillOnceFn - 填表函数，由 createFillController 提供
+   */
+  constructor(context, runFillOnceFn) {
     this.ctx = context;
-    this.tableController = tableController;
+    this.runFillOnce = runFillOnceFn || (() => Promise.resolve());
     this.state = {
       isStreaming: false,
       messageCount: 0,
@@ -87,6 +92,7 @@ export class AutoFillService {
    */
   handleStreamStart() {
     console.log('[WTL AutoFill] Stream started');
+    debugAlert('[DEBUG 自动填表] 事件: STREAM_START - 流式输出开始');
     this.showToast('开始接收回复...', 'info');
     this.state.isStreaming = true;
     this.state.lastStreamTime = Date.now();
@@ -105,6 +111,7 @@ export class AutoFillService {
    */
   handleStreamEnd() {
     console.log('[WTL AutoFill] Stream ended');
+    debugAlert('[DEBUG 自动填表] 事件: STREAM_END - 流式输出结束，1秒后将检查自动填表');
     this.showToast('回复接收完成，准备填表...', 'info');
     this.state.isStreaming = false;
     
@@ -119,6 +126,7 @@ export class AutoFillService {
    */
   handleGenerationStopped() {
     console.log('[WTL AutoFill] Generation stopped');
+    debugAlert('[DEBUG 自动填表] 事件: GENERATION_STOPPED - 生成已停止，0.5秒后将检查自动填表');
     this.state.isStreaming = false;
     
     // Schedule auto-fill check after a short delay
@@ -133,6 +141,7 @@ export class AutoFillService {
   handleMessageCreated() {
     this.state.messageCount++;
     console.log(`[WTL AutoFill] Message created. Total: ${this.state.messageCount}`);
+    debugAlert('[DEBUG 自动填表] 事件: CHARACTER_MESSAGE_CREATED - 消息已创建\n当前消息计数: ' + this.state.messageCount);
   }
   
   /**
@@ -140,6 +149,7 @@ export class AutoFillService {
    */
   handleMessageRendered() {
     console.log('[WTL AutoFill] Message rendered');
+    debugAlert('[DEBUG 自动填表] 事件: CHARACTER_MESSAGE_RENDERED - 消息已渲染\nisStreaming: ' + this.state.isStreaming + '\nmessageCount: ' + this.state.messageCount);
     
     // If not currently streaming, check if we should trigger auto-fill
     if (!this.state.isStreaming) {
@@ -157,44 +167,51 @@ export class AutoFillService {
       const autoFillFloors = await getSetting('memoryTable', 'autoFillFloors', '3');
       const autoFillEvery = await getSetting('memoryTable', 'autoFillEvery', '1');
       
+      debugAlert('[DEBUG 自动填表] checkAndTriggerAutoFill 开始检查\n启用: ' + autoFillEnabled + '\n消息数: ' + this.state.messageCount + '\n需要楼层: ' + autoFillFloors + '\n每N条触发: ' + autoFillEvery + '\npendingAutoFill: ' + this.state.pendingAutoFill);
+      
       // Check if auto-fill is enabled
       if (!autoFillEnabled) {
         console.log('[WTL AutoFill] Auto-fill is disabled');
+        debugAlert('[DEBUG 自动填表] 跳过: 自动填表已禁用');
         return;
       }
       
       // Check if we should trigger based on message count
       if (this.state.messageCount % parseInt(autoFillEvery) !== 0) {
         console.log(`[WTL AutoFill] Message count ${this.state.messageCount} not multiple of ${autoFillEvery}`);
+        debugAlert('[DEBUG 自动填表] 跳过: 消息数 ' + this.state.messageCount + ' 不是 ' + autoFillEvery + ' 的倍数');
         return;
       }
       
       // Check if we have enough messages to process
       if (this.state.messageCount < parseInt(autoFillFloors)) {
         console.log(`[WTL AutoFill] Only ${this.state.messageCount} messages, need ${autoFillFloors}`);
+        debugAlert('[DEBUG 自动填表] 跳过: 消息数不足 (' + this.state.messageCount + ' < ' + autoFillFloors + ')');
         return;
       }
       
       // Check if we're already running or have a pending fill
-      if (this.state.pendingAutoFill || this.tableController?.state?.running) {
+      if (this.state.pendingAutoFill) {
         console.log('[WTL AutoFill] Fill already in progress');
+        debugAlert('[DEBUG 自动填表] 跳过: 已有填表进行中');
         return;
       }
       
       console.log(`[WTL AutoFill] Triggering auto-fill for ${autoFillFloors} floors`);
+      debugAlert('[DEBUG 自动填表] 条件满足！即将调用 runFillOnce 开始自动填表');
       this.showToast('开始自动填表...', 'info');
       this.state.pendingAutoFill = true;
       
       // Trigger the fill
-      if (this.tableController?.runFillOnce) {
-        await this.tableController.runFillOnce();
-        this.showToast('自动填表完成', 'success');
-      }
+      await this.runFillOnce();
+      this.showToast('自动填表完成', 'success');
+      debugAlert('[DEBUG 自动填表] runFillOnce 执行完毕，自动填表完成');
       
       this.state.pendingAutoFill = false;
       
     } catch (error) {
       console.error('[WTL AutoFill] Error in auto-fill check:', error);
+      debugAlert('[DEBUG 自动填表] 错误: ' + (error?.message || error));
       this.showToast('自动填表失败: ' + error.message, 'error');
       this.state.pendingAutoFill = false;
     }
@@ -206,15 +223,16 @@ export class AutoFillService {
   async triggerManualAutoFill() {
     try {
       console.log('[WTL AutoFill] Manual auto-fill triggered');
+      debugAlert('[DEBUG 自动填表] 手动触发自动填表');
       this.showToast('开始手动填表...', 'info');
       
-      if (this.tableController?.runFillOnce) {
-        await this.tableController.runFillOnce();
-        this.showToast('手动填表完成', 'success');
-      }
+      await this.runFillOnce();
+      this.showToast('手动填表完成', 'success');
+      debugAlert('[DEBUG 自动填表] 手动填表完成');
       
     } catch (error) {
       console.error('[WTL AutoFill] Error in manual auto-fill:', error);
+      debugAlert('[DEBUG 自动填表] 手动填表错误: ' + (error?.message || error));
       this.showToast('手动填表失败: ' + error.message, 'error');
     }
   }

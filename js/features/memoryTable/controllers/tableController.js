@@ -29,13 +29,23 @@ import { createModalController } from '../../../shared/ui/modal.js';
 import { buildReferenceBundle, formatReferenceText } from '../services/referenceService.js';
 import { buildPrompt } from '../services/promptService.js';
 import { callAi } from '../services/aiService.js';
+import { createFillController, bindCommonActionControls } from '../ui/actionControllers.js';
+import { applyAllPromptMacros } from '../ui/promptControllers.js';
+import { extractEditPayload, parseCommands } from '../data/commands.js';
+import { applyCommands } from '../services/applyService.js';
+import { getBlocksPreset, getRefBlocksPreset, getRefOrderPreset } from '../../../core/storage.js';
 import {
   getCharacterNameFromContext,
   getChatKeyFromContext,
   getChatMetadataFromContext,
   loadTableForChatState,
   saveTableForChatState,
-  reloadStateForCurrentChat as reloadChatState
+  reloadStateForCurrentChat as reloadChatState,
+  TABLE_STORE_TYPE,
+  makeTableStoreKey,
+  parseTableStoreKey,
+  scanAllTables,
+  persistChatMetadata
 } from '../services/chatStateService.js';
 import { safeParseJson } from '../../../shared/utils/index.js';
 import { getFeatureFlags } from '../../../core/storage.js';
@@ -69,7 +79,7 @@ export class TableController {
     this.autoRefreshInterval = null;
   }
 
-  initialize() {
+  async initialize() {
     if (!this.ui || !this.ui.root) {
       console.warn('[WTL TableController] UI refs not ready, delaying initialization');
       return;
@@ -80,7 +90,123 @@ export class TableController {
     this.loadState();
     this.applyFeatureUi();
     this.ensureHooks();
-    this.renderTablePreview();
+    // 加载表格数据到 tableMdEl.value，同时触发 loadTableForChatState 中的
+    // metadata→localStorage 同步写入，确保管理面板（scanAllTables）能扫描到
+    // loadTableForEditing 内部已调用 renderTablePreview，无需重复调用
+    await this.loadTableForEditing();
+
+    // 初始化填表控制器（createFillController）并绑定按钮事件
+    this._initFillController();
+  }
+
+  /**
+   * 初始化填表控制器：创建 runFillOnce 并绑定 runBtn 等按钮事件
+   */
+  _initFillController() {
+    const hiddenRowsRef = {
+      get: () => this.state.hiddenRows,
+      set: (val) => { this.state.hiddenRows = val || {}; }
+    };
+
+    const fillController = createFillController({
+      buildReferenceBundle,
+      formatReferenceText,
+      getManualConfig: () => this.state.manualState || {},
+      wbModeEl: this.ui.wbModeEl,
+      entryEl: null, // entryEl 在 HTML 中不存在，createFillController 内部有默认值 'WorldTreeMemory'
+      tableMdEl: this.ui.tableMdEl,
+      instructionEl: this.ui.instructionEl,
+      refBlockListEl: this.ui.refBlockListEl,
+      getRefBlocksPreset: () => getRefBlocksPreset(),
+      getRefOrderPreset: () => getRefOrderPreset(),
+      blockListEl: this.ui.blockListEl,
+      prePromptEl: this.ui.prePromptEl,
+      schemaEl: this.ui.schemaEl,
+      templateState: () => this.state.templateState,
+      hiddenRowsRef,
+      buildPrompt,
+      applyAllPromptMacros,
+      logPromptBtn: this.ui.logPromptBtn,
+      logAiBtn: this.ui.logAiBtn,
+      logContentEl: this.ui.logContentEl,
+      externalPromptPreviewEl: this.ui.externalPromptPreviewEl,
+      sendModeEl: this.ui.sendModeEl,
+      callAi,
+      openaiUrlEl: this.ui.openaiUrlEl,
+      openaiKeyEl: this.ui.openaiKeyEl,
+      openaiModelEl: this.ui.openaiModelEl,
+      openaiTempEl: this.ui.openaiTempEl,
+      openaiMaxEl: this.ui.openaiMaxEl,
+      openaiStreamEl: this.ui.openaiStreamEl,
+      parseCommands,
+      extractEditPayload,
+      applyCommands,
+      stripTableWrapper,
+      ensureTableWrapper,
+      renderPreview: (md) => this.renderTablePreview(md),
+      saveState: () => this.saveState(),
+      setStatus: (msg) => this.setStatus(msg),
+      notifyStatus: (type, msg) => {
+        if (this.viewRenderer) this.viewRenderer.updateStatus(msg, type);
+      },
+      getRefBlockEls: (el) => getRefBlockEls(el),
+      getBlockEls: (el) => getBlockEls(el),
+      onPendingAiHistory: (data) => {
+        this.state.pendingAiHistory = data;
+      },
+      onLastRef: (ref) => {
+        this.state.lastRef = ref;
+      },
+      getRunning: () => this.state.running,
+      setRunning: (val) => {
+        this.state.running = val;
+        if (this.viewRenderer) this.viewRenderer.updateRunButton(val);
+      }
+    });
+
+    this.runFillOnce = fillController.runFillOnce;
+
+    // 绑定 runBtn 等通用操作按钮
+    bindCommonActionControls({
+      runBtn: this.ui.runBtn,
+      stopBtn: null, // HTML 中无 stopBtn
+      clearBtn: null, // HTML 中无 clearBtn
+      saveBtn: null, // HTML 中无 saveBtn
+      resetGlobalBtn: this.ui.resetGlobalBtn,
+      clearTableBtn: this.ui.clearTableBtn,
+      makeModalSaveButton: (label, fn) => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.addEventListener('click', fn);
+        return btn;
+      },
+      openConfirmModal: (title, msg, btns) => {
+        // 使用原生 confirm 作为 fallback
+        if (confirm(`${title}\n\n${msg}`)) {
+          btns?.[0]?.click?.();
+        }
+      },
+      resetAllDefaults: async () => {
+        // 重置所有默认设置
+        localStorage.removeItem('wtl.blockOrder');
+        localStorage.removeItem('wtl.refBlockOrder');
+        this.state.hiddenRows = {};
+        this.state.templateState = { title: '记忆表格', sections: [] };
+        await this.loadTableForEditing();
+        this.setStatus('已恢复默认设置');
+      },
+      tableMdEl: this.ui.tableMdEl,
+      renderPreview: (md) => this.renderTablePreview(md),
+      saveState: () => this.saveState(),
+      refreshPromptPreview: (force) => this.refreshPromptPreview(force),
+      setStatus: (msg) => this.setStatus(msg),
+      getRunning: () => this.state.running,
+      setRunning: (val) => {
+        this.state.running = val;
+        if (this.viewRenderer) this.viewRenderer.updateRunButton(val);
+      },
+      runFillOnce: this.runFillOnce
+    });
   }
 
   bindEvents() {
@@ -92,8 +218,16 @@ export class TableController {
       this.ui.newTableFromTemplateBtn.addEventListener('click', () => this.showNewTableTemplateModal());
     }
 
+    if (this.ui.manageTablesBtn) {
+      this.ui.manageTablesBtn.addEventListener('click', () => this.showManageTablesModal());
+    }
+
     if (this.ui.clearTableBtn) {
       this.ui.clearTableBtn.addEventListener('click', () => this.clearTable());
+    }
+
+    if (this.ui.refreshTableBtn) {
+      this.ui.refreshTableBtn.addEventListener('click', () => this.loadTableForEditing());
     }
 
     if (this.ui.tablePreviewEl) {
@@ -132,6 +266,14 @@ export class TableController {
               break;
           }
           return;
+        }
+      });
+
+      // 右滑删除按钮事件（由 ViewRenderer 的 _bindSwipeDelete 触发）
+      tableBody.addEventListener('wtl-swipe-delete', (e) => {
+        const { rowIdx, sectionNum } = e.detail;
+        if (rowIdx !== undefined && sectionNum !== undefined) {
+          this.deleteRow(rowIdx, sectionNum);
         }
       });
 
@@ -313,21 +455,83 @@ export class TableController {
 
   async loadTableForEditing() {
     try {
-      const tableMd = await this.loadTableForChat();
-      // 只在表格未渲染时重建，否则只切换编辑模式
-      const hasBody = this.viewRenderer?.tableBody?.children?.length > 0;
-      if (!hasBody) {
-        this.renderTablePreview(tableMd);
+      const result = await this.loadTableForChat();
+      const tableMd = result?.tableMd ?? result ?? '';
+      const isNew = result?.isNew === true;
+      // 同步更新 tableMdEl.value，确保后续操作（如刷新按钮）能读取到最新数据
+      if (this.ui.tableMdEl) {
+        this.ui.tableMdEl.value = tableMd;
       }
+      // 始终重新渲染表格（刷新按钮依赖此行为来刷新显示）
+      this.renderTablePreview(tableMd);
       if (this.state.tableEditMode && this.viewRenderer) {
         this.viewRenderer.toggleEditMode(true);
         // 绑定内联编辑事件（contenteditable 已在 toggleEditMode 中设置）
         this._bindInlineEditing();
       }
       eventBus.emit(EVENTS.MEMORY_TABLE_LOADED, parseMarkdownTableToJson(tableMd));
+      // 如果是新表格（无 metadata），弹窗询问是否从模板新建
+      if (isNew) {
+        this._promptNewTableIfNeeded();
+      }
     } catch (error) {
       console.error('[WTL TableController] Failed to load table for editing:', error);
       eventBus.emit(EVENTS.ERROR_OCCURRED, { context: 'loadTableForEditing', error });
+    }
+  }
+
+  async _promptNewTableIfNeeded() {
+    // 检查是否已勾选"不再询问"
+    const skipPrompt = localStorage.getItem('wtl.skipNewTablePrompt') === 'true';
+    if (skipPrompt) return;
+
+    // 防抖：同一聊天只弹一次
+    const chatKey = getChatKeyFromContext(this.ctx);
+    if (this._promptedChatKey === chatKey) return;
+    this._promptedChatKey = chatKey;
+
+    const popupModule = await import('/scripts/popup.js');
+    const Popup = window.Popup || popupModule.Popup;
+
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px;min-width:340px;">
+        <div style="font-size:13px;line-height:1.5;">
+          当前聊天尚未创建记忆表格，是否从模板新建？
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;opacity:0.7;cursor:pointer;">
+          <input type="checkbox" id="wtl-skip-prompt" style="margin:0;">
+          不再询问
+        </label>
+      </div>
+    `;
+
+    let skipChecked = false;
+
+    const popup = new Popup(container, popupModule.POPUP_TYPE.CONFIRM, '', {
+      okButton: '新建表格',
+      cancelButton: '暂不创建',
+      wide: false,
+      large: false,
+      allowVerticalScrolling: true,
+      onOpen: () => {
+        const checkbox = container.querySelector('#wtl-skip-prompt');
+        if (checkbox) {
+          checkbox.addEventListener('change', () => {
+            skipChecked = checkbox.checked;
+          });
+        }
+      },
+    });
+
+    const result = await popup.show();
+    if (skipChecked) {
+      localStorage.setItem('wtl.skipNewTablePrompt', 'true');
+    }
+    if (result === 1 || result === popupModule.POPUP_RESULT?.AFFIRMATIVE) {
+      // 等待当前弹窗完全关闭后再打开新弹窗
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await this.showNewTableTemplateModal();
     }
   }
 
@@ -364,7 +568,7 @@ export class TableController {
 
   async loadTableForChat() {
     const hiddenRowsRef = { value: this.state.hiddenRows };
-    const tableMd = await loadTableForChatState({
+    const result = await loadTableForChatState({
       ctx: this.ctx,
       defaults: this.defaults,
       safeParseJson,
@@ -377,7 +581,7 @@ export class TableController {
       hiddenRowsRef
     });
     this.state.hiddenRows = hiddenRowsRef.value;
-    return tableMd;
+    return result;
   }
 
   async clearTable() {
@@ -408,7 +612,7 @@ export class TableController {
     }
   }
 
-  showNewTableTemplateModal() {
+  async showNewTableTemplateModal() {
     const chatKey = getChatKeyFromContext(this.ctx);
     const hasChat = chatKey && chatKey !== 'default';
 
@@ -421,50 +625,52 @@ export class TableController {
       return;
     }
 
-    const modalOverlay = document.createElement('div');
-    modalOverlay.className = 'wtl-modal-overlay';
-    modalOverlay.style.cssText = `
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6); display: flex; align-items: center;
-      justify-content: center; z-index: 10000;
-    `;
-    modalOverlay.innerHTML = `
-      <div class="wtl-modal" style="background: var(--wtl-bg-elev); border-radius: 8px; padding: 0; width: 400px; max-width: 90vw; border: 1px solid var(--wtl-border);">
-        <div class="wtl-modal-header" style="padding: 12px 16px; border-bottom: 1px solid var(--wtl-border);">
-          <h3 style="margin:0; font-size: 14px;">从模板新建表格</h3>
-        </div>
-        <div class="wtl-modal-body" style="padding: 16px;">
-          ${!hasChat ? '<div style="color: var(--wtl-accent); margin-bottom: 12px; font-size: 12px;">未检测到当前聊天，新建表格将保存到本地。</div>' : ''}
-          <div style="margin-bottom: 8px; font-size: 12px;">选择模板：</div>
-          <div id="wtl-template-list" style="max-height: 250px; overflow-y: auto;">
-            ${allNames.map((name, idx) => `
-              <label style="display: block; padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; background: rgba(255,255,255,0.03);">
-                <input type="radio" name="wtl-template" value="${this._escapeHtml(name)}" ${idx === 0 ? 'checked' : ''} style="margin-right: 8px;">
-                ${this._escapeHtml(name)}
-              </label>
-            `).join('')}
-          </div>
-        </div>
-        <div class="wtl-modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--wtl-border); display: flex; justify-content: flex-end; gap: 8px;">
-          <button id="wtl-modal-cancel" class="menu_button" style="padding: 4px 10px;">取消</button>
-          <button id="wtl-modal-confirm" class="menu_button menu_button wtl-action-primary" style="padding: 4px 10px;">确认</button>
+    const popupModule = await import('/scripts/popup.js');
+    const Popup = window.Popup || popupModule.Popup;
+
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:360px;">
+        ${!hasChat ? '<div style="color: var(--wtl-accent); margin-bottom: 4px; font-size: 12px;">未检测到当前聊天，新建表格将保存到本地。</div>' : ''}
+        <div style="font-size:12px;opacity:0.75;">选择模板：</div>
+        <div id="wtl-template-list" style="max-height:250px;overflow-y:auto;">
+          ${allNames.map((name, idx) => `
+            <label style="display:block;padding:8px;cursor:pointer;border-radius:4px;margin-bottom:4px;background:rgba(255,255,255,0.03);">
+              <input type="radio" name="wtl-template" value="${this._escapeHtml(name)}" ${idx === 0 ? 'checked' : ''} style="margin-right:8px;">
+              ${this._escapeHtml(name)}
+            </label>
+          `).join('')}
         </div>
       </div>
     `;
-    document.body.appendChild(modalOverlay);
 
-    const onClose = () => modalOverlay.remove();
-    const confirmBtn = modalOverlay.querySelector('#wtl-modal-confirm');
-    const cancelBtn = modalOverlay.querySelector('#wtl-modal-cancel');
+    let selectedTemplate = allNames[0];
 
-    const onConfirm = () => {
-      const selected = modalOverlay.querySelector('input[name="wtl-template"]:checked');
-      const templateName = selected ? selected.value : allNames[0];
-      onClose();
-      this.createTableFromTemplate(templateName);
-    };
-    confirmBtn.addEventListener('click', onConfirm);
-    cancelBtn.addEventListener('click', onClose);
+    const popup = new Popup(container, popupModule.POPUP_TYPE.CONFIRM, '', {
+      okButton: '确认',
+      cancelButton: '取消',
+      wide: false,
+      large: false,
+      allowVerticalScrolling: true,
+      onOpen: () => {
+        const radios = container.querySelectorAll('input[name="wtl-template"]');
+        radios.forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (radio.checked) selectedTemplate = radio.value;
+          });
+        });
+      },
+    });
+
+    const result = await popup.show();
+    if (!(result === 1 || result === popupModule.POPUP_RESULT?.AFFIRMATIVE)) {
+      return;
+    }
+
+    const checkedRadio = container.querySelector('input[name="wtl-template"]:checked');
+    if (checkedRadio) selectedTemplate = checkedRadio.value;
+
+    await this.createTableFromTemplate(selectedTemplate);
   }
 
   async createTableFromTemplate(templateName) {
@@ -1134,6 +1340,528 @@ export class TableController {
 
     window.__wtlChatHook = false;
     window.__wtlApplyFeatureUi = null;
+  }
+
+  async showManageTablesModal() {
+    const popupModule = await import('/scripts/popup.js');
+    const Popup = window.Popup || popupModule.Popup;
+
+    const container = document.createElement('div');
+    container.style.cssText = 'width:100%;max-width:90vw;';
+
+    // 顶部标签栏
+    const tabBar = document.createElement('div');
+    tabBar.style.cssText = 'display:flex;gap:2px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;';
+    tabBar.innerHTML = `
+      <button class="wtl-manage-tab" data-tab="chat" style="flex:1;padding:6px 8px;border:none;border-radius:4px 4px 0 0;cursor:pointer;font-size:12px;background:var(--wtl-accent);color:#fff;font-weight:500;transition:background 0.15s;">💬 聊天</button>
+      <button class="wtl-manage-tab" data-tab="character" style="flex:1;padding:6px 8px;border:none;border-radius:4px 4px 0 0;cursor:pointer;font-size:12px;background:rgba(255,255,255,0.04);color:var(--wtl-text);transition:background 0.15s;">👤 角色</button>
+      <button class="wtl-manage-tab" data-tab="worldbook" style="flex:1;padding:6px 8px;border:none;border-radius:4px 4px 0 0;cursor:pointer;font-size:12px;background:rgba(255,255,255,0.04);color:var(--wtl-text);transition:background 0.15s;">📖 世界书</button>
+      <button class="wtl-manage-tab" data-tab="local" style="flex:1;padding:6px 8px;border:none;border-radius:4px 4px 0 0;cursor:pointer;font-size:12px;background:rgba(255,255,255,0.04);color:var(--wtl-text);transition:background 0.15s;">💾 本地</button>
+    `;
+    container.appendChild(tabBar);
+
+    const bodyEl = document.createElement('div');
+    bodyEl.style.cssText = 'padding:4px 0;max-height:60vh;overflow-y:auto;';
+    bodyEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--wtl-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> 正在加载表格列表...</div>';
+
+    container.appendChild(bodyEl);
+
+    let popupInstance = null;
+    let activeTab = 'chat';
+    const currentChatKey = getChatKeyFromContext(this.ctx);
+
+    // 切换标签
+    const switchTab = (tab) => {
+      activeTab = tab;
+      tabBar.querySelectorAll('.wtl-manage-tab').forEach(btn => {
+        const isActive = btn.dataset.tab === tab;
+        btn.style.background = isActive ? 'var(--wtl-accent)' : 'rgba(255,255,255,0.04)';
+        btn.style.color = isActive ? '#fff' : 'var(--wtl-text)';
+        btn.style.fontWeight = isActive ? '500' : 'normal';
+      });
+      loadTableList();
+    };
+
+    tabBar.querySelectorAll('.wtl-manage-tab').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // 读取/保存聊天排序
+    const loadChatOrder = () => {
+      try {
+        const raw = localStorage.getItem('wtl.chatOrder');
+        return raw ? JSON.parse(raw) : [];
+      } catch { return []; }
+    };
+    const saveChatOrder = (order) => {
+      localStorage.setItem('wtl.chatOrder', JSON.stringify(order));
+    };
+
+    const loadTableList = async () => {
+      bodyEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--wtl-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> 正在加载表格列表...</div>';
+
+      try {
+        let allChats = [];
+        try {
+          const chatApi = await import('../../../shared/api/chatApi.js');
+          allChats = await chatApi.fetchAllChats();
+        } catch (e) {
+          console.warn('[WTL] Failed to fetch chats via API:', e);
+        }
+
+        // 使用 scanAllTables 扫描所有表格
+        const allTables = scanAllTables(safeParseJson);
+        const tablesMap = allTables[activeTab];
+
+        if (!tablesMap || tablesMap.size === 0) {
+          const emptyHints = {
+            chat: '当前没有链接到聊天的表格。<br>新建表格时默认链接到当前聊天。',
+            character: '当前没有角色表格。<br>可以在聊天标签页中为角色创建表格。',
+            worldbook: '当前没有世界书表格。<br>可以在聊天标签页中为世界书创建表格。',
+            local: '当前没有本地表格。<br>本地表格不会自动加载到任何聊天。'
+          };
+          bodyEl.innerHTML = `
+            <div style="text-align:center;padding:32px;color:var(--wtl-text-muted);">
+              <i class="fa-solid fa-inbox" style="font-size:32px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+              <div>暂无表格</div>
+              <div style="font-size:11px;margin-top:4px;">${emptyHints[activeTab] || ''}</div>
+            </div>
+          `;
+          return;
+        }
+
+        // 构建列表项
+        const items = [];
+        for (const [id, entry] of tablesMap) {
+          let displayName = id;
+          let subName = '';
+          let isCurrent = false;
+
+          if (activeTab === 'chat') {
+            isCurrent = id === currentChatKey;
+            if (allChats.length > 0) {
+              const matched = allChats.find(c =>
+                c.fileName === id || c.globalKey === id ||
+                c.globalKey?.endsWith('|' + id) ||
+                c.fileName?.replace(/\.jsonl$/i, '') === id
+              );
+              if (matched) {
+                displayName = matched.character || id;
+                subName = matched.fileName?.replace(/\.jsonl$/i, '') || id;
+              }
+            }
+            if (!subName) {
+              const charName = getCharacterNameFromContext(this.ctx);
+              if (charName) displayName = charName;
+            }
+          } else if (activeTab === 'character') {
+            // 尝试从 context 获取角色名
+            const chars = this.ctx?.characters || [];
+            const char = chars.find(c => c.id === id || c.name === id);
+            if (char) displayName = char.name || id;
+          } else if (activeTab === 'worldbook') {
+            // 世界书名称
+          }
+          // local 直接用 id
+
+          const isEmpty = entry.totalRows === 0;
+          items.push({
+            id,
+            displayName,
+            subName,
+            tableCount: entry.tables.length,
+            totalRows: entry.totalRows,
+            isEmpty,
+            isCurrent
+          });
+        }
+
+        // 排序：聊天标签下当前聊天置顶，其余按已保存顺序
+        if (activeTab === 'chat') {
+          const savedOrder = loadChatOrder();
+          const currentItem = items.find(it => it.isCurrent);
+          const otherItems = items.filter(it => !it.isCurrent);
+          const orderMap = new Map(savedOrder.map((key, idx) => [key, idx]));
+          otherItems.sort((a, b) => {
+            const ai = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
+            const bi = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
+            return ai - bi;
+          });
+          items.length = 0;
+          if (currentItem) items.push(currentItem);
+          items.push(...otherItems);
+        }
+
+        // 渲染
+        let html = '';
+        items.forEach((item, idx) => {
+          const escapedId = this._escapeHtml(item.id);
+          const escapedName = this._escapeHtml(item.displayName);
+          const escapedSub = this._escapeHtml(item.subName);
+          const isEmpty = item.isEmpty;
+
+          if (activeTab === 'chat') {
+            // 聊天视图：当前聊天展开高亮，其他折叠
+            if (item.isCurrent) {
+              html += `
+              <div class="wtl-manage-section" data-store-type="chat" data-store-id="${escapedId}" data-is-current="true"
+                   style="margin-bottom:8px;border-radius:8px;overflow:hidden;
+                          border:1px solid var(--wtl-accent);background:rgba(255,255,255,0.04);">
+                <div class="wtl-manage-section-header"
+                     style="display:flex;align-items:center;padding:10px 12px;
+                            background:rgba(255,255,255,0.06);cursor:default;
+                            border-bottom:1px solid rgba(255,255,255,0.06);">
+                  <span style="font-size:11px;color:var(--wtl-accent);margin-right:6px;">●</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                      ${escapedName}
+                      ${isEmpty ? '<span style="margin-left:6px;font-size:10px;color:#e5c07b;font-weight:normal;">(空表格)</span>' : ''}
+                    </div>
+                    <div style="font-size:11px;opacity:0.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                      ${escapedSub} · 当前聊天
+                    </div>
+                  </div>
+                  <span style="font-size:11px;opacity:0.4;white-space:nowrap;margin-right:8px;">
+                    ${item.tableCount} 个表格 · ${item.totalRows} 行
+                  </span>
+                  <button class="wtl-manage-delete-btn" data-store-type="chat" data-store-id="${escapedId}"
+                          style="background:none;border:none;color:var(--wtl-text);opacity:0.3;cursor:pointer;
+                                 padding:4px 6px;font-size:12px;transition:opacity 0.15s;"
+                          title="删除此聊天的所有表格">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+                <div class="wtl-manage-section-body" style="padding:6px 8px;">
+                  <div class="wtl-manage-table-item" data-store-type="chat" data-store-id="${escapedId}"
+                       style="display:flex;align-items:center;padding:8px 10px;
+                               background:${isEmpty ? 'rgba(255,200,50,0.06)' : 'rgba(255,255,255,0.02)'};
+                               border-radius:6px;cursor:pointer;transition:background 0.15s;
+                               border:1px solid ${isEmpty ? 'rgba(255,200,50,0.2)' : 'transparent'};">
+                    <span class="wtl-drag-handle" data-store-type="chat" data-store-id="${escapedId}"
+                          style="cursor:grab;opacity:0.3;padding:4px 6px;margin-right:4px;
+                                 font-size:12px;transition:opacity 0.15s;user-select:none;"
+                          title="拖拽排序">
+                      <i class="fa-solid fa-grip-vertical"></i>
+                    </span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:12px;opacity:0.7;">表格 1</div>
+                    </div>
+                    <span style="font-size:10px;opacity:0.35;">${item.totalRows} 行</span>
+                  </div>
+                </div>
+              </div>`;
+            } else {
+              html += `
+              <div class="wtl-manage-section" data-store-type="chat" data-store-id="${escapedId}" data-is-current="false"
+                   style="margin-bottom:6px;border-radius:8px;overflow:hidden;
+                          border:1px solid transparent;background:rgba(255,255,255,0.02);">
+                <div class="wtl-manage-section-header wtl-collapse-toggle"
+                     style="display:flex;align-items:center;padding:10px 12px;
+                            cursor:pointer;transition:background 0.15s;">
+                  <span class="wtl-collapse-arrow" style="font-size:10px;opacity:0.4;margin-right:8px;
+                         transition:transform 0.2s;display:inline-block;">▶</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                      ${escapedName}
+                      ${isEmpty ? '<span style="margin-left:6px;font-size:10px;color:#e5c07b;font-weight:normal;">(空表格)</span>' : ''}
+                    </div>
+                    <div style="font-size:11px;opacity:0.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                      ${escapedSub}
+                    </div>
+                  </div>
+                  <span style="font-size:11px;opacity:0.4;white-space:nowrap;margin-right:8px;">
+                    ${item.tableCount} 个表格 · ${item.totalRows} 行
+                  </span>
+                  <button class="wtl-manage-delete-btn" data-store-type="chat" data-store-id="${escapedId}"
+                          style="background:none;border:none;color:var(--wtl-text);opacity:0.3;cursor:pointer;
+                                 padding:4px 6px;font-size:12px;transition:opacity 0.15s;"
+                          title="删除此聊天的所有表格">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+                <div class="wtl-manage-section-body" style="display:none;padding:6px 8px;">
+                  <div class="wtl-manage-table-item" data-store-type="chat" data-store-id="${escapedId}"
+                       style="display:flex;align-items:center;padding:8px 10px;
+                               background:${isEmpty ? 'rgba(255,200,50,0.06)' : 'rgba(255,255,255,0.02)'};
+                               border-radius:6px;cursor:pointer;transition:background 0.15s;
+                               border:1px solid ${isEmpty ? 'rgba(255,200,50,0.2)' : 'transparent'};">
+                    <span class="wtl-drag-handle" data-store-type="chat" data-store-id="${escapedId}"
+                          style="cursor:grab;opacity:0.3;padding:4px 6px;margin-right:4px;
+                                 font-size:12px;transition:opacity 0.15s;user-select:none;"
+                          title="拖拽排序">
+                      <i class="fa-solid fa-grip-vertical"></i>
+                    </span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:12px;opacity:0.7;">表格 1</div>
+                    </div>
+                    <span style="font-size:10px;opacity:0.35;">${item.totalRows} 行</span>
+                  </div>
+                </div>
+              </div>`;
+            }
+          } else {
+            // 角色/世界书/本地视图：简洁列表，无折叠
+            html += `
+            <div class="wtl-manage-section" data-store-type="${activeTab}" data-store-id="${escapedId}"
+                 style="margin-bottom:6px;border-radius:8px;overflow:hidden;
+                        border:1px solid transparent;background:rgba(255,255,255,0.02);">
+              <div class="wtl-manage-section-header"
+                   style="display:flex;align-items:center;padding:10px 12px;cursor:default;">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    ${escapedName}
+                    ${isEmpty ? '<span style="margin-left:6px;font-size:10px;color:#e5c07b;font-weight:normal;">(空表格)</span>' : ''}
+                  </div>
+                  <div style="font-size:11px;opacity:0.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    ID: ${escapedId}
+                  </div>
+                </div>
+                <span style="font-size:11px;opacity:0.4;white-space:nowrap;margin-right:8px;">
+                  ${item.tableCount} 个表格 · ${item.totalRows} 行
+                </span>
+                <button class="wtl-manage-delete-btn" data-store-type="${activeTab}" data-store-id="${escapedId}"
+                        style="background:none;border:none;color:var(--wtl-text);opacity:0.3;cursor:pointer;
+                               padding:4px 6px;font-size:12px;transition:opacity 0.15s;"
+                        title="删除">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>`;
+          }
+        });
+
+        bodyEl.innerHTML = html;
+
+        // 折叠/展开逻辑（仅聊天标签页）
+        if (activeTab === 'chat') {
+          bodyEl.querySelectorAll('.wtl-collapse-toggle').forEach(header => {
+            header.addEventListener('click', (e) => {
+              if (e.target.closest('.wtl-manage-delete-btn')) return;
+              const section = header.closest('.wtl-manage-section');
+              const body = section.querySelector('.wtl-manage-section-body');
+              const arrow = header.querySelector('.wtl-collapse-arrow');
+              if (body.style.display === 'none') {
+                body.style.display = 'block';
+                arrow.style.transform = 'rotate(90deg)';
+              } else {
+                body.style.display = 'none';
+                arrow.style.transform = 'rotate(0deg)';
+              }
+            });
+            header.addEventListener('mouseenter', () => {
+              header.style.background = 'rgba(255,255,255,0.04)';
+            });
+            header.addEventListener('mouseleave', () => {
+              header.style.background = '';
+            });
+          });
+
+          // 表格项点击：切换到该聊天
+          bodyEl.querySelectorAll('.wtl-manage-table-item').forEach(item => {
+            item.addEventListener('click', async (e) => {
+              if (e.target.closest('.wtl-manage-delete-btn')) return;
+              if (e.target.closest('.wtl-drag-handle')) return;
+              const storeId = item.dataset.storeId;
+              if (popupInstance && typeof popupInstance.close === 'function') {
+                popupInstance.close();
+              }
+              await this._switchToChat(storeId);
+            });
+            item.addEventListener('mouseenter', () => {
+              item.style.background = 'rgba(255,255,255,0.06)';
+            });
+            item.addEventListener('mouseleave', () => {
+              item.style.background = 'rgba(255,255,255,0.02)';
+            });
+          });
+
+          // 拖拽把手 hover
+          bodyEl.querySelectorAll('.wtl-drag-handle').forEach(handle => {
+            handle.addEventListener('mouseenter', () => { handle.style.opacity = '0.7'; });
+            handle.addEventListener('mouseleave', () => { handle.style.opacity = '0.3'; });
+          });
+
+          // 拖拽排序
+          let dragSrcSection = null;
+          let dragPlaceholder = null;
+          bodyEl.querySelectorAll('.wtl-drag-handle').forEach(handle => {
+            handle.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              dragSrcSection = handle.closest('.wtl-manage-section');
+              if (!dragSrcSection) return;
+              const rect = dragSrcSection.getBoundingClientRect();
+              dragPlaceholder = document.createElement('div');
+              dragPlaceholder.style.cssText = `
+                height:${rect.height}px;margin-bottom:6px;
+                border:2px dashed var(--wtl-accent);border-radius:8px;
+                opacity:0.5;pointer-events:none;
+              `;
+              dragSrcSection.style.opacity = '0.4';
+              dragSrcSection.parentNode.insertBefore(dragPlaceholder, dragSrcSection);
+
+              const onMouseMove = (ev) => {
+                if (!dragPlaceholder) return;
+                const sections = [...bodyEl.querySelectorAll('.wtl-manage-section')];
+                let targetIdx = sections.indexOf(dragPlaceholder);
+                for (let i = 0; i < sections.length; i++) {
+                  const sec = sections[i];
+                  if (sec === dragPlaceholder || sec === dragSrcSection) continue;
+                  const br = sec.getBoundingClientRect();
+                  if (ev.clientY < br.top + br.height / 2) { targetIdx = i; break; }
+                  targetIdx = i + 1;
+                }
+                const currentIdx = sections.indexOf(dragPlaceholder);
+                if (targetIdx !== currentIdx && targetIdx < sections.length) {
+                  bodyEl.insertBefore(dragPlaceholder, sections[targetIdx]);
+                } else if (targetIdx >= sections.length) {
+                  bodyEl.appendChild(dragPlaceholder);
+                }
+              };
+
+              const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                if (dragPlaceholder && dragSrcSection) {
+                  dragPlaceholder.parentNode?.insertBefore(dragSrcSection, dragPlaceholder);
+                  dragPlaceholder.remove();
+                  dragSrcSection.style.opacity = '1';
+                }
+                dragPlaceholder = null;
+                dragSrcSection = null;
+                const newOrder = [];
+                bodyEl.querySelectorAll('.wtl-manage-section').forEach(sec => {
+                  newOrder.push(sec.dataset.storeId);
+                });
+                saveChatOrder(newOrder);
+              };
+              document.addEventListener('mousemove', onMouseMove);
+              document.addEventListener('mouseup', onMouseUp);
+            });
+          });
+        }
+
+        // 删除按钮（所有标签页通用）
+        bodyEl.querySelectorAll('.wtl-manage-delete-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const storeType = btn.dataset.storeType;
+            const storeId = btn.dataset.storeId;
+            const label = { chat: '聊天', character: '角色', worldbook: '世界书', local: '本地' }[storeType] || storeType;
+            if (confirm(`确定要删除此${label}的所有表格吗？\n${storeId}`)) {
+              // 1. 删除 localStorage 中该 store 下的所有表格相关数据
+              //    注意：兼容旧格式 wtl.tableJson.{chatKey}（无类型前缀）
+              for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (!key) continue;
+                const matched =
+                  // 新格式：wtl.tableJson.{type}.{id}
+                  key.startsWith(`wtl.tableJson.${storeType}.${storeId}`) ||
+                  key.startsWith(`wtl.table.${storeType}.${storeId}`) ||
+                  key.startsWith(`wtl.hiddenRows.${storeType}.${storeId}`) ||
+                  key.startsWith(`wtl.history.${storeType}.${storeId}`) ||
+                  key.startsWith(`wtl.session.${storeId}`) ||
+                  // 旧格式兼容：wtl.tableJson.{chatKey}（无类型前缀，仅 chat 类型）
+                  (storeType === 'chat' && key === `wtl.tableJson.${storeId}`) ||
+                  (storeType === 'chat' && key === `wtl.table.${storeId}`) ||
+                  (storeType === 'chat' && key === `wtl.hiddenRows.${storeId}`) ||
+                  (storeType === 'chat' && key === `wtl.history.${storeId}`);
+                if (matched) {
+                  localStorage.removeItem(key);
+                }
+              }
+              // 2. 从排序中移除
+              if (storeType === 'chat') {
+                const order = loadChatOrder().filter(k => k !== storeId);
+                saveChatOrder(order);
+              }
+              // 3. 对于聊天类型，清除 chat metadata 中的表格数据
+              //    因为 saveTableForChatState 会优先保存到 chat metadata，
+              //    如果只删 localStorage，下次加载聊天时又会从 metadata 恢复
+              if (storeType === 'chat') {
+                try {
+                  const currentChatKey = getChatKeyFromContext(this.ctx);
+                  if (storeId === currentChatKey) {
+                    // 删除的是当前聊天：直接改内存里的 chat_metadata 再落盘
+                    const metadata = getChatMetadataFromContext(this.ctx);
+                    if (metadata && typeof metadata === 'object') {
+                      if (metadata.WorldTreeLibrary) {
+                        delete metadata.WorldTreeLibrary;
+                      }
+                      await persistChatMetadata(this.ctx);
+                    }
+                    // 同时重置当前内存中的表格状态，避免残留
+                    this.state.hiddenRows = {};
+                    if (this.ui.tableMdEl) this.ui.tableMdEl.value = '';
+                    if (this.viewRenderer) this.viewRenderer.renderTable({ sections: [] });
+                  } else {
+                    // 酒馆内存里只有当前聊天的 metadata，别的聊天改不了聊天文件，
+                    // 上面清掉的 localStorage 就是唯一数据源，这里不需要（也无法）再动 metadata。
+                    console.warn('[WTL] 删除的是非当前聊天，仅清理了 localStorage:', storeId);
+                  }
+                } catch (e) {
+                  console.warn('[WTL] Failed to clear chat metadata for', storeId, e);
+                }
+              }
+              await loadTableList();
+            }
+          });
+          btn.addEventListener('mouseenter', () => {
+            btn.style.opacity = '0.8';
+            btn.style.color = '#e06c75';
+          });
+          btn.addEventListener('mouseleave', () => {
+            btn.style.opacity = '0.3';
+            btn.style.color = '';
+          });
+        });
+
+      } catch (error) {
+        console.error('[WTL] Failed to load table list:', error);
+        bodyEl.innerHTML = `
+          <div style="text-align:center;padding:24px;color:#e06c75;">
+            <i class="fa-solid fa-triangle-exclamation"></i> 加载失败，请重试
+          </div>
+        `;
+      }
+    };
+
+    const popup = new Popup(container, popupModule.POPUP_TYPE.CONFIRM, '', {
+      okButton: '刷新',
+      cancelButton: '关闭',
+      wide: false,
+      large: false,
+      allowVerticalScrolling: true,
+      onOpen: () => {
+        popupInstance = popup;
+        loadTableList();
+      },
+    });
+
+    popupInstance = popup;
+    const result = await popup.show();
+    if (result === 1 || result === popupModule.POPUP_RESULT?.AFFIRMATIVE) {
+      await loadTableList();
+    }
+  }
+
+  async _switchToChat(chatKey) {
+    try {
+      const chatApi = await import('../../../shared/api/chatApi.js');
+      const allChats = await chatApi.fetchAllChats();
+      const matched = allChats.find(c =>
+        c.fileName === chatKey ||
+        c.globalKey === chatKey ||
+        c.globalKey?.endsWith('|' + chatKey) ||
+        c.fileName?.replace(/\.jsonl$/i, '') === chatKey
+      );
+      if (matched) {
+        await chatApi.openCharacterChat(matched.charId, matched.fileName);
+        return;
+      }
+    } catch (e) {
+      console.warn('[WTL] Failed to switch chat via API:', e);
+    }
+    this.setStatus('无法切换到该聊天，请手动选择', 'warning');
   }
 
   _escapeHtml(str) {

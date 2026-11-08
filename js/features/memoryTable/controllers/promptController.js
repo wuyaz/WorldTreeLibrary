@@ -4,12 +4,13 @@
  * Handles prompt editing, preview, and injection
  */
 
-import { createPromptMacroController } from '../ui/promptControllers.js';
+import { createPromptMacroController, getDefaultSendModeFlags, setModeConfigVisibility, createPrefixSuffixController } from '../ui/promptControllers.js';
 import { createBatchController } from '../ui/runtimeControllers.js';
 import { createAutoRefreshController } from '../ui/actionControllers.js';
 import { buildPrompt } from '../services/promptService.js';
 import { buildManagedPromptInjectionItems } from '../services/injectionService.js';
 import { safeParseJson } from '../../../shared/utils/index.js';
+import { getBlocksPresets, setBlocksPresets, getBlocksPresetActive, setBlocksPresetActive } from '../../../core/storage.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
 
 export class PromptController {
@@ -21,6 +22,7 @@ export class PromptController {
     this.promptMacroController = null;
     this.batchController = null;
     this.autoRefreshController = null;
+    this.prefixSuffixController = null;
     
     this.state = {
       promptPreview: '',
@@ -47,14 +49,28 @@ export class PromptController {
       prePromptEl: this.ui.prePromptEl,
       instructionEl: this.ui.instructionEl,
       sendModeEl: this.ui.sendModeEl,
-      externalEl: this.ui.externalEl,
-      stModeEl: this.ui.stModeEl,
       instBlockEl: this.ui.instBlockEl,
       schemaBlockEl: this.ui.schemaBlockEl,
       instModeEl: this.ui.instModeEl,
       schemaModeSendEl: this.ui.schemaModeSendEl,
       tableModeEl: this.ui.tableModeEl,
-      refreshPromptPreview: this.refreshPromptPreview.bind(this)
+      schemaEl: this.ui.schemaEl,
+      schemaModeEl: this.ui.schemaModeEl,
+      refreshPromptPreview: this.refreshPromptPreview.bind(this),
+      getSendModeFlags: () => getDefaultSendModeFlags({ sendModeEl: this.ui.sendModeEl, defaults: this.defaults }),
+      setModeConfigVisibility,
+      defaults: this.defaults,
+      localStorageRef: localStorage,
+      getDefaultPromptValues: this.ctx.getDefaultPromptValues || (() => ({ preprompt: '', instruction: '', schema: '' })),
+      saveSchemaForMode: this.ctx.saveSchemaForMode || (() => {}),
+      parseSchemaToTemplate: this.ctx.parseSchemaToTemplate || ((s) => ({ sections: [] })),
+      buildTemplatePrompt: this.ctx.buildTemplatePrompt || (() => ''),
+      getTemplateState: this.ctx.getTemplateState || (() => ({ sections: [] })),
+      setTemplateState: this.ctx.setTemplateState || (() => {}),
+      setTemplateActiveSectionId: this.ctx.setTemplateActiveSectionId || (() => {}),
+      getTableMarkdown: this.ctx.getTableMarkdown || (() => ''),
+      getHiddenRows: this.ctx.getHiddenRows || (() => ({})),
+      updateSchemaPreview: this.ctx.updateSchemaPreview || (() => {})
     });
     
     // Initialize batch controller
@@ -77,6 +93,24 @@ export class PromptController {
       setAutoRefreshConfig: this.setAutoRefreshConfig.bind(this),
       onAutoRefreshToggled: this.handleAutoRefreshToggled.bind(this)
     });
+
+    // Initialize prefix/suffix controller
+    this.prefixSuffixController = createPrefixSuffixController({
+      blocksPresetEl: this.ui.blocksPresetEl,
+      blocksPresetNameEl: this.ui.blocksPresetNameEl,
+      blocksPresetLoadEl: this.ui.blocksPresetLoadEl,
+      blocksPresetSaveEl: this.ui.blocksPresetSaveEl,
+      blocksPresetDelEl: this.ui.blocksPresetDelEl,
+      blocksPresetResetEl: this.ui.blocksPresetResetEl,
+      blocksEditorEl: this.ui.blocksEditorEl,
+      getBlocksPresets,
+      setBlocksPresets,
+      getBlocksPresetActive,
+      setBlocksPresetActive,
+      defaults: this.defaults,
+      saveState: this.saveState.bind(this),
+      setStatus: this.setStatus.bind(this)
+    });
   }
   
   bindEvents() {
@@ -96,16 +130,6 @@ export class PromptController {
     // Bind send mode controls
     if (this.ui.sendModeEl) {
       this.ui.sendModeEl.addEventListener('change', () => this.handleSendModeChange());
-    }
-    
-    // Bind external mode controls
-    if (this.ui.externalEl) {
-      this.ui.externalEl.addEventListener('change', () => this.handleExternalModeChange());
-    }
-    
-    // Bind ST mode controls
-    if (this.ui.stModeEl) {
-      this.ui.stModeEl.addEventListener('change', () => this.handleStModeChange());
     }
     
     // Bind prompt log controls
@@ -188,24 +212,10 @@ export class PromptController {
     eventBus.emit(EVENTS.CONFIG_CHANGED, { key: 'sendMode', value: sendMode });
   }
   
-  handleExternalModeChange() {
-    const externalMode = this.ui.externalEl?.checked || false;
-    localStorage.setItem('wtl.externalMode', externalMode.toString());
-    
-    eventBus.emit(EVENTS.CONFIG_CHANGED, { key: 'externalMode', value: externalMode });
-  }
-  
-  handleStModeChange() {
-    const stMode = this.ui.stModeEl?.checked || false;
-    localStorage.setItem('wtl.stMode', stMode.toString());
-    
-    eventBus.emit(EVENTS.CONFIG_CHANGED, { key: 'stMode', value: stMode });
-  }
-  
   updateSendModeUI(sendMode) {
     // Update UI elements based on send mode
-    if (this.promptMacroController) {
-      this.promptMacroController.setModeConfigVisibility(sendMode);
+    if (this.promptMacroController?.refreshModeUi) {
+      this.promptMacroController.refreshModeUi();
     }
   }
   
@@ -332,8 +342,6 @@ export class PromptController {
       instructionInjectionEnabled,
       schemaInjectionEnabled,
       sendMode,
-      externalMode: this.ui.externalEl?.checked || false,
-      stMode: this.ui.stModeEl?.checked || false,
       context: this.ctx
     };
   }
@@ -520,6 +528,46 @@ export class PromptController {
     return ctx?.character?.name || '';
   }
   
+  /** 保存当前状态到 localStorage */
+  async saveState() {
+    try {
+      if (this.ui.prePromptEl) {
+        localStorage.setItem('wtl.preprompt', this.ui.prePromptEl.value || '');
+      }
+      if (this.ui.instructionEl) {
+        localStorage.setItem('wtl.instruction', this.ui.instructionEl.value || '');
+      }
+      if (this.ui.schemaEl) {
+        localStorage.setItem('wtl.schema', this.ui.schemaEl.value || '');
+      }
+      if (this.ui.sendModeEl) {
+        localStorage.setItem('wtl.sendMode', this.ui.sendModeEl.value || 'st');
+      }
+      if (this.ui.instModeEl) {
+        localStorage.setItem('wtl.instMode', this.ui.instModeEl.value || 'inject');
+      }
+      if (this.ui.schemaModeSendEl) {
+        localStorage.setItem('wtl.schemaSendMode', this.ui.schemaModeSendEl.value || 'inject');
+      }
+      if (this.ui.tableModeEl) {
+        localStorage.setItem('wtl.tableMode', this.ui.tableModeEl.value || 'inject');
+      }
+    } catch (e) {
+      console.warn('[WTL PromptController] saveState failed', e);
+    }
+  }
+
+  /** 设置状态栏消息 */
+  setStatus(msg) {
+    const statusEl = document.getElementById('wtl-status');
+    if (statusEl) {
+      statusEl.textContent = msg;
+      statusEl.style.opacity = '1';
+      setTimeout(() => { statusEl.style.opacity = '0'; }, 3000);
+    }
+    console.log('[WTL]', msg);
+  }
+
   // Public API
   getPromptPreview() {
     return this.state.promptPreview;

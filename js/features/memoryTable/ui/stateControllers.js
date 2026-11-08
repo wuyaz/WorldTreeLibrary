@@ -10,7 +10,6 @@ export function createStateController({
   getStoredOrDefault,
   setStoredIfEmpty,
   getDefaultPromptText,
-  getOpenAIPresets,
   getPromptPresets,
   getSchemaPresets,
   getSchemaScopedPresets,
@@ -173,7 +172,6 @@ export function createStateController({
       getStoredOrDefault,
       setStoredIfEmpty,
       getDefaultPromptText,
-      getOpenAIPresets,
       prepromptPresetKey: PREPROMPT_PRESET_KEY,
       prepromptPresetActiveKey: PREPROMPT_PRESET_ACTIVE_KEY,
       instructionPresetKey: INSTRUCTION_PRESET_KEY,
@@ -224,7 +222,7 @@ export function createStateController({
     });
 
     if (tableMdEl) tableMdEl.value = table;
-    if (schemaEl) schemaEl.value = buildTemplatePrompt(state.templateState) || schema;
+    if (schemaEl) schemaEl.value = state.schemaSource || schema;
     if (schemaModeEl) schemaModeEl.value = schemaMode;
     if (wbModeEl) wbModeEl.value = wbReadMode;
     if (wbManualEl) wbManualEl.value = wbManual;
@@ -455,7 +453,6 @@ export function createStateController({
     ];
     resetKeys.forEach((key) => storage.removeItem(key));
 
-    setPresetStore('wtl.openai.presets', presetData.openai);
     setPresetStore(PREPROMPT_PRESET_KEY, presetData.preprompt);
     setPresetStore(INSTRUCTION_PRESET_KEY, presetData.instruction);
     setPresetStore(SCHEMA_PRESET_KEY, presetData.schema);
@@ -514,7 +511,7 @@ export function createStateController({
     if (schemaOrderEl) schemaOrderEl.value = defaults.schemaOrder;
     setDepthOnlyWhenFixed(schemaPosEl, schemaDepthEl);
 
-    const defaultOpenAIPreset = getOpenAIPresets()?.['默认'] || {};
+    const defaultOpenAIPreset = defaults.openai || {};
     if (openaiUrlEl) openaiUrlEl.value = defaultOpenAIPreset.url || '';
     if (openaiKeyEl) openaiKeyEl.value = defaultOpenAIPreset.key || '';
     if (openaiModelEl) openaiModelEl.value = defaultOpenAIPreset.model || '';
@@ -573,7 +570,7 @@ export function createStateController({
     state.schemaSource = defaultSchema || '';
     state.templateState = parseSchemaToTemplate(state.schemaSource);
     state.templateActiveSectionId = state.templateState.sections[0]?.id || '';
-    if (schemaEl) schemaEl.value = buildTemplatePrompt(state.templateState) || state.schemaSource;
+    if (schemaEl) schemaEl.value = state.schemaSource || '';
     updateSchemaPreview();
 
     state.hiddenRows = {};

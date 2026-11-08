@@ -10,6 +10,8 @@ import { PromptController } from './promptController.js';
 import { PageController } from './pageController.js';
 import { EditorController } from './editorController.js';
 import { RuntimeController } from './runtimeController.js';
+import { AutoFillService } from '../services/autoFillService.js';
+import { createSchemaEditorController } from '../ui/schemaEditorController.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
 import { getFeatureFlags } from '../../../core/storage.js';
 
@@ -22,13 +24,15 @@ export class MemoryTableFeature {
       prompt: null,
       page: null,
       editor: null,
-      runtime: null
+      runtime: null,
+      schemaEditor: null
     };
     
     this.context = null;
     this.defaults = null;
     this.initialized = false;
     this.uiInitialized = false;
+    this.autoFillService = null;
   }
   
   /**
@@ -68,7 +72,7 @@ export class MemoryTableFeature {
   /**
    * Initialize UI when the tab is opened
    */
-  initializeUI(root, context, defaults) {
+  async initializeUI(root, context, defaults) {
     if (!root) {
       console.error('[WTL MemoryTable] No root element provided for UI initialization');
       return;
@@ -92,12 +96,45 @@ export class MemoryTableFeature {
       this.controllers.editor = new EditorController(this.uiRefs, this.context, this.defaults);
       this.controllers.runtime = new RuntimeController(this.uiRefs, this.context, this.defaults);
       
-      this.controllers.table.initialize();
-      this.controllers.preset.initialize();
+      // table.initialize 现在是 async，需要 await 以确保表格数据加载完成
+      // 同时 _initFillController 会在 initialize 末尾被调用，创建 runFillOnce
+      await this.controllers.table.initialize();
+      
+      // 将 tableController 的 runFillOnce 注入到 context 中，供 RuntimeController 使用
+      this.context.runFillOnce = this.controllers.table.runFillOnce || (() => Promise.resolve());
+      
+      // 实例化 AutoFillService（自动填表服务），传入 runFillOnce 函数引用
+      this.autoFillService = new AutoFillService(this.context, this.context.runFillOnce);
+      
       this.controllers.prompt.initialize();
       this.controllers.page.initialize();
       this.controllers.editor.initialize();
       this.controllers.runtime.initialize();
+
+      // 初始化表格模板双区域编辑器（必须在 presetController 之前创建，以便 presetController 可以引用它）
+      this.controllers.schemaEditor = createSchemaEditorController({
+        schemaEl: this.uiRefs.schemaEl,
+        schemaTableEl: this.uiRefs.schemaTableEl,
+        schemaHeadEl: this.uiRefs.schemaHeadEl,
+        schemaBodyEl: this.uiRefs.schemaBodyEl,
+        schemaSectionTabsEl: this.uiRefs.schemaSectionTabsEl,
+        schemaJsonEl: this.uiRefs.schemaJsonEl,
+        schemaToggleJsonBtn: this.uiRefs.schemaToggleJsonBtn,
+        schemaPreviewEl: this.uiRefs.schemaPreviewEl,
+        schemaPreviewRefreshBtn: this.uiRefs.schemaPreviewRefreshBtn,
+        onSchemaChange: () => {
+          // schema 内容变化时触发事件
+          eventBus.emit(EVENTS.PRESET_CHANGED, { type: 'schema' });
+        }
+      });
+
+      // 初始化预设控制器（这会触发 loadEffectiveSchema 自动载入默认预设）
+      this.controllers.preset.initialize();
+      
+      // 确保预设载入后刷新编辑器显示
+      if (this.controllers.schemaEditor?.refresh) {
+        this.controllers.schemaEditor.refresh();
+      }
       
       this.bindCrossControllerEvents();
       
@@ -159,6 +196,8 @@ export class MemoryTableFeature {
       editTemplateBtn: byId('wtl-edit-template'),
       clearTableBtn: byId('wtl-clear-table'),
       newTableFromTemplateBtn: byId('wtl-new-table-from-template'),
+      manageTablesBtn: byId('wtl-manage-tables'),
+      refreshTableBtn: byId('wtl-refresh-table'),
       openConfigBtn: byId('wtl-open-config'),
       resetGlobalBtn: byId('wtl-reset-global'),
       historyBackBtn: byId('wtl-history-back'),
@@ -189,7 +228,6 @@ export class MemoryTableFeature {
       editorDialogCloseBtn: byId('wtl-editor-dialog-close'),
       
       sendModeEl: byId('wtl-send-mode'),
-      stModeEl: byId('wtl-mode-st'),
       externalModeEl: byId('wtl-mode-external'),
       
       instModeEl: byId('wtl-inst-mode'),
@@ -268,6 +306,7 @@ export class MemoryTableFeature {
       openaiMaxEl: byId('wtl-openai-max'),
       openaiStreamEl: byId('wtl-openai-stream'),
       openaiRefreshEl: byId('wtl-openai-refresh'),
+      externalSaveEl: byId('wtl-external-save'),
       externalSaveBtn: byId('wtl-external-save'),
       
       externalNavOrder: byId('wtl-external-nav-order'),
@@ -295,13 +334,39 @@ export class MemoryTableFeature {
       logAiBtn: byId('wtl-log-ai'),
       logContentEl: byId('wtl-log-content'),
       logRefreshBtn: byId('wtl-log-refresh'),
+
+      // 外部 API 面板提示词预览
+      externalPromptPreviewEl: byId('wtl-external-prompt-preview'),
+      externalPromptRefreshEl: byId('wtl-external-prompt-refresh'),
+
+      // 模块6：前后缀设置
+      blocksPresetEl: byId('wtl-blocks-preset'),
+      blocksPresetNameEl: byId('wtl-blocks-preset-name'),
+      blocksPresetLoadEl: byId('wtl-blocks-preset-load'),
+      blocksPresetSaveEl: byId('wtl-blocks-preset-save'),
+      blocksPresetDelEl: byId('wtl-blocks-preset-del'),
+      blocksPresetResetEl: byId('wtl-blocks-preset-reset'),
+      blocksEditorEl: byId('wtl-blocks-editor'),
+
+      // 模块3：酒馆填表设置（新ID）
+      stSettingsEl: byId('wtl-mode-st-settings'),
       
       modalEl: byId('wtl-modal'),
       modalTitleEl: byId('wtl-modal-title'),
       modalContentEl: byId('wtl-modal-content'),
       modalCustomEl: byId('wtl-modal-custom'),
       modalActionsEl: byId('wtl-modal-actions'),
-      modalCloseBtn: byId('wtl-modal-close')
+      modalCloseBtn: byId('wtl-modal-close'),
+
+      // 表格模板双区域编辑器
+      schemaTableEl: byId('wtl-schema-table'),
+      schemaHeadEl: byId('wtl-schema-head'),
+      schemaBodyEl: byId('wtl-schema-body'),
+      schemaSectionTabsEl: byId('wtl-schema-section-tabs'),
+      schemaJsonEl: byId('wtl-schema-json'),
+      schemaToggleJsonBtn: byId('wtl-schema-toggle-json'),
+      schemaPreviewEl: byId('wtl-schema-prompt-preview'),
+      schemaPreviewRefreshBtn: byId('wtl-schema-preview-refresh')
     };
   }
   
@@ -318,8 +383,9 @@ export class MemoryTableFeature {
     
     // Preset -> Table events
     eventBus.on(EVENTS.PRESET_CHANGED, ({ type }) => {
-      if (this.controllers.table && type === 'schema') {
-        this.controllers.table.handleSchemaChanged();
+      // 表格模板预设变化时刷新双区域编辑器
+      if (this.controllers.schemaEditor && type === 'schema') {
+        this.controllers.schemaEditor.refresh();
       }
     });
     
@@ -434,6 +500,11 @@ export class MemoryTableFeature {
    * Destroy the feature and clean up resources
    */
   destroy() {
+    // Destroy auto-fill service
+    if (this.autoFillService?.destroy) {
+      this.autoFillService.destroy();
+    }
+    
     // Destroy controllers
     Object.values(this.controllers).forEach(controller => {
       if (controller?.destroy) {
@@ -445,13 +516,15 @@ export class MemoryTableFeature {
     this.uiRefs = null;
     this.context = null;
     this.defaults = null;
+    this.autoFillService = null;
     this.controllers = {
       table: null,
       preset: null,
       prompt: null,
       page: null,
       editor: null,
-      runtime: null
+      runtime: null,
+      schemaEditor: null
     };
     
     this.initialized = false;

@@ -173,8 +173,6 @@ export class ViewRenderer {
         td.innerHTML = `
           <i class="fa-solid fa-grip-vertical wtl-row-drag-handle" aria-hidden="true"></i>
           <span class="wtl-row-index-num">${rowNum}</span>
-          <i class="fa-solid fa-caret-right wtl-row-action-toggle" data-row-idx="${rowIdx}" data-section="${sectionNum}" title="展开操作"></i>
-          <span class="wtl-row-action-panel"></span>
           ${resizeHtml}
         `;
       } else {
@@ -194,10 +192,10 @@ export class ViewRenderer {
     // 绑定/解绑事件
     if (enable) {
       this._bindRowDrag();
-      this._bindRowActions();
+      this._bindSwipeDelete();
     } else {
       this._unbindRowDrag();
-      this._unbindRowActions();
+      this._unbindSwipeDelete();
     }
   }
 
@@ -226,15 +224,32 @@ export class ViewRenderer {
       const cls = hidden ? ' wtl-row-hidden' : '';
       const editable = editMode ? ' contenteditable="true"' : '';
       const rowResizeHandle = editMode ? '' : `<div class="wtl-row-resize-handle" data-row-idx="${rowIdx}"></div>`;
-      // 编辑模式行头：左边把手 + 中间数字 + 右边小三角 + 操作面板
+      // 编辑模式行头：左边把手 + 中间数字
       const indexContent = editMode
-        ? `<i class="fa-solid fa-grip-vertical wtl-row-drag-handle" aria-hidden="true"></i><span class="wtl-row-index-num">${rowNum}</span><i class="fa-solid fa-caret-right wtl-row-action-toggle" data-row-idx="${rowIdx}" data-section="${sectionNum}" title="展开操作"></i><span class="wtl-row-action-panel"></span>`
+        ? `<i class="fa-solid fa-grip-vertical wtl-row-drag-handle" aria-hidden="true"></i><span class="wtl-row-index-num">${rowNum}</span>`
         : `<span>${rowNum}</span>`;
       const indexTd = `<td class="wtl-row-index${editMode ? ' wtl-row-index-edit' : ''}" data-row-idx="${rowIdx}" data-row="${rowNum}" data-section="${sectionNum}">${indexContent}${rowResizeHandle}</td>`;
       const cells = columns.map((_, colIdx) => {
         const val = row?.[colIdx] ?? '';
         return `<td${editable} class="wtl-data-cell" data-row-idx="${rowIdx}" data-col-idx="${colIdx}">${this.escapeHtml(val)}</td>`;
       }).join('');
+      // 编辑模式下，每行包裹在 swipe 容器中，右侧隐藏一个删除按钮
+      if (editMode) {
+        return `<tr class="wtl-table-row wtl-swipe-row${cls}" data-row="${rowNum}" data-row-idx="${rowIdx}" data-section="${sectionNum}">
+          <td colspan="${columns.length + 1}" style="padding:0;border:none;position:relative;overflow:hidden;">
+            <div class="wtl-swipe-container">
+              <div class="wtl-swipe-content">
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                  <tr>${indexTd}${cells}</tr>
+                </table>
+              </div>
+              <div class="wtl-swipe-delete" data-row-idx="${rowIdx}" data-section="${sectionNum}" title="删除该行">
+                <i class="fa-solid fa-trash"></i>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+      }
       return `<tr class="wtl-table-row${cls}" data-row="${rowNum}" data-row-idx="${rowIdx}" data-section="${sectionNum}">${indexTd}${cells}</tr>`;
     }).join('');
     const addRow = editMode ? `<tr class="wtl-add-row-tr"><td class="wtl-row-index"></td><td colspan="${columns.length || 1}" class="wtl-add-row-cell"><button class="wtl-add-row-btn" data-action="add-row" data-row-idx="${rows.length}" data-section="${sectionNum}" title="添加新行"><i class="fa-solid fa-plus"></i></button></td></tr>` : '';
@@ -412,11 +427,15 @@ export class ViewRenderer {
    */
   _bindRowDrag() {
     if (!this.tableBody) return;
-    const rows = this.tableBody.querySelectorAll('tr.wtl-table-row');
+    // 编辑模式下，行可能是 .wtl-swipe-row（外层的 tr，直接子级）
+    // 也可能是普通 .wtl-table-row（非编辑模式）
+    const rows = this.tableBody.querySelectorAll(':scope > tr.wtl-table-row');
     rows.forEach(row => {
+      // 拖拽把手在嵌套表格内部，需要从整个 row 范围内查找
       const handle = row.querySelector('.wtl-row-drag-handle');
       if (!handle) return;
-      handle.addEventListener('mousedown', () => {
+      handle.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
         row.setAttribute('draggable', 'true');
       });
       row.addEventListener('dragend', () => {
@@ -432,98 +451,150 @@ export class ViewRenderer {
     });
   }
 
-  /**
-   * 绑定行操作面板（编辑模式下）
-   * 点击小三角展开/收起操作面板
-   */
-  _bindRowActions() {
-    if (!this.tableBody) return;
-    const toggles = this.tableBody.querySelectorAll('.wtl-row-action-toggle');
-    toggles.forEach(toggle => {
-      toggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const rowIdx = toggle.dataset.rowIdx;
-        const sectionNum = toggle.dataset.section;
-        const row = toggle.closest('tr.wtl-table-row');
-        if (!row) return;
-
-        // 获取当前行的操作面板（在行头 td 内）
-        const indexTd = row.querySelector('.wtl-row-index');
-        if (!indexTd) return;
-        const panel = indexTd.querySelector('.wtl-row-action-panel');
-        if (!panel) return;
-
-        // 检查当前行的面板是否已展开
-        if (panel.classList.contains('is-open')) {
-          // 收起当前行的面板（先触发过渡动画，再清除内容）
-          panel.classList.remove('is-open');
-          toggle.classList.remove('is-open');
-          toggle.className = 'fa-solid fa-caret-right wtl-row-action-toggle';
-          row.classList.remove('is-panel-open');
-          // 延迟清除内容，让淡出动画完成
-          setTimeout(() => {
-            if (!panel.classList.contains('is-open')) {
-              panel.innerHTML = '';
-            }
-          }, 280);
-          return;
-        }
-
-        // 收起其他行已展开的面板
-        const openRows = this.tableBody.querySelectorAll('tr.wtl-table-row.is-panel-open');
-        openRows.forEach(openRow => {
-          openRow.classList.remove('is-panel-open');
-          const openPanel = openRow.querySelector('.wtl-row-action-panel.is-open');
-          if (openPanel) {
-            openPanel.classList.remove('is-open');
-            // 延迟清除内容，让淡出动画完成
-            const panelToClear = openPanel;
-            setTimeout(() => {
-              if (!panelToClear.classList.contains('is-open')) {
-                panelToClear.innerHTML = '';
-              }
-            }, 280);
-          }
-          const openToggle = openRow.querySelector('.wtl-row-action-toggle.is-open');
-          if (openToggle) {
-            openToggle.classList.remove('is-open');
-            openToggle.className = 'fa-solid fa-caret-right wtl-row-action-toggle';
-          }
-        });
-
-        // 展开当前行的面板
-        toggle.classList.add('is-open');
-        toggle.className = 'fa-solid fa-caret-down wtl-row-action-toggle';
-        panel.classList.add('is-open');
-        row.classList.add('is-panel-open');
-        const isHidden = row.classList.contains('wtl-row-hidden');
-        const hideIcon = isHidden ? 'fa-eye' : 'fa-ghost';
-        const hideTitle = isHidden ? '显示该行' : '隐藏该行';
-        panel.innerHTML = `
-          <button class="wtl-row-action-btn" data-action="move-up" data-row-idx="${rowIdx}" data-section="${sectionNum}" title="上移该行"><i class="fa-solid fa-arrow-up"></i></button>
-          <button class="wtl-row-action-btn" data-action="move-down" data-row-idx="${rowIdx}" data-section="${sectionNum}" title="下移该行"><i class="fa-solid fa-arrow-down"></i></button>
-          <button class="wtl-row-action-btn" data-action="hide-row" data-row-idx="${rowIdx}" data-section="${sectionNum}" title="${hideTitle}"><i class="fa-solid ${hideIcon}"></i></button>
-          <button class="wtl-row-action-btn wtl-row-action-btn-danger" data-action="delete-row" data-row-idx="${rowIdx}" data-section="${sectionNum}" title="删除该行"><i class="fa-solid fa-trash"></i></button>
-        `;
-      });
-    });
-  }
-
   /** 解绑行拖拽事件 */
   _unbindRowDrag() {
     if (!this.tableBody) return;
-    const rows = this.tableBody.querySelectorAll('tr.wtl-table-row');
+    const rows = this.tableBody.querySelectorAll(':scope > tr.wtl-table-row');
     rows.forEach(row => {
       row.removeAttribute('draggable');
-      // 移除通过 _bindRowDrag 添加的监听器比较困难，
-      // 但切换编辑模式时会重建行头内容，旧元素已被移除
     });
   }
 
-  /** 解绑行操作面板事件 */
-  _unbindRowActions() {
+  /**
+   * 绑定行右滑删除手势（编辑模式下）
+   * 在行上向右滑动（触摸或鼠标），露出右侧的删除按钮
+   */
+  _bindSwipeDelete() {
     if (!this.tableBody) return;
-    // 切换编辑模式时会重建行头内容，旧的小三角元素已被移除
+    const rows = this.tableBody.querySelectorAll('.wtl-swipe-row');
+    rows.forEach(row => {
+      const container = row.querySelector('.wtl-swipe-container');
+      const content = row.querySelector('.wtl-swipe-content');
+      const deleteBtn = row.querySelector('.wtl-swipe-delete');
+      if (!container || !content || !deleteBtn) return;
+
+      let startX = 0;
+      let currentX = 0;
+      let isDragging = false;
+      let isOpen = false;
+      const swipeThreshold = 60;
+      const deleteWidth = 56;
+
+      const onStart = (clientX) => {
+        if (row.classList.contains('wtl-dragging')) return;
+        startX = clientX;
+        currentX = clientX;
+        isDragging = true;
+        container.classList.add('wtl-swipe-dragging');
+      };
+
+      const onMove = (clientX) => {
+        if (!isDragging) return;
+        currentX = clientX;
+        let delta;
+        if (isOpen) {
+          // 已打开状态：继续左滑关闭，右滑保持打开
+          delta = deleteWidth - (startX - clientX);
+          delta = Math.max(0, Math.min(delta, deleteWidth + 10));
+        } else {
+          // 关闭状态：左滑露出删除按钮
+          delta = startX - clientX;
+          delta = Math.max(0, Math.min(delta, deleteWidth + 10));
+        }
+        content.style.transform = `translateX(-${delta}px)`;
+        deleteBtn.style.transform = `translateX(${delta - deleteWidth}px)`;
+      };
+
+      const onEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        container.classList.remove('wtl-swipe-dragging');
+        let delta;
+        if (isOpen) {
+          delta = deleteWidth - (startX - currentX);
+        } else {
+          delta = startX - currentX;
+        }
+        if (delta > swipeThreshold) {
+          isOpen = true;
+          content.style.transform = `translateX(-${deleteWidth}px)`;
+          deleteBtn.style.transform = 'translateX(0px)';
+          container.classList.add('wtl-swipe-open');
+        } else {
+          isOpen = false;
+          content.style.transform = 'translateX(0px)';
+          deleteBtn.style.transform = `translateX(${deleteWidth}px)`;
+          container.classList.remove('wtl-swipe-open');
+        }
+      };
+
+      // 鼠标事件
+      const onMouseDown = (e) => {
+        if (e.target.closest('.wtl-row-drag-handle')) return;
+        onStart(e.clientX);
+        const onMouseMove = (evt) => onMove(evt.clientX);
+        const onMouseUp = () => {
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+          onEnd();
+        };
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      };
+
+      // 触摸事件
+      const onTouchStart = (e) => {
+        if (e.target.closest('.wtl-row-drag-handle')) return;
+        onStart(e.touches[0].clientX);
+      };
+      const onTouchMove = (e) => {
+        onMove(e.touches[0].clientX);
+      };
+      const onTouchEnd = () => {
+        onEnd();
+      };
+
+      content.addEventListener('mousedown', onMouseDown);
+      content.addEventListener('touchstart', onTouchStart, { passive: true });
+      content.addEventListener('touchmove', onTouchMove, { passive: true });
+      content.addEventListener('touchend', onTouchEnd, { passive: true });
+
+      // 删除按钮点击事件 - 触发自定义事件，由 tableController 处理
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rowIdx = deleteBtn.dataset.rowIdx;
+        const sectionNum = deleteBtn.dataset.section;
+        const event = new CustomEvent('wtl-swipe-delete', {
+          bubbles: true,
+          detail: { rowIdx: parseInt(rowIdx), sectionNum: parseInt(sectionNum) }
+        });
+        row.dispatchEvent(event);
+      });
+
+      // 点击其他区域关闭滑动
+      const closeOnClickOutside = (e) => {
+        if (isOpen && !row.contains(e.target)) {
+          isOpen = false;
+          content.style.transform = 'translateX(0px)';
+          deleteBtn.style.transform = `translateX(${deleteWidth}px)`;
+          container.classList.remove('wtl-swipe-open');
+        }
+      };
+      document.addEventListener('mousedown', closeOnClickOutside);
+      row._wtlSwipeCloseHandler = closeOnClickOutside;
+    });
+  }
+
+  /** 解绑行右滑删除事件 */
+  _unbindSwipeDelete() {
+    if (!this.tableBody) return;
+    const rows = this.tableBody.querySelectorAll('.wtl-swipe-row');
+    rows.forEach(row => {
+      if (row._wtlSwipeCloseHandler) {
+        document.removeEventListener('mousedown', row._wtlSwipeCloseHandler);
+        delete row._wtlSwipeCloseHandler;
+      }
+    });
   }
 
   // ========== 编排 ==========

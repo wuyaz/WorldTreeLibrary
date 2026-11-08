@@ -259,7 +259,6 @@ function seedPresetStorage(data = {}) {
   };
 
   try {
-    ensurePresetStore('wtl.openai.presets', data.openai);
     ensurePresetStore('wtl.preprompt.presets', data.preprompt);
     ensurePresetStore('wtl.instruction.presets', data.instruction);
     ensurePresetStore('wtl.schema.presets', data.schema);

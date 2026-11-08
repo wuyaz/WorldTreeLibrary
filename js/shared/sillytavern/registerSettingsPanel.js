@@ -104,6 +104,13 @@ function renderFeatureSettingsHtml() {
             <div class="wtl-checkbox-desc">控制欢迎页聊天管理器注入、预览和快速跳转功能。</div>
           </div>
         </label>
+        <label class="wtl-checkbox-row">
+          <input id="wtl-feature-debug-toggle" type="checkbox" />
+          <div class="wtl-checkbox-copy">
+            <div class="wtl-checkbox-title">调试功能</div>
+            <div class="wtl-checkbox-desc">开启后填表每一步都会弹出 alert 确认弹窗，用于调试填表流程。</div>
+          </div>
+        </label>
       </div>
 
       <hr class="wtl-divider">
@@ -222,8 +229,10 @@ export async function registerFeatureSettingsPanel(options = {}) {
     const flags = getFeatureFlags();
     const memoryToggleEl = document.querySelector('#wtl-feature-memory-toggle');
     const chatToggleEl = document.querySelector('#wtl-feature-chat-toggle');
+    const debugToggleEl = document.querySelector('#wtl-feature-debug-toggle');
     if (memoryToggleEl) memoryToggleEl.checked = flags.memoryTable !== false;
     if (chatToggleEl) chatToggleEl.checked = flags.chatManager !== false;
+    if (debugToggleEl) debugToggleEl.checked = flags.debugMode === true;
   };
 
   return ST_API.ui.registerSettingsPanel({
@@ -251,6 +260,9 @@ export async function registerFeatureSettingsPanel(options = {}) {
           }
           if (target.id === 'wtl-feature-chat-toggle') {
             next = setFeatureFlags({ ...current, chatManager: target.checked });
+          }
+          if (target.id === 'wtl-feature-debug-toggle') {
+            next = setFeatureFlags({ ...current, debugMode: target.checked });
           }
           syncUi();
           if (typeof onChange === 'function') onChange(next);

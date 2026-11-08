@@ -1,3 +1,5 @@
+import { debugAlert } from '../../../shared/utils/debugAlert.js';
+
 export function createAutoRefreshController({
   pageConfigEl,
   sendModeEl,
@@ -129,7 +131,11 @@ export function bindOpenAiPresetControls({
   });
 
   externalSaveEl?.addEventListener('click', async () => {
-    const name = (openaiPresetNameEl?.value || '').toString().trim() || '默认';
+    const name = (openaiPresetNameEl?.value || '').toString().trim();
+    if (!name) {
+      setStatus('请输入预设名称');
+      return;
+    }
     const presets = getOpenAIPresets();
     presets[name] = {
       url: openaiUrlEl?.value || '',
@@ -142,6 +148,7 @@ export function bindOpenAiPresetControls({
     setOpenAIPresets(presets);
     refreshOpenAIPresetSelect();
     if (openaiPresetEl) openaiPresetEl.value = name;
+    if (openaiPresetNameEl) openaiPresetNameEl.value = name;
     await saveState();
     setStatus('预设已保存');
   });
@@ -168,6 +175,7 @@ export function createFillController({
   logPromptBtn,
   logAiBtn,
   logContentEl,
+  externalPromptPreviewEl,
   sendModeEl,
   callAi,
   openaiUrlEl,
@@ -193,10 +201,14 @@ export function createFillController({
   setRunning
 }) {
   const runFillOnce = async (overrideChat = null) => {
-    if (getRunning()) return;
+    if (getRunning()) {
+      debugAlert('[DEBUG 填表] 已在运行中，跳过');
+      return;
+    }
     setRunning(true);
     setStatus('填表中');
     notifyStatus('info', '开始填表');
+    debugAlert('[DEBUG 填表] 步骤1: 开始填表，准备构建引用包 (buildReferenceBundle)');
     try {
       const ref = await buildReferenceBundle({
         overrideChat,
@@ -205,6 +217,7 @@ export function createFillController({
         worldBookName: 'Current Chat'
       });
       onLastRef(ref);
+      debugAlert('[DEBUG 填表] 步骤2: 引用包构建完成，准备格式化引用文本 (formatReferenceText)\nref keys: ' + Object.keys(ref || {}).join(', '));
       const refBlocks = await formatReferenceText({
         ref,
         entryName: entryEl?.value || 'WorldTreeMemory',
@@ -214,6 +227,7 @@ export function createFillController({
         refBlocksPreset: getRefBlocksPreset() || [],
         refOrderPreset: getRefOrderPreset() || []
       });
+      debugAlert('[DEBUG 填表] 步骤3: 引用文本格式化完成，准备构建 Prompt (buildPrompt)\nrefBlocks 数量: ' + (refBlocks?.length || 0));
       const promptTextRaw = buildPrompt({
         blockEls: getBlockEls(blockListEl),
         refTextBlocks: refBlocks,
@@ -224,9 +238,13 @@ export function createFillController({
         templateState: templateState(),
         hiddenRows: hiddenRowsRef.get()
       });
+      debugAlert('[DEBUG 填表] 步骤4: Prompt 构建完成，准备应用宏 (applyAllPromptMacros)\npromptTextRaw 长度: ' + (promptTextRaw?.length || 0));
       const promptText = await applyAllPromptMacros(promptTextRaw);
       localStorage.setItem('wtl.lastPrompt', promptText || '');
       if (logPromptBtn?.dataset?.active === 'true' && logContentEl) logContentEl.value = promptText || '';
+      // 同步更新外部 API 面板的提示词预览
+      if (externalPromptPreviewEl) externalPromptPreviewEl.value = promptText || '';
+      debugAlert('[DEBUG 填表] 步骤5: 宏应用完成，准备调用 AI (callAi)\npromptText 长度: ' + (promptText?.length || 0) + '\nsendMode: ' + (sendModeEl?.value || 'st'));
 
       const sendMode = sendModeEl?.value || 'st';
       const aiText = await callAi({
@@ -248,8 +266,10 @@ export function createFillController({
         }
       });
       localStorage.setItem('wtl.lastAi', aiText || '');
+      debugAlert('[DEBUG 填表] 步骤6: AI 调用完成，准备提取编辑指令 (extractEditPayload)\naiText 长度: ' + (aiText?.length || 0) + '\naiText 前200字符: ' + (aiText?.substring(0, 200) || '(空)'));
       const editPayload = extractEditPayload(aiText);
       const cmds = parseCommands(editPayload);
+      debugAlert('[DEBUG 填表] 步骤7: 编辑指令解析完成，准备应用指令 (applyCommands)\neditPayload 长度: ' + (editPayload?.length || 0) + '\ncmds 数量: ' + (cmds?.length || 0));
       onPendingAiHistory({
         aiCommandText: editPayload || '',
         aiRawText: aiText || '',
@@ -261,9 +281,11 @@ export function createFillController({
       if (tableMdEl) tableMdEl.value = wrapped;
       renderPreview(wrapped);
       await saveState();
+      debugAlert('[DEBUG 填表] 步骤8: 指令应用完成，表格已更新并保存\napplied.markdown 长度: ' + (applied?.markdown?.length || 0) + '\nhiddenRows keys: ' + Object.keys(applied?.hiddenRows || {}).join(', '));
       setStatus('完成');
       notifyStatus('success', '填表完成');
     } catch (e) {
+      debugAlert('[DEBUG 填表] 错误: ' + (e?.message || e));
       setStatus('失败');
       notifyStatus('error', '填表失败');
       console.warn('[WorldTreeLibrary]', e);
