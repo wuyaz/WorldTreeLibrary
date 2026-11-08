@@ -1,6 +1,11 @@
 # WorldTreeLibrary
 > 面向 SillyTavern 的模块化插件架构，采用现代 MVC 设计模式与分层架构。
 
+> **文档状态（2026-11-08）**：本 README 记录的是设计与规范层面的长期约定，
+> 其中提到的具体文件路径（如 `js/ui/bindings.js`）和五层结构已随重构调整。
+> **当前代码的真实结构与存储归属，以 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 为准**；
+> 更早的设计稿已移入 [`docs/archive/`](docs/archive/)。
+
 WorldTreeLibrary 是一个为 SillyTavern 设计的插件系统，提供模块化、可扩展的架构基础。当前版本已实现完整的插件生命周期管理、事件总线通信、配置管理和模块化功能加载机制。
 
 ## 1. 项目目标
