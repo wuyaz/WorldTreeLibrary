@@ -1,5 +1,7 @@
 // 注册扩展栏设置面板
 import { getFeatureFlags, setFeatureFlags } from '../../core/storage.js';
+import { showToast } from '../ui/toast.js';
+import { downloadJsonString } from '../ui/download.js';
 import * as DataManager from '../../core/dataManager.js';
 import { exportAllSettings, importAllSettings, resetAllSettings } from '../../core/settingsManager.js';
 
@@ -151,26 +153,6 @@ function renderFeatureSettingsHtml() {
   `;
 }
 
-function showToast(message, type = 'info') {
-  if (window.toastr && typeof window.toastr[type] === 'function') {
-    window.toastr[type](message);
-  } else {
-    console.log(`[WTL] ${message}`);
-  }
-}
-
-function downloadJson(filename, jsonString) {
-  const blob = new Blob([jsonString], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
 function promptFileImport(accept = '.json') {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -271,7 +253,7 @@ export async function registerFeatureSettingsPanel(options = {}) {
         root.querySelector('#wtl-settings-export').addEventListener('click', async () => {
           try {
             const json = await exportAllSettings();
-            downloadJson('worldtree-settings.json', json);
+            downloadJsonString('worldtree-settings.json', json);
             showToast('用户设置已导出', 'success');
           } catch (e) {
             showToast('导出失败: ' + e.message, 'error');
@@ -306,7 +288,7 @@ export async function registerFeatureSettingsPanel(options = {}) {
         root.querySelector('#wtl-data-export').addEventListener('click', () => {
           try {
             const json = DataManager.exportLocalData();
-            downloadJson('worldtree-data.json', json);
+            downloadJsonString('worldtree-data.json', json);
             showToast('本地数据已导出', 'success');
           } catch (e) {
             showToast('导出失败: ' + e.message, 'error');

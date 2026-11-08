@@ -1,4 +1,5 @@
-// @ts-nocheck
+
+import { escapeHtml } from '../../../shared/ui/escape.js';// @ts-nocheck
 /**
  * ViewRenderer.js - 统一视图渲染器 (重构版)
  */
@@ -75,7 +76,7 @@ export class ViewRenderer {
       const editIcon = templateMode
         ? `<i class="fa-solid fa-pen wtl-table-header-edit-icon" data-section-idx="${idx}" aria-hidden="true"></i>`
         : '';
-      return `<button class="wtl-section-tab wtl-chat-manager-pill${isActive ? ' is-active' : ''}" data-section-idx="${idx}" ${templateMode ? 'draggable="true"' : ''}>${drag}${this.escapeHtml(name)}${editIcon}</button>`;
+      return `<button class="wtl-section-tab wtl-chat-manager-pill${isActive ? ' is-active' : ''}" data-section-idx="${idx}" ${templateMode ? 'draggable="true"' : ''}>${drag}${escapeHtml(name)}${editIcon}</button>`;
     }).join('');
 
     this.initTabsArrows();
@@ -208,7 +209,7 @@ export class ViewRenderer {
       const drag = templateMode ? `<i class="fa-solid fa-grip-vertical wtl-table-col-drag-handle" aria-hidden="true"></i>` : '';
       const edit = templateMode ? `<i class="fa-solid fa-pen wtl-table-header-edit-icon" data-col-idx="${idx}" aria-hidden="true"></i>` : '';
       const resizeHandle = `<div class="wtl-col-resize-handle" data-col-idx="${idx}"></div>`;
-      return `<th data-col-idx="${idx}" ${templateMode ? 'draggable="true"' : ''}>${drag}${this.escapeHtml(name)}${edit}${resizeHandle}</th>`;
+      return `<th data-col-idx="${idx}" ${templateMode ? 'draggable="true"' : ''}>${drag}${escapeHtml(name)}${edit}${resizeHandle}</th>`;
     }).join('');
     return `<tr>${cornerTh}${cells}</tr>`;
   }
@@ -231,7 +232,7 @@ export class ViewRenderer {
       const indexTd = `<td class="wtl-row-index${editMode ? ' wtl-row-index-edit' : ''}" data-row-idx="${rowIdx}" data-row="${rowNum}" data-section="${sectionNum}">${indexContent}${rowResizeHandle}</td>`;
       const cells = columns.map((_, colIdx) => {
         const val = row?.[colIdx] ?? '';
-        return `<td${editable} class="wtl-data-cell" data-row-idx="${rowIdx}" data-col-idx="${colIdx}">${this.escapeHtml(val)}</td>`;
+        return `<td${editable} class="wtl-data-cell" data-row-idx="${rowIdx}" data-col-idx="${colIdx}">${escapeHtml(val)}</td>`;
       }).join('');
       // 编辑模式下，每行包裹在 swipe 容器中，右侧隐藏一个删除按钮
       if (editMode) {
@@ -604,7 +605,7 @@ export class ViewRenderer {
     list.innerHTML = blocks.map(b => `
       <div class="wtl-orchestrator-item${b.muted ? ' muted' : ''}" data-block="${b.id}" draggable="true">
         <div class="wtl-orchestrator-handle"><i class="fa-solid fa-grip-vertical"></i></div>
-        <div class="wtl-orchestrator-content"><span class="wtl-orchestrator-name">${this.escapeHtml(b.name)}</span></div>
+        <div class="wtl-orchestrator-content"><span class="wtl-orchestrator-name">${escapeHtml(b.name)}</span></div>
         <div class="wtl-orchestrator-actions">
           <button class="menu_button" data-action="preview" title="预览"><i class="fa-solid fa-eye"></i></button>
           <button class="menu_button" data-action="config" title="配置"><i class="fa-solid fa-gear"></i></button>
@@ -615,12 +616,6 @@ export class ViewRenderer {
   }
 
   // ========== 工具 ==========
-  escapeHtml(str) {
-    if (!str) return '';
-    const d = document.createElement('div');
-    d.textContent = String(str);
-    return d.innerHTML;
-  }
 
   show(id) { const el = this.getElement(id); if (el) el.style.display = ''; }
   hide(id) { const el = this.getElement(id); if (el) el.style.display = 'none'; }

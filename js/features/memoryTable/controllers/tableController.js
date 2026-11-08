@@ -4,6 +4,7 @@
  * Handles table rendering, editing, and interactions
  */
 
+import { escapeHtml } from '../../../shared/ui/escape.js';
 import {
   wrapTable,
   stripTableWrapper,
@@ -28,7 +29,7 @@ import { getBlockEls, getRefBlockEls, serializeBlockOrder } from '../ui/blockEdi
 import { createModalController } from '../../../shared/ui/modal.js';
 import { buildReferenceBundle, formatReferenceText } from '../services/referenceService.js';
 import { buildPrompt } from '../services/promptService.js';
-import { callAi } from '../services/aiService.js';
+import { callAi } from '../../../shared/ai/openai.js';
 import { createFillController, bindCommonActionControls } from '../ui/actionControllers.js';
 import { applyAllPromptMacros } from '../ui/promptControllers.js';
 import { extractEditPayload, parseCommands } from '../data/commands.js';
@@ -636,8 +637,8 @@ export class TableController {
         <div id="wtl-template-list" style="max-height:250px;overflow-y:auto;">
           ${allNames.map((name, idx) => `
             <label style="display:block;padding:8px;cursor:pointer;border-radius:4px;margin-bottom:4px;background:rgba(255,255,255,0.03);">
-              <input type="radio" name="wtl-template" value="${this._escapeHtml(name)}" ${idx === 0 ? 'checked' : ''} style="margin-right:8px;">
-              ${this._escapeHtml(name)}
+              <input type="radio" name="wtl-template" value="${escapeHtml(name)}" ${idx === 0 ? 'checked' : ''} style="margin-right:8px;">
+              ${escapeHtml(name)}
             </label>
           `).join('')}
         </div>
@@ -1495,9 +1496,9 @@ export class TableController {
         // 渲染
         let html = '';
         items.forEach((item, idx) => {
-          const escapedId = this._escapeHtml(item.id);
-          const escapedName = this._escapeHtml(item.displayName);
-          const escapedSub = this._escapeHtml(item.subName);
+          const escapedId = escapeHtml(item.id);
+          const escapedName = escapeHtml(item.displayName);
+          const escapedSub = escapeHtml(item.subName);
           const isEmpty = item.isEmpty;
 
           if (activeTab === 'chat') {
@@ -1864,10 +1865,6 @@ export class TableController {
     this.setStatus('无法切换到该聊天，请手动选择', 'warning');
   }
 
-  _escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
 }
 
 export function createTableController(uiRefs, context, defaults) {

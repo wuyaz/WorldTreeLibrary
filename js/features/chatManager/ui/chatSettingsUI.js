@@ -1,20 +1,12 @@
 // @ts-nocheck
 
 import { MORANDI_COLORS } from '../data/chatManagerSettings.js';
+import { escapeHtml } from '../../../shared/ui/escape.js';
 
 export class ChatSettingsUI {
   constructor(options = {}) {
     this.settings = options.settings;
     this.callbacks = options.callbacks || {};
-  }
-
-  escapeHtml(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   render(settings) {
@@ -33,10 +25,10 @@ export class ChatSettingsUI {
       const currentIndex = colorIndex >= 0 ? colorIndex : 0;
       
       return `
-        <div class="wtl-chat-settings-color-slider" data-type="${type}" data-value="${this.escapeHtml(value)}" data-current-index="${currentIndex}">
-          <button type="button" class="wtl-chat-settings-color-nav wtl-chat-settings-color-prev" data-settings-action="color-prev" data-type="${type}" data-value="${this.escapeHtml(value)}">‹</button>
+        <div class="wtl-chat-settings-color-slider" data-type="${type}" data-value="${escapeHtml(value)}" data-current-index="${currentIndex}">
+          <button type="button" class="wtl-chat-settings-color-nav wtl-chat-settings-color-prev" data-settings-action="color-prev" data-type="${type}" data-value="${escapeHtml(value)}">‹</button>
           <div class="wtl-chat-settings-color-display" style="background-color: ${selectedColor};"></div>
-          <button type="button" class="wtl-chat-settings-color-nav wtl-chat-settings-color-next" data-settings-action="color-next" data-type="${type}" data-value="${this.escapeHtml(value)}">›</button>
+          <button type="button" class="wtl-chat-settings-color-nav wtl-chat-settings-color-next" data-settings-action="color-next" data-type="${type}" data-value="${escapeHtml(value)}">›</button>
         </div>
       `;
     };
@@ -58,22 +50,22 @@ export class ChatSettingsUI {
       <div class="wtl-chat-settings-item">
         <div class="wtl-chat-settings-item-main">
           <span class="wtl-chat-settings-order">${index + 1}</span>
-          <span class="wtl-chat-settings-name">${this.escapeHtml(value)}</span>
+          <span class="wtl-chat-settings-name">${escapeHtml(value)}</span>
         </div>
         <div class="wtl-chat-settings-color-row">
           ${renderColorPicker(type, value, (type === 'folder' ? this.settings.getFolderColor(value) : this.settings.getTagColor(value)) || MORANDI_COLORS[0])}
-          <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="clear-color" data-type="${type}" data-value="${this.escapeHtml(value)}" title="清除颜色">
+          <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="clear-color" data-type="${type}" data-value="${escapeHtml(value)}" title="清除颜色">
             <i class="fa-solid fa-eraser"></i>
           </button>
         </div>
         <div class="wtl-chat-settings-actions">
-          <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="move-item" data-type="${type}" data-value="${this.escapeHtml(value)}" data-direction="up" ${index === 0 ? 'disabled' : ''} title="上移">
+          <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="move-item" data-type="${type}" data-value="${escapeHtml(value)}" data-direction="up" ${index === 0 ? 'disabled' : ''} title="上移">
             <i class="fa-solid fa-arrow-up"></i>
           </button>
-          <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="move-item" data-type="${type}" data-value="${this.escapeHtml(value)}" data-direction="down" ${index === total - 1 ? 'disabled' : ''} title="下移">
+          <button type="button" class="wtl-chat-settings-btn is-icon" data-settings-action="move-item" data-type="${type}" data-value="${escapeHtml(value)}" data-direction="down" ${index === total - 1 ? 'disabled' : ''} title="下移">
             <i class="fa-solid fa-arrow-down"></i>
           </button>
-          <button type="button" class="wtl-chat-settings-btn is-icon is-danger" data-settings-action="remove-item" data-type="${type}" data-value="${this.escapeHtml(value)}" title="删除">
+          <button type="button" class="wtl-chat-settings-btn is-icon is-danger" data-settings-action="remove-item" data-type="${type}" data-value="${escapeHtml(value)}" title="删除">
             <i class="fa-solid fa-trash"></i>
           </button>
         </div>
@@ -91,7 +83,7 @@ export class ChatSettingsUI {
       const currentPreset = type === 'folder' ? (this.settings.currentFolderPreset || '') : (this.settings.currentTagPreset || '');
       
       const presetButtons = presetList.map(name => 
-        `<button type="button" class="wtl-chat-settings-preset-btn ${name === currentPreset ? 'is-active' : ''}" data-preset="${this.escapeHtml(name)}">${this.escapeHtml(name)}</button>`
+        `<button type="button" class="wtl-chat-settings-preset-btn ${name === currentPreset ? 'is-active' : ''}" data-preset="${escapeHtml(name)}">${escapeHtml(name)}</button>`
       ).join('');
       
       const isDefaultSelected = currentPreset === '' || currentPreset === '默认';
@@ -181,7 +173,7 @@ export class ChatSettingsUI {
         class="wtl-chat-settings-swatch ${selectedColor === color ? 'is-active' : ''}"
         data-settings-action="pick-preset-color"
         data-type="${type}"
-        data-value="${this.escapeHtml(value)}"
+        data-value="${escapeHtml(value)}"
         data-color="${color}"
         style="--wtl-swatch:${color};"
         title="${color}"

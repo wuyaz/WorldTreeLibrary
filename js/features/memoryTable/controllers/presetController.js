@@ -4,6 +4,7 @@
  * Handles preset management for OpenAI, prompts, and schemas
  */
 
+import { downloadJsonFile } from '../../../shared/ui/download.js';
 import {
   loadTextPresetValue,
   saveTextPresetValue,
@@ -121,7 +122,7 @@ export class PresetController {
         refreshPromptPreview: this.refreshPromptPreview.bind(this),
         importPresetFile: this.importPresetFile.bind(this),
         exportPresetFile: this.exportPresetFile.bind(this),
-        downloadJsonFile: this.downloadJsonFile.bind(this),
+        downloadJsonFile: downloadJsonFile.bind(this),
         saveSchemaPresetValue,
         renameSchemaPresetValue,
         deleteSchemaPresetValue,
@@ -153,7 +154,7 @@ export class PresetController {
       deleteTextPresetValue,
       importPresetFile: this.importPresetFile.bind(this),
       exportPresetFile: this.exportPresetFile.bind(this),
-      downloadJsonFile: this.downloadJsonFile.bind(this),
+      downloadJsonFile: downloadJsonFile.bind(this),
       refreshPromptPreview: this.refreshPromptPreview.bind(this),
       setStatus: this.setStatus.bind(this),
       labels: {
@@ -183,7 +184,7 @@ export class PresetController {
       deleteTextPresetValue,
       importPresetFile: this.importPresetFile.bind(this),
       exportPresetFile: this.exportPresetFile.bind(this),
-      downloadJsonFile: this.downloadJsonFile.bind(this),
+      downloadJsonFile: downloadJsonFile.bind(this),
       refreshPromptPreview: this.refreshPromptPreview.bind(this),
       setStatus: this.setStatus.bind(this),
       labels: {
@@ -327,7 +328,7 @@ export class PresetController {
     try {
       const filename = presetType === 'preprompt' ? 'wtl-preprompt-presets.json' : 'wtl-instruction-presets.json';
       const presets = getPromptPresets(presetType === 'preprompt' ? PREPROMPT_PRESET_KEY : INSTRUCTION_PRESET_KEY);
-      this.downloadJsonFile(filename, presets);
+      downloadJsonFile(filename, presets);
       eventBus.emit(EVENTS.PRESET_SAVED, { type: presetType, action: 'export' });
     } catch (error) {
       console.error(`[WTL PresetController] Failed to export ${presetType} preset:`, error);
@@ -359,15 +360,6 @@ export class PresetController {
     downloadJson?.(filename, presets || {});
   }
   
-  downloadJsonFile(filename, data) {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
   
   parseSchemaToTemplate(schemaText) {
     try {
@@ -407,7 +399,7 @@ export class PresetController {
   async handleSchemaPresetExport() {
     try {
       const presets = getSchemaPresets();
-      this.downloadJsonFile('wtl-schema-presets.json', presets);
+      downloadJsonFile('wtl-schema-presets.json', presets);
       eventBus.emit(EVENTS.PRESET_SAVED, { type: 'schema', action: 'export' });
     } catch (error) {
       console.error('[WTL PresetController] Failed to export schema preset:', error);

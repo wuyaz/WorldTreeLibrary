@@ -181,7 +181,7 @@ export class MemoryTableCore {
    * 调用AI（由注入路由层处理）
    */
   async callAI(prompt, sendMode, apiConfig) {
-    const { callAi } = await import('../services/aiService.js');
+    const { callAi } = await import('../../../shared/ai/openai.js');
     
     const options = {
       ST_API: window.ST_API,

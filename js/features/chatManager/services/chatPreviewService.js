@@ -2,6 +2,7 @@
 
 import { fetchChatContent, openCharacterChat } from '../../../shared/api/chatApi.js';
 import { ChatManagerSettings } from '../data/chatManagerSettings.js';
+import { escapeHtml } from '../../../shared/ui/escape.js';
 
 export class ChatPreviewService {
   constructor() {
@@ -78,13 +79,6 @@ export class ChatPreviewService {
         floorNum,
       };
     });
-  }
-
-  escapeHtml(text) {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
   }
 }
 

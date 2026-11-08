@@ -13,6 +13,7 @@
  */
 
 import { getSetting } from '../../../core/settingsManager.js';
+import { showToast } from '../../../shared/ui/toast.js';
 import { debugAlert } from '../../../shared/utils/debugAlert.js';
 
 export class AutoFillService {
@@ -33,21 +34,6 @@ export class AutoFillService {
     this.initializeStreamingHooks();
   }
   
-  /**
-   * Show toast notification using SillyTavern's toastr
-   */
-  showToast(message, type = 'info') {
-    try {
-      const toastr = window.toastr || window.parent?.toastr;
-      if (toastr && toastr[type]) {
-        toastr[type](message, 'WorldTreeLibrary');
-      } else {
-        console.log(`[WTL AutoFill] ${type}: ${message}`);
-      }
-    } catch (error) {
-      console.log(`[WTL AutoFill] ${type}: ${message}`);
-    }
-  }
   
   /**
    * Initialize hooks to detect streaming completion
@@ -93,7 +79,7 @@ export class AutoFillService {
   handleStreamStart() {
     console.log('[WTL AutoFill] Stream started');
     debugAlert('[DEBUG 自动填表] 事件: STREAM_START - 流式输出开始');
-    this.showToast('开始接收回复...', 'info');
+    showToast('开始接收回复...', 'info');
     this.state.isStreaming = true;
     this.state.lastStreamTime = Date.now();
     this.state.pendingAutoFill = false;
@@ -112,7 +98,7 @@ export class AutoFillService {
   handleStreamEnd() {
     console.log('[WTL AutoFill] Stream ended');
     debugAlert('[DEBUG 自动填表] 事件: STREAM_END - 流式输出结束，1秒后将检查自动填表');
-    this.showToast('回复接收完成，准备填表...', 'info');
+    showToast('回复接收完成，准备填表...', 'info');
     this.state.isStreaming = false;
     
     // Schedule auto-fill check after a short delay to ensure message is fully processed
@@ -199,12 +185,12 @@ export class AutoFillService {
       
       console.log(`[WTL AutoFill] Triggering auto-fill for ${autoFillFloors} floors`);
       debugAlert('[DEBUG 自动填表] 条件满足！即将调用 runFillOnce 开始自动填表');
-      this.showToast('开始自动填表...', 'info');
+      showToast('开始自动填表...', 'info');
       this.state.pendingAutoFill = true;
       
       // Trigger the fill
       await this.runFillOnce();
-      this.showToast('自动填表完成', 'success');
+      showToast('自动填表完成', 'success');
       debugAlert('[DEBUG 自动填表] runFillOnce 执行完毕，自动填表完成');
       
       this.state.pendingAutoFill = false;
@@ -212,7 +198,7 @@ export class AutoFillService {
     } catch (error) {
       console.error('[WTL AutoFill] Error in auto-fill check:', error);
       debugAlert('[DEBUG 自动填表] 错误: ' + (error?.message || error));
-      this.showToast('自动填表失败: ' + error.message, 'error');
+      showToast('自动填表失败: ' + error.message, 'error');
       this.state.pendingAutoFill = false;
     }
   }
@@ -224,16 +210,16 @@ export class AutoFillService {
     try {
       console.log('[WTL AutoFill] Manual auto-fill triggered');
       debugAlert('[DEBUG 自动填表] 手动触发自动填表');
-      this.showToast('开始手动填表...', 'info');
+      showToast('开始手动填表...', 'info');
       
       await this.runFillOnce();
-      this.showToast('手动填表完成', 'success');
+      showToast('手动填表完成', 'success');
       debugAlert('[DEBUG 自动填表] 手动填表完成');
       
     } catch (error) {
       console.error('[WTL AutoFill] Error in manual auto-fill:', error);
       debugAlert('[DEBUG 自动填表] 手动填表错误: ' + (error?.message || error));
-      this.showToast('手动填表失败: ' + error.message, 'error');
+      showToast('手动填表失败: ' + error.message, 'error');
     }
   }
   

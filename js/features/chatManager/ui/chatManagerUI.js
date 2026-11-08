@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { resolveExtRoot } from '../../../core/assets.js';
+import { escapeHtml } from '../../../shared/ui/escape.js';
 import { ChatFilterService } from '../services/chatFilterService.js';
 
 const CHAT_MANAGER_ROOT_ID = 'wtl-chat-manager-root';
@@ -171,7 +172,7 @@ export class ChatManagerUI {
       <div class="wtl-chat-manager-toolbar">
         <div class="wtl-chat-manager-toolbar-main">
           <div class="wtl-chat-manager-tabs">${tabsHtml}</div>
-          <input type="text" class="wtl-chat-manager-search" placeholder="搜索..." value="${this.escapeHtml(state.searchQuery || '')}" data-action="search">
+          <input type="text" class="wtl-chat-manager-search" placeholder="搜索..." value="${escapeHtml(state.searchQuery || '')}" data-action="search">
         </div>
       </div>
     `;
@@ -198,13 +199,13 @@ export class ChatManagerUI {
     
     const itemsHtml = items.map(item => {
       const isActive = activeFilter === item;
-      return `<button class="wtl-chat-manager-pill ${isActive ? 'is-active' : ''}" data-action="filter" data-val="${this.escapeHtml(item)}">${this.escapeHtml(item)}</button>`;
+      return `<button class="wtl-chat-manager-pill ${isActive ? 'is-active' : ''}" data-action="filter" data-val="${escapeHtml(item)}">${escapeHtml(item)}</button>`;
     }).join('');
     
     const addBtn = showAdd ? `<button class="wtl-chat-manager-pill" data-action="add-item" data-type="${viewMode}">+ 新建</button>` : '';
     
     const firstFilter = viewMode === 'folder' ? '未分类' : '';
-    const firstFilterHtml = firstFilter ? `<button class="wtl-chat-manager-pill ${activeFilter === firstFilter ? 'is-active' : ''}" data-action="filter" data-val="${this.escapeHtml(firstFilter)}">${this.escapeHtml(firstFilter)}</button>` : '';
+    const firstFilterHtml = firstFilter ? `<button class="wtl-chat-manager-pill ${activeFilter === firstFilter ? 'is-active' : ''}" data-action="filter" data-val="${escapeHtml(firstFilter)}">${escapeHtml(firstFilter)}</button>` : '';
     
     return `
       <div class="wtl-chat-manager-filters">
@@ -259,7 +260,7 @@ export class ChatManagerUI {
   renderChatCard(card) {
     const tagsHtml = card.tags.map(tag => {
       const style = tag.color ? `style="--wtl-accent:${tag.color};--wtl-accent-bg:${tag.color}22;--wtl-accent-border:${tag.color}66;"` : '';
-      return `<span class="wtl-chat-manager-meta-chip" data-action="remove-tag" data-key="${card.globalKey}" data-tag="${this.escapeHtml(tag.name)}" ${style}>${this.escapeHtml(tag.name)}</span>`;
+      return `<span class="wtl-chat-manager-meta-chip" data-action="remove-tag" data-key="${card.globalKey}" data-tag="${escapeHtml(tag.name)}" ${style}>${escapeHtml(tag.name)}</span>`;
     }).join('');
     
     const folderStyle = card.folderColor ? `style="--wtl-accent:${card.folderColor};--wtl-accent-bg:${card.folderColor}22;--wtl-accent-border:${card.folderColor}66;"` : '';
@@ -287,7 +288,7 @@ export class ChatManagerUI {
           <div class="wtl-chat-manager-card-top">
             <div class="wtl-chat-manager-card-heading">
               <div class="wtl-chat-manager-title-row">
-                <span class="wtl-chat-manager-title-text">${this.escapeHtml(card.customTitle)}</span>
+                <span class="wtl-chat-manager-title-text">${escapeHtml(card.customTitle)}</span>
                 <button class="wtl-chat-manager-inline-icon" title="改名" data-action="edit-title" data-key="${card.globalKey}">
                   <i class="fa-solid fa-pen"></i>
                 </button>
@@ -297,16 +298,16 @@ export class ChatManagerUI {
               </div>
             </div>
           </div>
-          ${card.summary ? `<div class="wtl-chat-manager-summary">${this.escapeHtml(card.summary)}</div>` : ''}
+          ${card.summary ? `<div class="wtl-chat-manager-summary">${escapeHtml(card.summary)}</div>` : ''}
           <div class="wtl-chat-manager-preview-row">
-            <div class="wtl-chat-manager-preview wtl-chat-manager-preview-lines-${card.previewLines}">${this.escapeHtml(card.preview)}</div>
+            <div class="wtl-chat-manager-preview wtl-chat-manager-preview-lines-${card.previewLines}">${escapeHtml(card.preview)}</div>
             <button class="wtl-chat-manager-inline-icon" title="打开此聊天" data-action="open-chat" data-char="${card.charId}" data-file="${card.fileName}">
               <i class="fa-solid fa-external-link-alt"></i>
             </button>
           </div>
           <div class="wtl-chat-manager-meta-row">
-            <span class="wtl-chat-manager-meta-chip wtl-chat-manager-character-chip">@${this.escapeHtml(card.character)}</span>
-            <span class="wtl-chat-manager-meta-chip" data-action="edit-folder" data-key="${card.globalKey}" ${folderStyle}>${this.escapeHtml(card.folder)}</span>
+            <span class="wtl-chat-manager-meta-chip wtl-chat-manager-character-chip">@${escapeHtml(card.character)}</span>
+            <span class="wtl-chat-manager-meta-chip" data-action="edit-folder" data-key="${card.globalKey}" ${folderStyle}>${escapeHtml(card.folder)}</span>
             ${tagsHtml}
             <button class="wtl-chat-manager-inline-icon" title="添加标签" data-action="add-tag" data-key="${card.globalKey}">
               <i class="fa-solid fa-plus"></i>
@@ -315,7 +316,7 @@ export class ChatManagerUI {
            <div class="wtl-chat-manager-card-foot">
              <span class="wtl-chat-manager-card-time">${this.formatRecentDate(card.timestamp)}</span>
              <span class="wtl-chat-manager-file-meta">
-               <span class="wtl-chat-manager-file-name">${this.escapeHtml(card.fileName)}</span>
+               <span class="wtl-chat-manager-file-name">${escapeHtml(card.fileName)}</span>
                <span class="wtl-chat-manager-file-extra">楼层 ${Number(card.messageCount || 0) || 0} · ${card.fileSize || '未知大小'}</span>
              </span>
            </div>
@@ -412,15 +413,6 @@ export class ChatManagerUI {
       this.ui.panel.innerHTML = '<div class="wtl-chat-manager-empty"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>';
       this.ui.panel.classList.add('is-open');
     }
-  }
-
-  escapeHtml(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   getContainer() {

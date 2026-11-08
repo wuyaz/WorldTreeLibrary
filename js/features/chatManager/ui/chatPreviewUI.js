@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { escapeHtml } from '../../../shared/ui/escape.js';
 
 export class ChatPreviewUI {
   constructor() {
@@ -22,7 +23,7 @@ export class ChatPreviewUI {
             </div>
           </div>
           <div class="wtl-preview-body" style="padding:${isExpanded ? '12px' : '0 12px'};max-height:${isExpanded ? '300px' : '0'};overflow:auto;transition:all 0.2s;">
-            <div style="white-space:pre-wrap;word-break:break-word;">${this.escapeHtml(text)}</div>
+            <div style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(text)}</div>
           </div>
         </div>
       `;
@@ -30,13 +31,6 @@ export class ChatPreviewUI {
     
     html += '</div>';
     return html;
-  }
-
-  escapeHtml(text) {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
   }
 
   bindMessageEvents(container) {

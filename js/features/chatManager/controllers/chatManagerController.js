@@ -6,6 +6,8 @@ import { ChatManagerUI } from '../ui/chatManagerUI.js';
 import { ChatManagerSettings, MORANDI_COLORS } from '../data/chatManagerSettings.js';
 import { ChatSettingsUI } from '../ui/chatSettingsUI.js';
 import { ChatPreviewUI } from '../ui/chatPreviewUI.js';
+import { escapeHtml } from '../../../shared/ui/escape.js';
+import { toast } from '../../../shared/ui/toast.js';
 
 export class ChatManagerController {
   constructor(options = {}) {
@@ -58,26 +60,6 @@ export class ChatManagerController {
     }
   }
 
-  toast(type, message) {
-    try {
-      const toastr = window.toastr || window.parent?.toastr;
-      if (toastr && toastr[type]) {
-        toastr[type](message);
-      }
-    } catch (e) {
-      console.log(`[WTL ChatManager] ${type}: ${message}`);
-    }
-  }
-
-  escapeHtml(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
   moveArrayItem(arr, from, to) {
     if (!Array.isArray(arr)) return;
     if (from < 0 || to < 0 || from >= arr.length || to >= arr.length) return;
@@ -98,7 +80,7 @@ export class ChatManagerController {
         class="wtl-chat-settings-swatch ${selectedColor === color ? 'is-active' : ''}"
         data-settings-action="pick-preset-color"
         data-type="${type}"
-        data-value="${this.escapeHtml(value)}"
+        data-value="${escapeHtml(value)}"
         data-color="${color}"
         style="--wtl-swatch:${color};"
         title="${color}"
@@ -129,19 +111,19 @@ export class ChatManagerController {
           <button
             type="button"
             class="wtl-picker-option ${isSelected ? 'is-selected' : ''}"
-            data-value="${this.escapeHtml(option)}"
+            data-value="${escapeHtml(option)}"
             style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--SmartThemeBorderColor);background:${isSelected ? 'var(--SmartThemeUnderlineColor)' : 'rgba(255,255,255,0.06)'};color:var(--SmartThemeBodyColor);cursor:pointer;white-space:nowrap;font-size:13px;"
-          >${this.escapeHtml(option)}</button>
+          >${escapeHtml(option)}</button>
         `;
       }).join('');
 
       container.innerHTML = `
         <div class="wtl-picker-wrap" style="display:flex;flex-direction:column;gap:10px;min-width:320px;">
-          <div style="font-size:12px;opacity:0.75;">${this.escapeHtml(subtitle || '')}</div>
-          <div class="wtl-picker-options" style="display:flex;flex-wrap:wrap;gap:8px;max-height:220px;overflow:auto;">${allowEmpty ? `<button type="button" class="wtl-picker-empty ${selectedValue ? '' : 'is-selected'}" data-empty="1" style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--SmartThemeBorderColor);background:${selectedValue ? 'rgba(255,255,255,0.06)' : 'var(--SmartThemeUnderlineColor)'};color:var(--SmartThemeBodyColor);cursor:pointer;white-space:nowrap;font-size:13px;">${this.escapeHtml(emptyLabel)}</button>` : ''}${optionHtml}</div>
+          <div style="font-size:12px;opacity:0.75;">${escapeHtml(subtitle || '')}</div>
+          <div class="wtl-picker-options" style="display:flex;flex-wrap:wrap;gap:8px;max-height:220px;overflow:auto;">${allowEmpty ? `<button type="button" class="wtl-picker-empty ${selectedValue ? '' : 'is-selected'}" data-empty="1" style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--SmartThemeBorderColor);background:${selectedValue ? 'rgba(255,255,255,0.06)' : 'var(--SmartThemeUnderlineColor)'};color:var(--SmartThemeBodyColor);cursor:pointer;white-space:nowrap;font-size:13px;">${escapeHtml(emptyLabel)}</button>` : ''}${optionHtml}</div>
           <label style="display:flex;flex-direction:column;gap:6px;">
-            <span style="font-size:12px;opacity:0.8;">${this.escapeHtml(createLabel)}</span>
-            <input class="text_pole wtl-picker-input" type="text" placeholder="${this.escapeHtml(createPlaceholder)}" value="" />
+            <span style="font-size:12px;opacity:0.8;">${escapeHtml(createLabel)}</span>
+            <input class="text_pole wtl-picker-input" type="text" placeholder="${escapeHtml(createPlaceholder)}" value="" />
           </label>
         </div>
       `;
@@ -246,16 +228,16 @@ export class ChatManagerController {
 
       container.innerHTML = `
         <div class="wtl-picker-wrap" style="display:flex;flex-direction:column;gap:10px;min-width:340px;">
-          <div style="font-size:12px;opacity:0.75;">${this.escapeHtml(subtitle || '')}</div>
+          <div style="font-size:12px;opacity:0.75;">${escapeHtml(subtitle || '')}</div>
           <div class="wtl-picker-options" style="display:flex;flex-wrap:wrap;gap:8px;max-height:220px;overflow:auto;">
             ${options.map(option => {
               const selected = selectedSet.has(option);
-              return `<button type="button" class="wtl-picker-option ${selected ? 'is-selected' : ''}" data-value="${this.escapeHtml(option)}" style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--SmartThemeBorderColor);background:${selected ? 'var(--SmartThemeUnderlineColor)' : 'rgba(255,255,255,0.06)'};color:var(--SmartThemeBodyColor);cursor:pointer;white-space:nowrap;font-size:13px;">${this.escapeHtml(option)}</button>`;
+              return `<button type="button" class="wtl-picker-option ${selected ? 'is-selected' : ''}" data-value="${escapeHtml(option)}" style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--SmartThemeBorderColor);background:${selected ? 'var(--SmartThemeUnderlineColor)' : 'rgba(255,255,255,0.06)'};color:var(--SmartThemeBodyColor);cursor:pointer;white-space:nowrap;font-size:13px;">${escapeHtml(option)}</button>`;
             }).join('')}
           </div>
           <label style="display:flex;flex-direction:column;gap:6px;">
-            <span style="font-size:12px;opacity:0.8;">${this.escapeHtml(createLabel)}</span>
-            <input class="text_pole wtl-picker-input" type="text" placeholder="${this.escapeHtml(createPlaceholder)}" value="" />
+            <span style="font-size:12px;opacity:0.8;">${escapeHtml(createLabel)}</span>
+            <input class="text_pole wtl-picker-input" type="text" placeholder="${escapeHtml(createPlaceholder)}" value="" />
           </label>
         </div>
       `;
@@ -942,7 +924,7 @@ export class ChatManagerController {
     
     this.syncSettingsToState();
     this.syncColorsToState();
-    this.toast('success', '聊天管理设置已保存');
+    toast('success', '聊天管理设置已保存');
     this.renderPanel();
   }
 
@@ -952,7 +934,7 @@ export class ChatManagerController {
     this.syncColorsToState();
     this.renderSettingsPanel();
     this.renderPanel();
-    this.toast('info', '已恢复默认设置');
+    toast('info', '已恢复默认设置');
   }
 
   handleSettingsAddItem(type) {
@@ -968,7 +950,7 @@ export class ChatManagerController {
       : this.settings.addTag(value, color);
 
     if (!added) {
-      this.toast('warning', `${type === 'folder' ? '分组' : '标签'}已存在或名称无效`);
+      toast('warning', `${type === 'folder' ? '分组' : '标签'}已存在或名称无效`);
       return;
     }
 
@@ -1026,15 +1008,15 @@ export class ChatManagerController {
 
     const trimmedName = presetName.trim();
     if (trimmedName === '默认') {
-      this.toast('warning', '不能使用"默认"作为预设名称');
+      toast('warning', '不能使用"默认"作为预设名称');
       return;
     }
 
     if (this.settings.saveCurrentAsPreset(type, trimmedName)) {
       this.renderSettingsPanel();
-      this.toast('success', `预设已保存: ${trimmedName}`);
+      toast('success', `预设已保存: ${trimmedName}`);
     } else {
-      this.toast('error', '保存预设失败');
+      toast('error', '保存预设失败');
     }
   }
 
@@ -1049,9 +1031,9 @@ export class ChatManagerController {
       this.syncColorsToState();
       this.renderSettingsPanel();
       this.renderPanel();
-      this.toast('success', `已加载预设: ${presetName}`);
+      toast('success', `已加载预设: ${presetName}`);
     } else {
-      this.toast('error', '加载预设失败');
+      toast('error', '加载预设失败');
     }
   }
 
@@ -1061,25 +1043,25 @@ export class ChatManagerController {
 
     if (this.settings.saveCurrentAsPreset(type, presetName.trim())) {
       this.renderSettingsPanel();
-      this.toast('success', `预设已保存: ${presetName.trim()}`);
+      toast('success', `预设已保存: ${presetName.trim()}`);
     } else {
-      this.toast('error', '保存预设失败');
+      toast('error', '保存预设失败');
     }
   }
 
   async handleDeletePreset(type) {
     const presetName = this.getSettingsInputValue(`${type}Preset`);
     if (!presetName || presetName === '默认') {
-      this.toast('warning', '无法删除默认预设');
+      toast('warning', '无法删除默认预设');
       return;
     }
 
     if (await this.confirm(`确定删除预设 [${presetName}] 吗？`)) {
       if (this.settings.deletePreset(type, presetName)) {
         this.renderSettingsPanel();
-        this.toast('success', `预设已删除: ${presetName}`);
+        toast('success', `预设已删除: ${presetName}`);
       } else {
-        this.toast('error', '删除预设失败');
+        toast('error', '删除预设失败');
       }
     }
   }
@@ -1091,9 +1073,9 @@ export class ChatManagerController {
         this.syncColorsToState();
         this.renderSettingsPanel();
         this.renderPanel();
-        this.toast('success', '已加载默认预设');
+        toast('success', '已加载默认预设');
       } else {
-        this.toast('error', '加载默认预设失败');
+        toast('error', '加载默认预设失败');
       }
     }
   }
@@ -1234,14 +1216,14 @@ export class ChatManagerController {
               
               this.globalChats = await this.dataService.loadAllChats();
               
-              this.toast('success', `已重命名文件: ${oldFileName.replace('.jsonl', '')} → ${val.trim()}`);
+              toast('success', `已重命名文件: ${oldFileName.replace('.jsonl', '')} → ${val.trim()}`);
               
               this.renderPanel();
               return;
             }
           } catch (error) {
             console.error('[WTL ChatManager] Failed to rename chat file:', error);
-            this.toast('error', '重命名文件失败: ' + error.message);
+            toast('error', '重命名文件失败: ' + error.message);
           }
         }
       }
@@ -1336,7 +1318,7 @@ export class ChatManagerController {
     if (success) {
       this.ui.togglePanel(false);
     } else {
-      this.toast('warning', '未能打开聊天，请手动在列表中选择');
+      toast('warning', '未能打开聊天，请手动在列表中选择');
     }
   }
 
@@ -1386,11 +1368,11 @@ export class ChatManagerController {
       this.dataService.state.selectedChats.delete(globalKey);
       this.dataService.removeChatData(globalKey);
       this.globalChats = await this.dataService.loadAllChats();
-      this.toast('success', '聊天已删除');
+      toast('success', '聊天已删除');
       this.renderPanel();
     } catch (error) {
       console.error('[WTL ChatManager] Failed to delete chat:', error);
-      this.toast('error', '删除失败: ' + error.message);
+      toast('error', '删除失败: ' + error.message);
     }
   }
 
@@ -1584,9 +1566,9 @@ export class ChatManagerController {
     this.dataService.state.save();
 
     if (failCount === 0) {
-      this.toast('success', `批量重命名完成：${successCount} 个对话`);
+      toast('success', `批量重命名完成：${successCount} 个对话`);
     } else {
-      this.toast('warning', `批量重命名完成：成功 ${successCount} 个，失败 ${failCount} 个`);
+      toast('warning', `批量重命名完成：成功 ${successCount} 个，失败 ${failCount} 个`);
     }
 
     this.renderPanel();
