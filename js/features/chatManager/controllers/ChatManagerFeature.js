@@ -1,7 +1,6 @@
 // @ts-nocheck
 
 import { ChatManagerController } from './chatManagerController.js';
-import { getFeatureFlags } from '../../../core/storage.js';
 import { loadCSS } from '../../../core/assetLoader.js';
 
 export class ChatManagerFeature {
@@ -18,12 +17,6 @@ export class ChatManagerFeature {
     if (this.state.isInitialized) return;
 
     try {
-      const featureFlags = getFeatureFlags();
-      if (featureFlags.chatManager === false) {
-        console.log('[WTL ChatManager] Feature disabled by flags');
-        return;
-      }
-
       await this.injectStyles();
 
       this.controller = new ChatManagerController(this.options);

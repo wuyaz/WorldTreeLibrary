@@ -1613,13 +1613,26 @@ export class ChatManagerController {
   }
 
   setEnabled(enabled) {
+    const root = document.getElementById('wtl-chat-manager-root');
     if (enabled) {
-      this.ui.createContainer().then(container => {
-        this.injectContainer(container);
-      });
+      if (root) {
+        root.style.display = '';
+      } else {
+        this.ui.createContainer().then(container => {
+          this.injectContainer(container);
+        });
+      }
       this.startObserver();
-    } else {
-      this.ui.togglePanel(false);
+      return;
+    }
+    // 关闭时不只是收起面板，整个欢迎页入口都要消失
+    this.ui.togglePanel(false);
+    if (root) root.style.display = 'none';
+    this.observer?.disconnect();
+    this.observer = null;
+    if (this.observerTimer) {
+      clearTimeout(this.observerTimer);
+      this.observerTimer = null;
     }
   }
 

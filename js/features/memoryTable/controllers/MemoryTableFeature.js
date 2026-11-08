@@ -403,10 +403,7 @@ export class MemoryTableFeature {
    * Apply feature UI state based on feature flags
    */
   applyFeatureUi() {
-    // Always show table area — never hide it
-    if (this.uiRefs?.memoryFeatureDisabledEl) {
-      this.uiRefs.memoryFeatureDisabledEl.style.display = 'none';
-    }
+    this.setEnabled(this.enabled !== false);
   }
   
   /**
@@ -449,22 +446,33 @@ export class MemoryTableFeature {
    * Set feature enabled/disabled state
    */
   setEnabled(enabled) {
-    // Always show table area — never hide it
+    const on = enabled !== false;
+    this.enabled = on;
+
+    // 用根节点类名控制显隐：各区块自身有 inline display（比如模板编辑器默认隐藏），
+    // 直接改 style 会把它们一起打开
+    const root = this.uiRefs?.root || document.getElementById('wtl-root');
+    if (root) root.classList.toggle('wtl-memory-off', !on);
+
     if (this.uiRefs?.memoryFeatureDisabledEl) {
-      this.uiRefs.memoryFeatureDisabledEl.style.display = 'none';
+      this.uiRefs.memoryFeatureDisabledEl.style.display = on ? 'none' : '';
     }
-    
+
     // Notify controllers
     Object.values(this.controllers).forEach(controller => {
       if (controller?.setEnabled) {
-        controller.setEnabled(enabled);
+        try {
+          controller.setEnabled(on);
+        } catch (e) {
+          console.warn('[WTL MemoryTable] controller setEnabled failed:', e);
+        }
       }
     });
-    
+
     eventBus.emit(EVENTS.FEATURE_FLAGS_CHANGED, {
-      memoryTable: enabled
+      memoryTable: on
     });
-    
+
     return this;
   }
   

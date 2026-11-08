@@ -2,12 +2,29 @@
 import { getFeatureFlags, setFeatureFlags } from '../../core/storage.js';
 import { showToast } from '../ui/toast.js';
 import { downloadJsonString } from '../ui/download.js';
+import { escapeHtml } from '../ui/escape.js';
 import * as DataManager from '../../core/dataManager.js';
 import { exportAllSettings, importAllSettings, resetAllSettings } from '../../core/settingsManager.js';
 
 const FEATURE_SETTINGS_PANEL_ID = 'WorldTreeLibrary.features';
 
-function renderFeatureSettingsHtml() {
+/**
+ * 按功能注册表生成开关行。
+ * 新增功能后设置面板自动多一行，不需要改这里。
+ * @param {Array<{id:string,name:string,description?:string}>} featureList
+ */
+function renderFeatureToggleRows(featureList = []) {
+  return featureList.map((meta) => `
+        <label class="wtl-checkbox-row">
+          <input class="wtl-feature-toggle" data-flag="${escapeHtml(meta.id)}" type="checkbox" />
+          <div class="wtl-checkbox-copy">
+            <div class="wtl-checkbox-title">${escapeHtml(meta.name)}</div>
+            <div class="wtl-checkbox-desc">${escapeHtml(meta.description || '')}</div>
+          </div>
+        </label>`).join('');
+}
+
+function renderFeatureSettingsHtml(featureList = []) {
   return `
     <div id="wtl-feature-settings" style="display:flex; flex-direction:column; gap:16px; color:var(--SmartThemeBodyColor);">
       <style>
@@ -92,20 +109,7 @@ function renderFeatureSettingsHtml() {
 
       <div>
         <div class="wtl-section-title">功能开关</div>
-        <label class="wtl-checkbox-row">
-          <input id="wtl-feature-memory-toggle" type="checkbox" />
-          <div class="wtl-checkbox-copy">
-            <div class="wtl-checkbox-title">记忆表格</div>
-            <div class="wtl-checkbox-desc">控制 WorldTreeLibrary 主工作台与填表页签显示。</div>
-          </div>
-        </label>
-        <label class="wtl-checkbox-row">
-          <input id="wtl-feature-chat-toggle" type="checkbox" />
-          <div class="wtl-checkbox-copy">
-            <div class="wtl-checkbox-title">聊天管理</div>
-            <div class="wtl-checkbox-desc">控制欢迎页聊天管理器注入、预览和快速跳转功能。</div>
-          </div>
-        </label>
+${renderFeatureToggleRows(featureList)}
         <label class="wtl-checkbox-row">
           <input id="wtl-feature-debug-toggle" type="checkbox" />
           <div class="wtl-checkbox-copy">
@@ -200,7 +204,7 @@ function refreshDataStats(el) {
 }
 
 export async function registerFeatureSettingsPanel(options = {}) {
-  const { onChange } = options;
+  const { onChange, features: featureList = [] } = options;
   const ST_API = window.ST_API;
   if (!ST_API?.ui?.registerSettingsPanel) {
     console.warn('[WorldTreeLibrary] registerFeatureSettingsPanel skipped: ST_API not ready');
@@ -209,11 +213,10 @@ export async function registerFeatureSettingsPanel(options = {}) {
 
   const syncUi = () => {
     const flags = getFeatureFlags();
-    const memoryToggleEl = document.querySelector('#wtl-feature-memory-toggle');
-    const chatToggleEl = document.querySelector('#wtl-feature-chat-toggle');
+    document.querySelectorAll('#wtl-feature-settings [data-flag]').forEach((el) => {
+      el.checked = flags[el.dataset.flag] !== false;
+    });
     const debugToggleEl = document.querySelector('#wtl-feature-debug-toggle');
-    if (memoryToggleEl) memoryToggleEl.checked = flags.memoryTable !== false;
-    if (chatToggleEl) chatToggleEl.checked = flags.chatManager !== false;
     if (debugToggleEl) debugToggleEl.checked = flags.debugMode === true;
   };
 
@@ -225,7 +228,7 @@ export async function registerFeatureSettingsPanel(options = {}) {
     content: {
       kind: 'render',
       render: (container) => {
-        container.innerHTML = renderFeatureSettingsHtml();
+        container.innerHTML = renderFeatureSettingsHtml(featureList);
         const root = container.querySelector('#wtl-feature-settings');
         if (!root) return;
 
@@ -237,11 +240,9 @@ export async function registerFeatureSettingsPanel(options = {}) {
           if (!(target instanceof HTMLInputElement)) return;
           const current = getFeatureFlags();
           let next = current;
-          if (target.id === 'wtl-feature-memory-toggle') {
-            next = setFeatureFlags({ ...current, memoryTable: target.checked });
-          }
-          if (target.id === 'wtl-feature-chat-toggle') {
-            next = setFeatureFlags({ ...current, chatManager: target.checked });
+          const flagKey = target.dataset ? target.dataset.flag : '';
+          if (flagKey) {
+            next = setFeatureFlags({ ...current, [flagKey]: target.checked });
           }
           if (target.id === 'wtl-feature-debug-toggle') {
             next = setFeatureFlags({ ...current, debugMode: target.checked });

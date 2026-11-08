@@ -716,3 +716,13 @@
     width: 100%;
   }
 }
+
+/* 功能开关：关闭记忆表格时收起主工作区，只留说明。
+   用类名而非 inline style，避免覆盖各区块自己的默认显示状态（如模板编辑器）。 */
+#wtl-root.wtl-memory-off .wtl-memory-feature {
+  display: none !important;
+}
+
+#wtl-root.wtl-memory-off #wtl-memory-feature-disabled {
+  display: block !important;
+}

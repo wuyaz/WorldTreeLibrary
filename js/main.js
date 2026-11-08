@@ -1,24 +1,25 @@
 // @ts-nocheck
 /**
- * World Tree Library - Main Entry Point (Refactored)
- * Uses modular architecture with event bus and feature-based structure
+ * World Tree Library - Main Entry Point
+ *
+ * 插件骨架只做四件事：
+ *   1. 等酒馆与 ST_API 就绪
+ *   2. 按 features/registry.js 的清单逐个初始化功能
+ *   3. 让每个功能自己注册挂载点（registerUI）
+ *   4. 把功能开关同步到运行中的实例
+ *
+ * 具体有哪些功能、怎么挂载，都不写在这里。
  */
 
 import { loadConfig } from './core/configManager.js';
 import { ensureWtlStyle } from './core/assetLoader.js';
 import { getFeatureFlags } from './core/storage.js';
 import eventBus, { EVENTS } from './core/eventBus.js';
-import { registerTopTab } from './shared/sillytavern/registerTopTab.js';
 import { registerFeatureMenu } from './shared/sillytavern/registerFeatureMenu.js';
 import { registerFeatureSettingsPanel } from './shared/sillytavern/registerSettingsPanel.js';
-import { MemoryTableFeature } from './features/memoryTable/index.js';
-import { ChatManagerFeature } from './features/chatManager/index.js';
+import { FEATURES } from './features/registry.js';
 
-// Global state
-let features = {
-  memoryTable: null,
-  chatManager: null
-};
+let features = {};
 let initialized = false;
 let attempts = 0;
 
@@ -30,40 +31,31 @@ async function initialize() {
   if (!ctx || !window.ST_API?.ui) {
     attempts += 1;
     if (attempts <= 20) {
-      setTimeout(() => initialize().catch((err) => 
+      setTimeout(() => initialize().catch((err) =>
         console.error('[WorldTreeLibrary] init failed:', err)), 300);
     }
     return;
   }
 
   try {
-    // Load configuration
     const { config, defaults, presets } = await loadConfig();
-    
-    // Store in window for global access
+
     window.__WTL_CONFIG__ = config;
     window.__WTL_DEFAULTS__ = defaults;
     window.__WTL_PRESETS__ = presets;
-    
-    // Initialize features
+
     await initializeFeatures(ctx, config, defaults);
-    
-    // Register UI components
     await registerUIComponents(ctx, config, defaults);
-    
-    // Apply initial feature flags
     applyFeatureFlags();
-    
+
     initialized = true;
-    
-    // Emit app ready event
+
     eventBus.emit(EVENTS.APP_READY, {
       config,
-      features: Object.keys(features).filter(key => features[key] !== null)
+      features: Object.keys(features).filter((key) => features[key])
     });
-    
+
     console.log('[WorldTreeLibrary] Initialized successfully with modular architecture');
-    
   } catch (error) {
     console.error('[WorldTreeLibrary] Initialization failed:', error);
     eventBus.emit(EVENTS.ERROR_OCCURRED, {
@@ -74,105 +66,52 @@ async function initialize() {
 }
 
 /**
- * Initialize features based on configuration
+ * 逐个初始化注册表里的功能。
+ * 无论开关是否打开都会创建实例——关闭只影响显示与行为，
+ * 这样用户当场切换开关不需要刷新页面。
  */
 async function initializeFeatures(ctx, config, defaults) {
-  const featureFlags = getFeatureFlags();
-  
-  // Initialize Memory Table Feature
-  if (featureFlags.memoryTable !== false) {
+  for (const meta of FEATURES) {
     try {
-      features.memoryTable = new MemoryTableFeature();
-      await features.memoryTable.initialize();
-      console.log('[WorldTreeLibrary] Memory Table feature initialized');
+      const instance = meta.create();
+      await instance.initialize();
+      features[meta.id] = instance || null;
+      console.log(`[WorldTreeLibrary] ${meta.name} initialized`);
     } catch (error) {
-      console.error('[WorldTreeLibrary] Failed to initialize Memory Table:', error);
-      features.memoryTable = null;
-    }
-  }
-  
-  // Initialize Chat Manager Feature
-  if (featureFlags.chatManager !== false) {
-    try {
-      features.chatManager = new ChatManagerFeature();
-      await features.chatManager.initialize();
-      console.log('[WorldTreeLibrary] Chat Manager feature initialized');
-    } catch (error) {
-      console.error('[WorldTreeLibrary] Failed to initialize Chat Manager:', error);
-      features.chatManager = null;
+      console.error(`[WorldTreeLibrary] Failed to initialize ${meta.name}:`, error);
+      features[meta.id] = null;
     }
   }
 }
 
 /**
- * Register UI components (top tab, settings panel, etc.)
+ * 功能自己声明挂载点，这里只负责调用。
  */
 async function registerUIComponents(ctx, config, defaults) {
-  const { eventSource, event_types } = ctx || {};
-  
-  // Register top tab for Memory Table
-  if (features.memoryTable) {
+  for (const meta of FEATURES) {
+    const instance = features[meta.id];
+    if (!instance || typeof meta.registerUI !== 'function') continue;
     try {
-      await registerTopTab({
-        loadHtml: async () => {
-          // Load HTML for the tab
-          const response = await fetch('/scripts/extensions/third-party/WorldTreeLibrary/assets/html/main-panel.html');
-          return await response.text();
-        },
-        onOpen: (root) => {
-          if (!root) return;
-          
-          // Initialize Memory Table UI in the tab
-          if (features.memoryTable) {
-            features.memoryTable.initializeUI(root, ctx, defaults);
-          }
-        }
-      });
+      await meta.registerUI({ instance, ctx, defaults });
     } catch (error) {
-      console.warn('[WorldTreeLibrary] Failed to register top tab:', error);
+      console.warn(`[WorldTreeLibrary] ${meta.name} UI 注册失败:`, error);
     }
   }
-  
-  // Register feature settings panel
+
+  const onFlagsChanged = (flags) => {
+    applyFeatureFlags(flags);
+    eventBus.emit(EVENTS.FEATURE_FLAGS_CHANGED, flags);
+  };
+
   try {
     await registerFeatureSettingsPanel({
-      onChange: (flags) => {
-        applyFeatureFlags(flags);
-        
-        // Update feature states
-        if (features.memoryTable) {
-          features.memoryTable.setEnabled(flags.memoryTable !== false);
-        }
-        
-        if (features.chatManager) {
-          features.chatManager.setEnabled(flags.chatManager !== false);
-        }
-        
-        // Emit feature flags changed event
-        eventBus.emit(EVENTS.FEATURE_FLAGS_CHANGED, flags);
-      }
+      features: FEATURES,
+      onChange: onFlagsChanged
     });
   } catch (error) {
     console.warn('[WorldTreeLibrary] Failed to register settings panel:', error);
-    
-    // Fallback to feature menu
     try {
-      await registerFeatureMenu({
-        onChange: (flags) => {
-          applyFeatureFlags(flags);
-          
-          // Update feature states
-          if (features.memoryTable) {
-            features.memoryTable.setEnabled(flags.memoryTable !== false);
-          }
-          
-          if (features.chatManager) {
-            features.chatManager.setEnabled(flags.chatManager !== false);
-          }
-          
-          eventBus.emit(EVENTS.FEATURE_FLAGS_CHANGED, flags);
-        }
-      });
+      await registerFeatureMenu({ onChange: onFlagsChanged });
     } catch (fallbackError) {
       console.warn('[WorldTreeLibrary] Feature menu fallback also failed:', fallbackError);
     }
@@ -180,21 +119,19 @@ async function registerUIComponents(ctx, config, defaults) {
 }
 
 /**
- * Apply feature flags to UI
+ * 把开关同步到运行中的功能实例。
+ * 之前这里只处理了 chatManager，记忆表格那个开关要重启才生效。
  */
 function applyFeatureFlags(flags = getFeatureFlags()) {
-  const root = document.getElementById('wtl-root');
-  if (root) {
-    // Always show table area — never hide it
-    const disabledEl = document.getElementById('wtl-memory-feature-disabled');
-    if (disabledEl) {
-      disabledEl.style.display = 'none';
+  for (const meta of FEATURES) {
+    const instance = features[meta.id];
+    if (!instance?.setEnabled) continue;
+    const enabled = flags[meta.id] !== false;
+    try {
+      instance.setEnabled(enabled);
+    } catch (error) {
+      console.error(`[WorldTreeLibrary] ${meta.name} 开关切换失败:`, error);
     }
-  }
-  
-  // Notify features about flag changes
-  if (features.chatManager) {
-    features.chatManager.setEnabled(flags.chatManager !== false);
   }
 }
 
@@ -202,73 +139,56 @@ function applyFeatureFlags(flags = getFeatureFlags()) {
  * Cleanup and destroy all features
  */
 function destroy() {
-  // Destroy features
-  if (features.memoryTable?.destroy) {
-    features.memoryTable.destroy();
+  for (const meta of FEATURES) {
+    const instance = features[meta.id];
+    try {
+      instance?.destroy?.();
+    } catch (error) {
+      console.error(`[WorldTreeLibrary] ${meta.name} 销毁失败:`, error);
+    }
   }
-  
-  if (features.chatManager?.destroy) {
-    features.chatManager.destroy();
-  }
-  
-  // Clear features
-  features = {
-    memoryTable: null,
-    chatManager: null
-  };
-  
-  // Clear state
+
+  features = {};
   initialized = false;
   attempts = 0;
-  
-  // Emit shutdown event
+
   eventBus.emit(EVENTS.APP_SHUTDOWN);
-  
   console.log('[WorldTreeLibrary] Destroyed');
 }
 
 // Self-invoking function to start initialization
 (function () {
-  // Add style element for WTL
   const styleId = 'wtl-inline-style';
   if (!document.getElementById(styleId)) {
     const styleEl = document.createElement('style');
     styleEl.id = styleId;
     document.head.appendChild(styleEl);
   }
-  
-  // Start initialization
+
   initialize().catch((err) => {
     console.error('[WorldTreeLibrary] Initialization error:', err);
   });
-  
-  // Expose public API
+
   window.WorldTreeLibrary = {
-    // Core API
     getConfig: () => window.__WTL_CONFIG__,
     getDefaults: () => window.__WTL_DEFAULTS__,
     getPresets: () => window.__WTL_PRESETS__,
-    
-    // Feature access
+
     getFeature: (name) => features[name],
     getFeatures: () => ({ ...features }),
-    
-    // Event bus access
+    getFeatureList: () => FEATURES.map((meta) => ({ id: meta.id, name: meta.name })),
+
     on: (event, callback) => eventBus.on(event, callback),
     off: (event, callback) => eventBus.off(event, callback),
     emit: (event, ...args) => eventBus.emit(event, ...args),
-    
-    // Utility functions
+
     applyFeatureFlags,
     destroy,
-    
-    // Status
+
     isInitialized: () => initialized
   };
-  
-  // Backward compatibility
+
   window.__wtlApplyFeatureUi = applyFeatureFlags;
 })();
 
-// Export for module systems (if any)
 export default window.WorldTreeLibrary;
