@@ -197,9 +197,15 @@ export class ChatManagerUI {
       return '';
     }
     
+    // 文件夹/标签已带颜色，筛选栏沿用同一套颜色，保持一致
+    const colorMap = viewMode === 'folder' ? (state.folderColors || {}) : (state.tagColors || {});
     const itemsHtml = items.map(item => {
       const isActive = activeFilter === item;
-      return `<button class="wtl-chat-manager-pill ${isActive ? 'is-active' : ''}" data-action="filter" data-val="${escapeHtml(item)}">${escapeHtml(item)}</button>`;
+      const color = colorMap[item];
+      const colorStyle = color
+        ? `style="--wtl-accent:${color};--wtl-accent-bg:${color}22;--wtl-accent-border:${color}66;"`
+        : '';
+      return `<button class="wtl-chat-manager-pill ${isActive ? 'is-active' : ''}" data-action="filter" data-val="${escapeHtml(item)}" ${colorStyle}>${escapeHtml(item)}</button>`;
     }).join('');
     
     const addBtn = showAdd ? `<button class="wtl-chat-manager-pill" data-action="add-item" data-type="${viewMode}">+ 新建</button>` : '';

@@ -1223,3 +1223,13 @@
     font-size: 9px;
   }
 }
+
+/* 筛选栏胶囊沿用文件夹/标签颜色（与卡片标签块同一套 CSS 变量） */
+.wtl-chat-manager-pill[style*="--wtl-accent"] {
+  border-color: var(--wtl-accent-border, var(--SmartThemeBorderColor));
+  color: var(--wtl-accent, var(--SmartThemeBodyColor));
+}
+.wtl-chat-manager-pill[style*="--wtl-accent"].is-active {
+  background: var(--wtl-accent-bg, var(--SmartThemeBorderColor));
+  border-color: var(--wtl-accent, var(--SmartThemeBorderColor));
+}
