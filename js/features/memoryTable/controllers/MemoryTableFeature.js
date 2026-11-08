@@ -13,8 +13,9 @@ import { RuntimeController } from './runtimeController.js';
 import { AutoFillService } from '../services/autoFillService.js';
 import { restoreUiState, bindUiStatePersistence } from '../services/uiStateService.js';
 import { createSchemaEditorController } from '../ui/schemaEditorController.js';
+import { createBlockEditorController, serializeBlockOrder } from '../ui/blockEditor.js';
 import eventBus, { EVENTS } from '../../../core/eventBus.js';
-import { getFeatureFlags } from '../../../core/storage.js';
+import { getFeatureFlags, getBlocksPreset, getRefBlocksPreset } from '../../../core/storage.js';
 
 export class MemoryTableFeature {
   constructor() {
@@ -34,6 +35,7 @@ export class MemoryTableFeature {
     this.initialized = false;
     this.uiInitialized = false;
     this.autoFillService = null;
+    this.blockEditor = null;
     this.unbindUiState = null;
   }
   
@@ -87,7 +89,9 @@ export class MemoryTableFeature {
     
     try {
       this.context = context || window.SillyTavern?.getContext?.() || {};
-      this.defaults = defaults || window.__WTL_DEFAULTS__ || {};
+      // main.js 传进来的是整份 defaults.json（含 chatManager / memoryTable 两段），
+      // 各 controller 要的是自己那一段，这里统一裁开，免得 defaults.sendMode 之类取到 undefined
+      this.defaults = defaults?.memoryTable || defaults || window.__WTL_DEFAULTS__?.memoryTable || {};
       
       this.uiRefs = this.getUiRefs(root);
       
@@ -112,6 +116,27 @@ export class MemoryTableFeature {
       this.controllers.page.initialize();
       this.controllers.editor.initialize();
       this.controllers.runtime.initialize();
+
+      // 提示词块列表：buildPrompt 是按 .wtl-block 元素逐个取内容的，
+      // 这块不渲染出来，拼出的 Prompt 长度恒为 0（填表等于把空串发给 AI）
+      this.blockEditor = createBlockEditorController({
+        blockListEl: this.uiRefs.blockListEl,
+        refBlockListEl: this.uiRefs.refBlockListEl,
+        getBlocksPreset,
+        getRefBlocksPreset,
+        saveState: () => this.persistBlockOrder(),
+        refreshPromptPreview: (force) => {
+          Promise.resolve(this.controllers.prompt?.refreshPromptPreview?.(force)).catch(() => {});
+        },
+        // 块的预览、前后缀编辑、自定义内容编辑尚未实现，先占位，避免点击时报 ReferenceError
+        openBlockPreview: () => {},
+        openBlockWrapperEdit: () => {},
+        openBlockEdit: () => {},
+        blockAddEl: this.uiRefs.blockAddBtn,
+        refBlockAddEl: this.uiRefs.refBlockAddBtn
+      });
+      this.blockEditor.renderBlockList(this.readSavedOrder('wtl.blockOrder', getBlocksPreset));
+      this.blockEditor.renderRefBlockList(this.readSavedOrder('wtl.refBlockOrder', getRefBlocksPreset));
 
       // 初始化表格模板双区域编辑器（必须在 presetController 之前创建，以便 presetController 可以引用它）
       this.controllers.schemaEditor = createSchemaEditorController({
@@ -419,6 +444,36 @@ export class MemoryTableFeature {
   /**
    * Apply feature UI state based on feature flags
    */
+  /**
+   * 读回上次保存的块顺序；没有就用预设原样。
+   */
+  readSavedOrder(key, getFallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+      }
+    } catch (e) {
+      console.warn('[WTL MemoryTable] 块顺序读取失败，回落到预设', e);
+    }
+    return typeof getFallback === 'function' ? (getFallback() || []) : (getFallback || []);
+  }
+
+  /**
+   * 把当前块列表的顺序与显示状态存下来（拖拽、隐藏后调用）。
+   */
+  persistBlockOrder() {
+    try {
+      const blocks = serializeBlockOrder(this.uiRefs?.blockListEl);
+      if (blocks?.length) localStorage.setItem('wtl.blockOrder', JSON.stringify(blocks));
+      const refBlocks = serializeBlockOrder(this.uiRefs?.refBlockListEl);
+      if (refBlocks?.length) localStorage.setItem('wtl.refBlockOrder', JSON.stringify(refBlocks));
+    } catch (e) {
+      console.warn('[WTL MemoryTable] 块顺序保存失败', e);
+    }
+  }
+
   applyFeatureUi() {
     this.setEnabled(this.enabled !== false);
   }
@@ -547,6 +602,7 @@ export class MemoryTableFeature {
     this.context = null;
     this.defaults = null;
     this.autoFillService = null;
+    this.blockEditor = null;
     this.controllers = {
       table: null,
       preset: null,
